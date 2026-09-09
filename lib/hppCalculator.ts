@@ -7,7 +7,7 @@ export type HppResult = {
   statusAman: boolean
 }
 
-const THRESHOLD_DEFAULT = 10 // persen
+const THRESHOLD_DEFAULT = 10
 
 export async function calculateHpp(produkId: number, threshold = THRESHOLD_DEFAULT): Promise<HppResult> {
   const produk = await prisma.produk.findUnique({
@@ -16,21 +16,17 @@ export async function calculateHpp(produkId: number, threshold = THRESHOLD_DEFAU
   })
   if (!produk) throw new Error('Produk tidak ditemukan')
 
-  // 1. Total biaya bahan baku sesuai resep
   const biayaBahan = produk.resep.reduce(
     (total, r) => total + r.jumlahDipakai * r.bahanBaku.hargaPerSatuan,
     0
   )
 
   const semuaBiaya = await prisma.biayaOperasional.findMany()
-
-  // 2. Biaya tetap (listrik, sewa, dll) dialokasikan rata ke semua produk aktif
   const totalProdukAktif = await prisma.produk.count()
   const biayaTetap = semuaBiaya
     .filter((b) => b.jenis === 'tetap')
     .reduce((total, b) => total + b.nilai / totalProdukAktif, 0)
 
-  // 3. Komisi ojol/persentase dihitung dari HARGA JUAL, bukan dari HPP
   const persenKomisi = semuaBiaya
     .filter((b) => b.jenis === 'persentase')
     .reduce((total, b) => total + b.nilai, 0)
@@ -57,4 +53,14 @@ export async function recalculateAllAffectedByBahan(bahanBakuId: number): Promis
   for (const produkId of produkIdUnik) {
     await calculateHpp(produkId)
   }
+}
+
+// Untuk dashboard: hitung HPP semua produk sekaligus dalam satu panggilan
+export async function calculateAllHpp(threshold = THRESHOLD_DEFAULT): Promise<HppResult[]> {
+  const semuaProduk = await prisma.produk.findMany({ select: { id: true } })
+  const hasil: HppResult[] = []
+  for (const p of semuaProduk) {
+    hasil.push(await calculateHpp(p.id, threshold))
+  }
+  return hasil
 }
