@@ -1,4 +1,54 @@
-generator client {
+model BahanBaku {
+  id             Int      @id @default(autoincrement())
+  nama           String
+  satuan         String
+  hargaPerSatuan Float
+  updatedAt      DateTime @updatedAt
+  histori        HistoriHarga[]
+  resep          Resep[]
+}
+
+model HistoriHarga {
+  id          Int       @id @default(autoincrement())
+  bahanBakuId Int
+  bahanBaku   BahanBaku @relation(fields: [bahanBakuId], references: [id])
+  hargaLama   Float
+  hargaBaru   Float
+  tanggal     DateTime  @default(now())
+}
+
+model BiayaOperasional {
+  id     Int    @id @default(autoincrement())
+  nama   String
+  jenis  String // "tetap" | "persentase"
+  nilai  Float
+}
+
+model Produk {
+  id        Int      @id @default(autoincrement())
+  nama      String
+  hargaJual Float
+  resep     Resep[]
+  snapshot  HppSnapshot[]
+}
+
+model Resep {
+  produkId    Int
+  bahanBakuId Int
+  jumlahDipakai Float
+  produk      Produk    @relation(fields: [produkId], references: [id])
+  bahanBaku   BahanBaku @relation(fields: [bahanBakuId], references: [id])
+  @@id([produkId, bahanBakuId])
+}
+
+model HppSnapshot {
+  id            Int      @id @default(autoincrement())
+  produkId      Int
+  produk        Produk   @relation(fields: [produkId], references: [id])
+  hppTerhitung  Float
+  marginPersen  Float
+  dihitungPada  DateTime @default(now())
+}generator client {
   provider = "prisma-client"
   output   = "../app/generated/prisma"
 }
