@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
+import { recalculateAllAffectedByBahan } from '@/lib/hppCalculator'
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: idParam } = await params
@@ -20,6 +21,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     where: { id },
     data: { hargaPerSatuan },
   })
+
+  await recalculateAllAffectedByBahan(id)
 
   return NextResponse.json(updated)
 }
