@@ -1,27 +1,8 @@
-import { Button } from "@/components/ui/Button";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { IconBiaya, IconTambah } from "@/components/ui/icons";
+import { HalamanBiayaOperasional } from "@/components/biaya-operasional/HalamanBiayaOperasional";
+import { getBiayaOperasional, getPengaturan } from "@/lib/data";
 
-export default function BiayaOperasionalPage() {
-  return (
-    <>
-      <PageHeader
-        label="Kelola usaha"
-        judul="Biaya operasional"
-        subjudul="Masukkan biaya yang sering luput dari perhitungan."
-        aksi={
-          <Button varian="primary">
-            <IconTambah width={16} height={16} />
-            Tambah biaya
-          </Button>
-        }
-      />
-      <EmptyState
-        ikon={<IconBiaya />}
-        judul="Alokasi biaya tetap menyusul"
-        deskripsi="Card alokasi biaya tetap per porsi, tabel daftar biaya, dan form tambah biaya dibangun di iterasi berikutnya."
-      />
-    </>
-  );
+export default async function BiayaOperasionalPage() {
+  const [biaya, pengaturan] = await Promise.all([getBiayaOperasional(), getPengaturan()]);
+
+  return <HalamanBiayaOperasional biayaAwal={biaya} pengaturanAwal={pengaturan} />;
 }
