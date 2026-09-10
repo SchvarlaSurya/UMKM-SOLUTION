@@ -1,52 +1,74 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
+import { validasiResep } from '@/lib/validasiResep'
+import {
+  errorResponse,
+  handleError,
+  isAngkaPositif,
+  isTeksTerisi,
+  readJsonBody,
+  unauthorizedResponse,
+} from '@/lib/apiHelpers'
 
 export async function GET() {
-  const auth = await requireAuth()
-  if (!auth.authorized) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const auth = await requireAuth()
+    if (!auth.authorized) return unauthorizedResponse()
+
+    const data = await prisma.produk.findMany({
+      include: { resep: { include: { bahanBaku: true } } },
+      orderBy: { nama: 'asc' },
+    })
+    return NextResponse.json(data)
+  } catch (error) {
+    return handleError(error, 'Gagal mengambil daftar produk')
   }
-  const data = await prisma.produk.findMany({
-    include: { resep: { include: { bahanBaku: true } } },
-    orderBy: { nama: 'asc' },
-  })
-  return NextResponse.json(data)
 }
 
 export async function POST(req: Request) {
-  const auth = await requireAuth()
-  if (!auth.authorized) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-  const { nama, kategori, hargaJual, resep } = await req.json()
+  try {
+    const auth = await requireAuth()
+    if (!auth.authorized) return unauthorizedResponse()
 
-  if (!nama || hargaJual == null || hargaJual <= 0) {
-    return NextResponse.json({ error: 'Nama dan harga jual wajib diisi dengan benar' }, { status: 400 })
-  }
-  if (!Array.isArray(resep) || resep.length === 0) {
-    return NextResponse.json({ error: 'Produk harus punya minimal 1 bahan baku di resep' }, { status: 400 })
-  }
-  for (const r of resep) {
-    if (!r.bahanBakuId || !r.jumlahDipakai || r.jumlahDipakai <= 0) {
-      return NextResponse.json({ error: 'Setiap resep wajib punya bahanBakuId dan jumlahDipakai valid' }, { status: 400 })
+    const parsed = await readJsonBody(req)
+    if (!parsed.ok) return errorResponse('Body request harus JSON yang valid', 400)
+    const { nama, kategori, hargaJual, resep } = parsed.body
+
+    if (!isTeksTerisi(nama)) return errorResponse('Nama produk wajib diisi', 400)
+    if (!isAngkaPositif(hargaJual)) {
+      return errorResponse('Harga jual harus angka lebih dari 0', 400)
     }
-  }
+    if (kategori !== undefined && kategori !== null && !isTeksTerisi(kategori)) {
+      return errorResponse('Kategori tidak boleh kosong', 400)
+    }
 
-  const produk = await prisma.produk.create({
-    data: {
-      nama,
-      kategori: kategori || 'Umum',
-      hargaJual,
-      resep: {
-        create: resep.map((r: { bahanBakuId: number; jumlahDipakai: number }) => ({
-          bahanBakuId: r.bahanBakuId,
-          jumlahDipakai: r.jumlahDipakai,
-        })),
+    const cekResep = validasiResep(resep)
+    if (!cekResep.ok) return errorResponse(cekResep.error, 400)
+
+    const bahanAda = await prisma.bahanBaku.findMany({
+      where: { id: { in: cekResep.data.map((r) => r.bahanBakuId) } },
+      select: { id: true },
+    })
+    const idHilang = cekResep.data
+      .map((r) => r.bahanBakuId)
+      .filter((id) => !bahanAda.some((b) => b.id === id))
+    if (idHilang.length > 0) {
+      return errorResponse(`Bahan baku tidak ditemukan: id ${idHilang.join(', ')}`, 400)
+    }
+
+    const produk = await prisma.produk.create({
+      data: {
+        nama: nama.trim(),
+        kategori: isTeksTerisi(kategori) ? kategori.trim() : 'Umum',
+        hargaJual,
+        resep: { create: cekResep.data },
       },
-    },
-    include: { resep: { include: { bahanBaku: true } } },
-  })
+      include: { resep: { include: { bahanBaku: true } } },
+    })
 
-  return NextResponse.json(produk)
+    return NextResponse.json(produk, { status: 201 })
+  } catch (error) {
+    return handleError(error, 'Gagal menambah produk')
+  }
 }

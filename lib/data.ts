@@ -39,8 +39,9 @@ export async function getPengaturan(): Promise<Pengaturan> {
 }
 
 /**
- * Belum ada endpoint GET histori harga di backend (model HistoriHarga sudah
- * ada, route-nya belum). Sementara memakai data mock.
+ * Endpoint asli sudah tersedia: `GET /api/bahan-baku/[id]/histori`
+ * (lihat `HistoriHargaResponse` di lib/types.ts, sudah termasuk `delta` dan
+ * `trenNaik`). Di sini masih mock sampai Person B/C menyambungkannya.
  */
 export async function getHistoriHarga(bahanBakuId: number): Promise<HistoriHarga[]> {
   return historiHargaMock.filter((h) => h.bahanBakuId === bahanBakuId);

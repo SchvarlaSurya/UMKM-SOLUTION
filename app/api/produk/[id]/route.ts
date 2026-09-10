@@ -1,54 +1,130 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
+import { validasiResep } from '@/lib/validasiResep'
+import {
+  errorResponse,
+  handleError,
+  isAngkaPositif,
+  isTeksTerisi,
+  parseId,
+  readJsonBody,
+  unauthorizedResponse,
+} from '@/lib/apiHelpers'
+
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const auth = await requireAuth()
+    if (!auth.authorized) return unauthorizedResponse()
+
+    const { id: idParam } = await params
+    const id = parseId(idParam)
+    if (id === null) return errorResponse('ID produk tidak valid', 400)
+
+    const produk = await prisma.produk.findUnique({
+      where: { id },
+      include: { resep: { include: { bahanBaku: true } } },
+    })
+    if (!produk) return errorResponse('Produk tidak ditemukan', 404)
+
+    return NextResponse.json(produk)
+  } catch (error) {
+    return handleError(error, 'Gagal mengambil produk')
+  }
+}
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth()
-  if (!auth.authorized) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-  const { id: idParam } = await params
-  const id = Number(idParam)
-  const { nama, kategori, hargaJual, resep } = await req.json()
+  try {
+    const auth = await requireAuth()
+    if (!auth.authorized) return unauthorizedResponse()
 
-  if (!nama || hargaJual == null || hargaJual <= 0) {
-    return NextResponse.json({ error: 'Nama dan harga jual wajib diisi dengan benar' }, { status: 400 })
-  }
+    const { id: idParam } = await params
+    const id = parseId(idParam)
+    if (id === null) return errorResponse('ID produk tidak valid', 400)
 
-  const existing = await prisma.produk.findUnique({ where: { id } })
-  if (!existing) return NextResponse.json({ error: 'Produk tidak ditemukan' }, { status: 404 })
+    const parsed = await readJsonBody(req)
+    if (!parsed.ok) return errorResponse('Body request harus JSON yang valid', 400)
+    const { nama, kategori, hargaJual, resep } = parsed.body
 
-  if (Array.isArray(resep) && resep.length > 0) {
-    await prisma.resep.deleteMany({ where: { produkId: id } })
-    await prisma.resep.createMany({
-      data: resep.map((r: { bahanBakuId: number; jumlahDipakai: number }) => ({
-        produkId: id,
-        bahanBakuId: r.bahanBakuId,
-        jumlahDipakai: r.jumlahDipakai,
-      })),
+    if (!isTeksTerisi(nama)) return errorResponse('Nama produk wajib diisi', 400)
+    if (!isAngkaPositif(hargaJual)) {
+      return errorResponse('Harga jual harus angka lebih dari 0', 400)
+    }
+    if (kategori !== undefined && kategori !== null && !isTeksTerisi(kategori)) {
+      return errorResponse('Kategori tidak boleh kosong', 400)
+    }
+
+    const existing = await prisma.produk.findUnique({ where: { id } })
+    if (!existing) return errorResponse('Produk tidak ditemukan', 404)
+
+    // `resep` opsional: kalau tidak dikirim, resep lama dibiarkan apa adanya.
+    // Kalau dikirim, aturannya sama ketat dengan POST.
+    let resepBaru: { bahanBakuId: number; jumlahDipakai: number }[] | null = null
+    if (resep !== undefined) {
+      const cekResep = validasiResep(resep)
+      if (!cekResep.ok) return errorResponse(cekResep.error, 400)
+
+      const bahanAda = await prisma.bahanBaku.findMany({
+        where: { id: { in: cekResep.data.map((r) => r.bahanBakuId) } },
+        select: { id: true },
+      })
+      const idHilang = cekResep.data
+        .map((r) => r.bahanBakuId)
+        .filter((bahanId) => !bahanAda.some((b) => b.id === bahanId))
+      if (idHilang.length > 0) {
+        return errorResponse(`Bahan baku tidak ditemukan: id ${idHilang.join(', ')}`, 400)
+      }
+
+      resepBaru = cekResep.data
+    }
+
+    // Ganti resep dan update produk dalam satu transaksi, supaya produk tidak
+    // pernah tertinggal dalam keadaan resepnya sudah terhapus tapi belum diisi.
+    const updated = await prisma.$transaction(async (tx) => {
+      if (resepBaru !== null) {
+        await tx.resep.deleteMany({ where: { produkId: id } })
+        await tx.resep.createMany({
+          data: resepBaru.map((r) => ({ produkId: id, ...r })),
+        })
+      }
+      return tx.produk.update({
+        where: { id },
+        data: {
+          nama: nama.trim(),
+          kategori: isTeksTerisi(kategori) ? kategori.trim() : existing.kategori,
+          hargaJual,
+        },
+        include: { resep: { include: { bahanBaku: true } } },
+      })
     })
+
+    return NextResponse.json(updated)
+  } catch (error) {
+    return handleError(error, 'Gagal mengubah produk')
   }
-
-  const updated = await prisma.produk.update({
-    where: { id },
-    data: { nama, kategori: kategori || existing.kategori, hargaJual },
-    include: { resep: { include: { bahanBaku: true } } },
-  })
-
-  return NextResponse.json(updated)
 }
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth()
-  if (!auth.authorized) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const auth = await requireAuth()
+    if (!auth.authorized) return unauthorizedResponse()
+
+    const { id: idParam } = await params
+    const id = parseId(idParam)
+    if (id === null) return errorResponse('ID produk tidak valid', 400)
+
+    const existing = await prisma.produk.findUnique({ where: { id } })
+    if (!existing) return errorResponse('Produk tidak ditemukan', 404)
+
+    // Schema belum pakai onDelete cascade, jadi relasi dihapus manual dulu.
+    await prisma.$transaction([
+      prisma.resep.deleteMany({ where: { produkId: id } }),
+      prisma.hppSnapshot.deleteMany({ where: { produkId: id } }),
+      prisma.produk.delete({ where: { id } }),
+    ])
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return handleError(error, 'Gagal menghapus produk')
   }
-  const { id: idParam } = await params
-  const id = Number(idParam)
-
-  await prisma.resep.deleteMany({ where: { produkId: id } })
-  await prisma.hppSnapshot.deleteMany({ where: { produkId: id } })
-  await prisma.produk.delete({ where: { id } })
-
-  return NextResponse.json({ success: true })
 }

@@ -1,41 +1,59 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
+import { errorResponse, handleError, readJsonBody, unauthorizedResponse } from '@/lib/apiHelpers'
 
-// Pengaturan bersifat singleton ? selalu ambil/buat baris pertama.
+// Pengaturan bersifat singleton: selalu ambil/buat baris pertama.
 async function getOrCreatePengaturan() {
-  let pengaturan = await prisma.pengaturan.findFirst()
-  if (!pengaturan) {
-    pengaturan = await prisma.pengaturan.create({ data: {} })
-  }
-  return pengaturan
+  const pengaturan = await prisma.pengaturan.findFirst()
+  if (pengaturan) return pengaturan
+  return prisma.pengaturan.create({ data: {} })
 }
 
 export async function GET() {
-  const auth = await requireAuth()
-  if (!auth.authorized) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const auth = await requireAuth()
+    if (!auth.authorized) return unauthorizedResponse()
+
+    const pengaturan = await getOrCreatePengaturan()
+    return NextResponse.json(pengaturan)
+  } catch (error) {
+    return handleError(error, 'Gagal mengambil pengaturan')
   }
-  const pengaturan = await getOrCreatePengaturan()
-  return NextResponse.json(pengaturan)
 }
 
 export async function PUT(req: Request) {
-  const auth = await requireAuth()
-  if (!auth.authorized) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const auth = await requireAuth()
+    if (!auth.authorized) return unauthorizedResponse()
+
+    const parsed = await readJsonBody(req)
+    if (!parsed.ok) return errorResponse('Body request harus JSON yang valid', 400)
+    const { estimasiPorsiPerBulan, batasMarginAman } = parsed.body
+
+    if (
+      typeof estimasiPorsiPerBulan !== 'number' ||
+      !Number.isSafeInteger(estimasiPorsiPerBulan) ||
+      estimasiPorsiPerBulan <= 0
+    ) {
+      return errorResponse('Estimasi porsi per bulan harus bilangan bulat lebih dari 0', 400)
+    }
+    if (
+      typeof batasMarginAman !== 'number' ||
+      !Number.isFinite(batasMarginAman) ||
+      batasMarginAman < 0 ||
+      batasMarginAman > 100
+    ) {
+      return errorResponse('Batas margin aman harus angka antara 0 dan 100', 400)
+    }
+
+    const existing = await getOrCreatePengaturan()
+    const updated = await prisma.pengaturan.update({
+      where: { id: existing.id },
+      data: { estimasiPorsiPerBulan, batasMarginAman },
+    })
+    return NextResponse.json(updated)
+  } catch (error) {
+    return handleError(error, 'Gagal mengubah pengaturan')
   }
-  const { estimasiPorsiPerBulan, batasMarginAman } = await req.json()
-  if (estimasiPorsiPerBulan == null || estimasiPorsiPerBulan <= 0) {
-    return NextResponse.json({ error: 'Estimasi porsi per bulan tidak valid' }, { status: 400 })
-  }
-  if (batasMarginAman == null || batasMarginAman < 0) {
-    return NextResponse.json({ error: 'Batas margin aman tidak valid' }, { status: 400 })
-  }
-  const existing = await getOrCreatePengaturan()
-  const updated = await prisma.pengaturan.update({
-    where: { id: existing.id },
-    data: { estimasiPorsiPerBulan, batasMarginAman },
-  })
-  return NextResponse.json(updated)
 }
