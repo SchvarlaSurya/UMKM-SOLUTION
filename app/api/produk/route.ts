@@ -1,14 +1,12 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
-
-// Body yang diharapkan:
-// {
-//   nama: string,
-//   hargaJual: number,
-//   resep: [{ bahanBakuId: number, jumlahDipakai: number }, ...]
-// }
+import { requireAuth } from '@/lib/auth'
 
 export async function GET() {
+  const auth = await requireAuth()
+  if (!auth.authorized) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const data = await prisma.produk.findMany({
     include: { resep: { include: { bahanBaku: true } } },
     orderBy: { nama: 'asc' },
@@ -17,6 +15,10 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireAuth()
+  if (!auth.authorized) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const { nama, hargaJual, resep } = await req.json()
 
   if (!nama || hargaJual == null || hargaJual <= 0) {
