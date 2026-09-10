@@ -33,7 +33,7 @@ export function Sidebar({
           <span className="flex size-8 items-center justify-center rounded-card bg-primary text-primary-foreground">
             <IconBenih width={18} height={18} />
           </span>
-          <span className="text-sm font-semibold tracking-tight">
+          <span className="text-base font-semibold tracking-tight">
             ruang<span className="text-primary">margin</span>
           </span>
         </Link>

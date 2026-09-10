@@ -5,7 +5,7 @@ import {
   pengaturanMock,
   produkMock,
 } from "@/lib/mock/data";
-import { turunkanHpp } from "@/lib/mock/hpp";
+import { biayaTetapPerPorsi, rincianHpp, turunkanHpp, type RincianHpp } from "@/lib/mock/hpp";
 import type {
   BahanBaku,
   BiayaOperasional,
@@ -57,6 +57,69 @@ export async function getProdukDenganHpp(): Promise<ProdukDenganHpp[]> {
     getPengaturan(),
   ]);
   return turunkanHpp(produk, biaya, pengaturan);
+}
+
+/** Rincian pembentuk HPP per produk, dipakai modal "Rincian HPP". */
+export async function getRincianHppSemua(): Promise<Record<number, RincianHpp>> {
+  const [produk, biaya, pengaturan] = await Promise.all([
+    getProduk(),
+    getBiayaOperasional(),
+    getPengaturan(),
+  ]);
+  return Object.fromEntries(
+    produk.map((p) => [p.id, rincianHpp(p, biaya, pengaturan)]),
+  );
+}
+
+export type RingkasanDashboard = {
+  totalProduk: number;
+  rataMargin: number;
+  perluPerhatian: number;
+  namaPerluPerhatian: string[];
+  batasMarginAman: number;
+  biayaTetapPerPorsi: number;
+};
+
+/** Angka untuk empat summary card dan alert banner di dashboard. */
+export async function getRingkasanDashboard(): Promise<RingkasanDashboard> {
+  const [daftar, biaya, pengaturan] = await Promise.all([
+    getProdukDenganHpp(),
+    getBiayaOperasional(),
+    getPengaturan(),
+  ]);
+
+  const bermasalah = daftar.filter((p) => !p.statusAman);
+  const rataMargin =
+    daftar.length === 0
+      ? 0
+      : daftar.reduce((total, p) => total + p.marginPersen, 0) / daftar.length;
+
+  return {
+    totalProduk: daftar.length,
+    rataMargin,
+    perluPerhatian: bermasalah.length,
+    namaPerluPerhatian: bermasalah.map((p) => p.nama),
+    batasMarginAman: pengaturan.batasMarginAman,
+    biayaTetapPerPorsi: biayaTetapPerPorsi(biaya, pengaturan),
+  };
+}
+
+export type TitikHarga = { tanggal: string; harga: number };
+
+/** Deret harga sebuah bahan untuk grafik (titik pertama = harga sebelum perubahan). */
+export async function getDeretHarga(bahanBakuId: number): Promise<TitikHarga[]> {
+  const histori = await getHistoriHarga(bahanBakuId);
+  const urut = [...histori].sort(
+    (a, b) => new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime(),
+  );
+  return urut.map((h) => ({ tanggal: h.tanggal, harga: h.hargaBaru }));
+}
+
+/** Bahan baku yang punya catatan histori harga (isi dropdown widget & tren). */
+export async function getBahanBerhistori(): Promise<BahanBaku[]> {
+  const bahan = await getBahanBaku();
+  const punyaHistori = new Set(historiHargaMock.map((h) => h.bahanBakuId));
+  return bahan.filter((b) => punyaHistori.has(b.id));
 }
 
 /** Jumlah produk yang memakai sebuah bahan baku (kolom "Dipakai di"). */

@@ -1,9 +1,33 @@
+import { WidgetHargaBahan } from "@/components/charts/WidgetHargaBahan";
+import { AlertMargin } from "@/components/dashboard/AlertMargin";
+import { PanelCatatanMargin } from "@/components/dashboard/PanelCatatanMargin";
+import { RingkasanCards } from "@/components/dashboard/RingkasanCards";
+import { TabelMargin } from "@/components/dashboard/TabelMargin";
 import { Button } from "@/components/ui/Button";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { IconDashboard, IconTambah } from "@/components/ui/icons";
+import { IconTambah } from "@/components/ui/icons";
+import {
+  getBahanBerhistori,
+  getDeretHarga,
+  getProdukDenganHpp,
+  getRincianHppSemua,
+  getRingkasanDashboard,
+  type TitikHarga,
+} from "@/lib/data";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const [produk, rincian, ringkasan, bahanBerhistori] = await Promise.all([
+    getProdukDenganHpp(),
+    getRincianHppSemua(),
+    getRingkasanDashboard(),
+    getBahanBerhistori(),
+  ]);
+
+  const deretPerBahan = await Promise.all(
+    bahanBerhistori.map(async (b) => [b.id, await getDeretHarga(b.id)] as const),
+  );
+  const deret: Record<number, TitikHarga[]> = Object.fromEntries(deretPerBahan);
+
   return (
     <>
       <PageHeader
@@ -17,11 +41,24 @@ export default function DashboardPage() {
           </Button>
         }
       />
-      <EmptyState
-        ikon={<IconDashboard />}
-        judul="Isi dashboard menyusul"
-        deskripsi="Summary card, alert banner, tabel margin produk, widget pergerakan harga bahan, dan panel catatan margin dibangun di iterasi berikutnya."
+
+      <RingkasanCards ringkasan={ringkasan} />
+
+      <AlertMargin
+        namaProduk={ringkasan.namaPerluPerhatian}
+        batasMargin={ringkasan.batasMarginAman}
       />
+
+      <TabelMargin produk={produk} rincian={rincian} />
+
+      <div className="grid gap-4 lg:grid-cols-5">
+        <div className="lg:col-span-3">
+          <WidgetHargaBahan bahan={bahanBerhistori} deret={deret} />
+        </div>
+        <div className="lg:col-span-2">
+          <PanelCatatanMargin biayaTetapPerPorsi={ringkasan.biayaTetapPerPorsi} />
+        </div>
+      </div>
     </>
   );
 }
