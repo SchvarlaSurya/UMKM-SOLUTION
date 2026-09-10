@@ -6,6 +6,7 @@ import {
   produkMock,
 } from "@/lib/mock/data";
 import { biayaTetapPerPorsi, rincianHpp, turunkanHpp, type RincianHpp } from "@/lib/mock/hpp";
+import { analyzePriceTrend, type TrendResult } from "@/lib/trendAnalyzer";
 import type {
   BahanBaku,
   BiayaOperasional,
@@ -120,6 +121,24 @@ export async function getBahanBerhistori(): Promise<BahanBaku[]> {
   const bahan = await getBahanBaku();
   const punyaHistori = new Set(historiHargaMock.map((h) => h.bahanBakuId));
   return bahan.filter((b) => punyaHistori.has(b.id));
+}
+
+/**
+ * Status tren harga sebuah bahan menurut tiga perubahan terakhir.
+ * Memakai analyzePriceTrend dari lib/trendAnalyzer.ts (milik Person C).
+ */
+export async function getStatusTren(bahanBakuId: number): Promise<TrendResult> {
+  const histori = await getHistoriHarga(bahanBakuId);
+  return analyzePriceTrend(
+    bahanBakuId,
+    histori.map((h) => ({
+      id: h.id,
+      bahanBakuId: h.bahanBakuId,
+      hargaLama: h.hargaLama,
+      hargaBaru: h.hargaBaru,
+      tanggal: new Date(h.tanggal),
+    })),
+  );
 }
 
 /** Jumlah produk yang memakai sebuah bahan baku (kolom "Dipakai di"). */
