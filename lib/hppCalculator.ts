@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { biayaBahanProduk, hitungHpp, komponenBiaya } from '@/lib/hpp'
 
 export type HppResult = {
   produkId: number
@@ -46,29 +47,18 @@ export async function calculateHpp(
   const pengaturan = await getPengaturan()
   const threshold = thresholdOverride ?? pengaturan.batasMarginAman
 
-  // 1. Total biaya bahan baku sesuai resep
-  const biayaBahan = produk.resep.reduce(
-    (total, r) => total + r.jumlahDipakai * r.bahanBaku.hargaPerSatuan,
-    0
-  )
-
   const semuaBiaya = await prisma.biayaOperasional.findMany()
 
-  // 2. Biaya tetap dialokasikan berdasarkan estimasi porsi terjual per bulan
-  //    (bukan dibagi jumlah produk aktif, ini metode yang lebih realistis)
-  const totalBiayaTetapPerBulan = semuaBiaya
-    .filter((b) => b.jenis === 'tetap')
-    .reduce((total, b) => total + b.nilai, 0)
-  const biayaTetap = totalBiayaTetapPerBulan / pengaturan.estimasiPorsiPerBulan
-
-  // 3. Komisi/persentase dihitung dari HARGA JUAL, bukan dari HPP
-  const persenKomisi = semuaBiaya
-    .filter((b) => b.jenis === 'persentase')
-    .reduce((total, b) => total + b.nilai, 0)
-
-  const hppTerhitung = biayaBahan + biayaTetap
-  const potonganKomisi = produk.hargaJual * (persenKomisi / 100)
-  const marginPersen = ((produk.hargaJual - hppTerhitung - potonganKomisi) / produk.hargaJual) * 100
+  // Rumusnya sendiri ada di lib/hpp.ts supaya halaman bisa memakai perhitungan
+  // yang sama tanpa memanggil fungsi ini sekali per produk:
+  // biaya tetap dibagi estimasi porsi per bulan, komisi persentase dipotong
+  // dari HARGA JUAL (bukan dari HPP).
+  const { hppTerhitung, marginPersen } = hitungHpp(
+    biayaBahanProduk(produk),
+    produk.hargaJual,
+    komponenBiaya(semuaBiaya, pengaturan),
+    threshold
+  )
 
   if (simpanSnapshot) {
     await prisma.hppSnapshot.create({

@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Tabs } from "@/components/ui/Tabs";
 import { IconCari, IconProduk, IconTambah } from "@/components/ui/icons";
 import type { BahanBaku, BiayaOperasional, Pengaturan, Produk, ProdukDenganHpp } from "@/lib/types";
-import { turunkanHpp } from "@/lib/mock/hpp";
+import { turunkanHpp } from "@/lib/hpp";
 import { KartuProduk } from "./KartuProduk";
 import { ModalProduk, type NilaiFormProduk } from "./ModalProduk";
 

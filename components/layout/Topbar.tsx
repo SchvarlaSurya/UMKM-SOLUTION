@@ -2,7 +2,6 @@
 
 import { useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { IconChevronKanan, IconMenu } from "@/components/ui/icons";
 import { formatTanggal, inisial } from "@/lib/format";
@@ -53,9 +52,6 @@ export function Topbar({
       </div>
 
       <div className="flex items-center gap-3">
-        <Badge varian="neutral" className="hidden sm:inline-flex">
-          Data demo
-        </Badge>
         <span className="hidden min-w-28 text-right text-xs text-muted-foreground md:inline">
           {tanggal}
         </span>

@@ -9,6 +9,7 @@ export type ProfilUsaha = {
   kategoriUsaha: string;
   namaPemilik: string;
   peran: string;
+  email?: string;
 };
 
 export function AppShell({
@@ -52,7 +53,7 @@ export function AppShell({
         <footer className="border-t border-border px-4 py-4 text-xs text-muted-foreground sm:px-6 lg:px-8">
           <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-2">
             <span>ruangmargin · Setiap porsi, terhitung.</span>
-            <span>Data demo · belum tersambung ke basis data</span>
+            <span>HPP dihitung ulang setiap harga bahan berubah</span>
           </div>
         </footer>
       </div>
