@@ -1,31 +1,13 @@
-import { Banner } from "@/components/ui/Banner";
-import { Button } from "@/components/ui/Button";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { IconBahan, IconTambah } from "@/components/ui/icons";
+import { HalamanBahanBaku } from "@/components/bahan-baku/HalamanBahanBaku";
+import { getBahanBaku, getPemakaianBahan } from "@/lib/data";
 
-export default function BahanBakuPage() {
+export default async function BahanBakuPage() {
+  const [bahan, pemakaian] = await Promise.all([getBahanBaku(), getPemakaianBahan()]);
+
   return (
-    <>
-      <PageHeader
-        label="Kelola usaha"
-        judul="Bahan baku"
-        subjudul="Satu harga diperbarui, semua resep terkait ikut terhitung."
-        aksi={
-          <Button varian="primary">
-            <IconTambah width={16} height={16} />
-            Tambah bahan
-          </Button>
-        }
-      />
-      <Banner varian="info">
-        Perubahan harga akan menghitung ulang HPP seluruh produk terkait.
-      </Banner>
-      <EmptyState
-        ikon={<IconBahan />}
-        judul="Tabel bahan baku menyusul"
-        deskripsi="Daftar bahan, kolom pemakaian per produk, dan form edit harga dibangun di iterasi berikutnya."
-      />
-    </>
+    <HalamanBahanBaku
+      bahanAwal={bahan}
+      pemakaian={Object.fromEntries(pemakaian)}
+    />
   );
 }
