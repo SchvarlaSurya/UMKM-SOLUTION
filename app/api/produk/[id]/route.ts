@@ -9,7 +9,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   }
   const { id: idParam } = await params
   const id = Number(idParam)
-  const { nama, hargaJual, resep } = await req.json()
+  const { nama, kategori, hargaJual, resep } = await req.json()
 
   if (!nama || hargaJual == null || hargaJual <= 0) {
     return NextResponse.json({ error: 'Nama dan harga jual wajib diisi dengan benar' }, { status: 400 })
@@ -31,7 +31,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const updated = await prisma.produk.update({
     where: { id },
-    data: { nama, hargaJual },
+    data: { nama, kategori: kategori || existing.kategori, hargaJual },
     include: { resep: { include: { bahanBaku: true } } },
   })
 
