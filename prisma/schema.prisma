@@ -15,6 +15,12 @@ model User {
   createdAt DateTime @default(now())
 }
 
+model Pengaturan {
+  id                    Int   @id @default(autoincrement())
+  estimasiPorsiPerBulan Int   @default(1200)
+  batasMarginAman       Float @default(10)
+}
+
 model BahanBaku {
   id             Int            @id @default(autoincrement())
   nama           String
@@ -44,6 +50,7 @@ model BiayaOperasional {
 model Produk {
   id        Int           @id @default(autoincrement())
   nama      String
+  kategori  String        @default("Umum")
   hargaJual Float
   resep     Resep[]
   snapshot  HppSnapshot[]

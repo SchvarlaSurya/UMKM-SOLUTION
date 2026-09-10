@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   if (!auth.authorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  const { nama, hargaJual, resep } = await req.json()
+  const { nama, kategori, hargaJual, resep } = await req.json()
 
   if (!nama || hargaJual == null || hargaJual <= 0) {
     return NextResponse.json({ error: 'Nama dan harga jual wajib diisi dengan benar' }, { status: 400 })
@@ -36,6 +36,7 @@ export async function POST(req: Request) {
   const produk = await prisma.produk.create({
     data: {
       nama,
+      kategori: kategori || 'Umum',
       hargaJual,
       resep: {
         create: resep.map((r: { bahanBakuId: number; jumlahDipakai: number }) => ({

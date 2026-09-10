@@ -7,26 +7,40 @@ export type HppResult = {
   statusAman: boolean
 }
 
-const THRESHOLD_DEFAULT = 10
+async function getPengaturan() {
+  let pengaturan = await prisma.pengaturan.findFirst()
+  if (!pengaturan) {
+    pengaturan = await prisma.pengaturan.create({ data: {} })
+  }
+  return pengaturan
+}
 
-export async function calculateHpp(produkId: number, threshold = THRESHOLD_DEFAULT): Promise<HppResult> {
+export async function calculateHpp(produkId: number, thresholdOverride?: number): Promise<HppResult> {
   const produk = await prisma.produk.findUnique({
     where: { id: produkId },
     include: { resep: { include: { bahanBaku: true } } },
   })
   if (!produk) throw new Error('Produk tidak ditemukan')
 
+  const pengaturan = await getPengaturan()
+  const threshold = thresholdOverride ?? pengaturan.batasMarginAman
+
+  // 1. Total biaya bahan baku sesuai resep
   const biayaBahan = produk.resep.reduce(
     (total, r) => total + r.jumlahDipakai * r.bahanBaku.hargaPerSatuan,
     0
   )
 
   const semuaBiaya = await prisma.biayaOperasional.findMany()
-  const totalProdukAktif = await prisma.produk.count()
-  const biayaTetap = semuaBiaya
-    .filter((b) => b.jenis === 'tetap')
-    .reduce((total, b) => total + b.nilai / totalProdukAktif, 0)
 
+  // 2. Biaya tetap dialokasikan berdasarkan estimasi porsi terjual per bulan
+  //    (bukan dibagi jumlah produk aktif ? ini metode yang lebih realistis)
+  const totalBiayaTetapPerBulan = semuaBiaya
+    .filter((b) => b.jenis === 'tetap')
+    .reduce((total, b) => total + b.nilai, 0)
+  const biayaTetap = totalBiayaTetapPerBulan / pengaturan.estimasiPorsiPerBulan
+
+  // 3. Komisi/persentase dihitung dari HARGA JUAL, bukan dari HPP
   const persenKomisi = semuaBiaya
     .filter((b) => b.jenis === 'persentase')
     .reduce((total, b) => total + b.nilai, 0)
@@ -55,12 +69,11 @@ export async function recalculateAllAffectedByBahan(bahanBakuId: number): Promis
   }
 }
 
-// Untuk dashboard: hitung HPP semua produk sekaligus dalam satu panggilan
-export async function calculateAllHpp(threshold = THRESHOLD_DEFAULT): Promise<HppResult[]> {
+export async function calculateAllHpp(thresholdOverride?: number): Promise<HppResult[]> {
   const semuaProduk = await prisma.produk.findMany({ select: { id: true } })
   const hasil: HppResult[] = []
   for (const p of semuaProduk) {
-    hasil.push(await calculateHpp(p.id, threshold))
+    hasil.push(await calculateHpp(p.id, thresholdOverride))
   }
   return hasil
 }
