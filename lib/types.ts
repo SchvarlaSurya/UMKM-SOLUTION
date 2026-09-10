@@ -54,7 +54,21 @@ export type HistoriHarga = {
   bahanBakuId: number;
   hargaLama: number;
   hargaBaru: number;
+  /** Sudah dihitung backend: `hargaBaru - hargaLama`. Negatif berarti harga turun. */
+  delta: number;
   tanggal: string;
+};
+
+export type StatusTren = "tren_naik" | "bukan_tren_naik" | "data_belum_cukup";
+
+/** Response `GET /api/bahan-baku/[id]/histori`. Histori urut tanggal naik. */
+export type HistoriHargaResponse = {
+  bahanBaku: Pick<BahanBaku, "id" | "nama" | "satuan" | "hargaPerSatuan">;
+  histori: HistoriHarga[];
+  trenNaik: boolean;
+  statusTren: StatusTren;
+  /** Berapa perubahan terakhir yang dipakai untuk menilai tren (maksimal 3). */
+  jumlahPerubahanDiperiksa: number;
 };
 
 /** Baris tabel dashboard: produk digabung hasil perhitungan HPP-nya. */

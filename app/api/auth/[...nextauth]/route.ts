@@ -13,7 +13,10 @@ const handler = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
-        const user = await prisma.user.findUnique({ where: { email: credentials.email } })
+        // POST /api/register menyimpan email dalam huruf kecil, jadi lookup
+        // di sini harus dinormalisasi sama supaya login tidak gagal.
+        const email = credentials.email.trim().toLowerCase()
+        const user = await prisma.user.findUnique({ where: { email } })
         if (!user) return null
         const valid = await bcrypt.compare(credentials.password, user.password)
         if (!valid) return null

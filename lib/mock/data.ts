@@ -119,7 +119,7 @@ export const pengaturanMock: Pengaturan = {
 };
 
 /** Histori harga 30 hari terakhir (widget dashboard & halaman tren). */
-export const historiHargaMock: HistoriHarga[] = [
+const historiHargaDasar: Omit<HistoriHarga, "delta">[] = [
   // Cabai rawit — naik terus
   { id: 1, bahanBakuId: 4, hargaLama: 57000, hargaBaru: 57000, tanggal: "2026-08-10T00:00:00.000Z" },
   { id: 2, bahanBakuId: 4, hargaLama: 57000, hargaBaru: 58500, tanggal: "2026-08-16T00:00:00.000Z" },
@@ -139,3 +139,9 @@ export const historiHargaMock: HistoriHarga[] = [
   { id: 12, bahanBakuId: 3, hargaLama: 19500, hargaBaru: 20000, tanggal: "2026-08-24T00:00:00.000Z" },
   { id: 13, bahanBakuId: 3, hargaLama: 20000, hargaBaru: 20000, tanggal: "2026-09-05T00:00:00.000Z" },
 ];
+
+/** `delta` ditambahkan di sini supaya bentuknya sama dengan response API asli. */
+export const historiHargaMock: HistoriHarga[] = historiHargaDasar.map((h) => ({
+  ...h,
+  delta: h.hargaBaru - h.hargaLama,
+}));

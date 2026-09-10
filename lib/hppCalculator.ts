@@ -7,15 +7,36 @@ export type HppResult = {
   statusAman: boolean
 }
 
-async function getPengaturan() {
-  let pengaturan = await prisma.pengaturan.findFirst()
-  if (!pengaturan) {
-    pengaturan = await prisma.pengaturan.create({ data: {} })
-  }
-  return pengaturan
+export type CalculateHppOptions = {
+  /** Override `batasMarginAman` dari tabel Pengaturan. */
+  thresholdOverride?: number
+  /**
+   * Tulis hasil ke tabel `HppSnapshot`. Default `false` supaya endpoint GET
+   * tetap read-only. Hanya `recalculateAllAffectedByBahan()` yang menyalakan
+   * ini, karena di situ memang ada perubahan nyata (harga bahan berubah).
+   */
+  simpanSnapshot?: boolean
 }
 
-export async function calculateHpp(produkId: number, thresholdOverride?: number): Promise<HppResult> {
+/** Default harus sama dengan `@default` di prisma/schema.prisma model Pengaturan. */
+const PENGATURAN_DEFAULT = { estimasiPorsiPerBulan: 1200, batasMarginAman: 10 }
+
+/**
+ * Baca saja, jangan pernah membuat baris. Kalau tabel Pengaturan masih kosong,
+ * pakai nilai default supaya perhitungan tetap jalan tanpa menulis ke DB
+ * (GET /api/pengaturan yang bertugas membuat baris pertama).
+ */
+async function getPengaturan() {
+  const pengaturan = await prisma.pengaturan.findFirst()
+  return pengaturan ?? PENGATURAN_DEFAULT
+}
+
+export async function calculateHpp(
+  produkId: number,
+  options: CalculateHppOptions = {}
+): Promise<HppResult> {
+  const { thresholdOverride, simpanSnapshot = false } = options
+
   const produk = await prisma.produk.findUnique({
     where: { id: produkId },
     include: { resep: { include: { bahanBaku: true } } },
@@ -34,7 +55,7 @@ export async function calculateHpp(produkId: number, thresholdOverride?: number)
   const semuaBiaya = await prisma.biayaOperasional.findMany()
 
   // 2. Biaya tetap dialokasikan berdasarkan estimasi porsi terjual per bulan
-  //    (bukan dibagi jumlah produk aktif ? ini metode yang lebih realistis)
+  //    (bukan dibagi jumlah produk aktif, ini metode yang lebih realistis)
   const totalBiayaTetapPerBulan = semuaBiaya
     .filter((b) => b.jenis === 'tetap')
     .reduce((total, b) => total + b.nilai, 0)
@@ -49,9 +70,11 @@ export async function calculateHpp(produkId: number, thresholdOverride?: number)
   const potonganKomisi = produk.hargaJual * (persenKomisi / 100)
   const marginPersen = ((produk.hargaJual - hppTerhitung - potonganKomisi) / produk.hargaJual) * 100
 
-  await prisma.hppSnapshot.create({
-    data: { produkId, hppTerhitung, marginPersen },
-  })
+  if (simpanSnapshot) {
+    await prisma.hppSnapshot.create({
+      data: { produkId, hppTerhitung, marginPersen },
+    })
+  }
 
   return {
     produkId,
@@ -61,19 +84,24 @@ export async function calculateHpp(produkId: number, thresholdOverride?: number)
   }
 }
 
+/**
+ * Dipanggil setelah harga bahan baku berubah. Ini satu-satunya jalur yang
+ * menulis `HppSnapshot`, karena di sini ada perubahan nyata yang layak dicatat.
+ */
 export async function recalculateAllAffectedByBahan(bahanBakuId: number): Promise<void> {
   const resepTerkait = await prisma.resep.findMany({ where: { bahanBakuId } })
   const produkIdUnik = [...new Set(resepTerkait.map((r) => r.produkId))]
   for (const produkId of produkIdUnik) {
-    await calculateHpp(produkId)
+    await calculateHpp(produkId, { simpanSnapshot: true })
   }
 }
 
+/** Read-only: tidak menulis snapshot. Dipakai dashboard. */
 export async function calculateAllHpp(thresholdOverride?: number): Promise<HppResult[]> {
   const semuaProduk = await prisma.produk.findMany({ select: { id: true } })
   const hasil: HppResult[] = []
   for (const p of semuaProduk) {
-    hasil.push(await calculateHpp(p.id, thresholdOverride))
+    hasil.push(await calculateHpp(p.id, { thresholdOverride }))
   }
   return hasil
 }
