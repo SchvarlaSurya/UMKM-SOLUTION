@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { cn } from "@/lib/cn";
 import { inisial } from "@/lib/format";
 import { navItems } from "./nav-items";
@@ -116,7 +117,13 @@ export function Sidebar({
           <span className="block truncate text-sm font-medium text-sidebar-foreground">{peran}</span>
           <span className="block text-xs text-muted-foreground">Mode demo</span>
         </span>
-        <Button varian="ghost" ukuran="sm" aria-label="Keluar" className="px-2">
+        <Button
+          varian="ghost"
+          ukuran="sm"
+          aria-label="Keluar"
+          className="px-2"
+          onClick={() => signOut({ callbackUrl: "/login" })}
+        >
           <IconKeluar width={18} height={18} />
         </Button>
       </div>
