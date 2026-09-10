@@ -2,25 +2,12 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { IconPanahKanan, IconPanahNaik, IconPanahTurun } from "@/components/ui/icons";
 import { formatPersen, formatRupiah, formatTanggalPendek } from "@/lib/format";
 import type { TitikHarga } from "@/lib/data";
 import type { BahanBaku } from "@/lib/types";
-
-/** Ringkas angka sumbu Y: 65000 -> "65rb". */
-function ringkasRibuan(nilai: number): string {
-  return nilai >= 1000 ? `${(nilai / 1000).toLocaleString("id-ID")}rb` : String(nilai);
-}
+import { GrafikHarga } from "./GrafikHarga";
 
 export function WidgetHargaBahan({
   bahan,
@@ -96,46 +83,7 @@ export function WidgetHargaBahan({
       </div>
 
       <div className="mt-2 h-48 w-full px-2 pb-2">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 4 }}>
-            <defs>
-              <linearGradient id="gradienHarga" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.25} />
-                <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid stroke="var(--border)" vertical={false} />
-            <XAxis
-              dataKey="label"
-              tickLine={false}
-              axisLine={false}
-              tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-            />
-            <YAxis
-              width={46}
-              tickLine={false}
-              axisLine={false}
-              domain={["dataMin - 2000", "dataMax + 2000"]}
-              tickFormatter={ringkasRibuan}
-              tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-            />
-            <Tooltip
-              formatter={(nilai) => [formatRupiah(Number(nilai)), "Harga"]}
-              contentStyle={{
-                borderRadius: "var(--radius)",
-                border: "1px solid var(--border)",
-                fontSize: 12,
-              }}
-            />
-            <Area
-              type="monotone"
-              dataKey="harga"
-              stroke="var(--primary)"
-              strokeWidth={2}
-              fill="url(#gradienHarga)"
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+        <GrafikHarga data={data} gradientId="gradienWidgetHarga" />
       </div>
 
       <div className="mt-auto border-t border-border px-5 py-3">
