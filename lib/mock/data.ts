@@ -118,12 +118,24 @@ export const pengaturanMock: Pengaturan = {
   batasMarginAman: 30,
 };
 
-/** Histori harga cabai rawit 30 hari terakhir (widget & halaman tren). */
+/** Histori harga 30 hari terakhir (widget dashboard & halaman tren). */
 export const historiHargaMock: HistoriHarga[] = [
+  // Cabai rawit — naik terus
   { id: 1, bahanBakuId: 4, hargaLama: 57000, hargaBaru: 57000, tanggal: "2026-08-10T00:00:00.000Z" },
   { id: 2, bahanBakuId: 4, hargaLama: 57000, hargaBaru: 58500, tanggal: "2026-08-16T00:00:00.000Z" },
   { id: 3, bahanBakuId: 4, hargaLama: 58500, hargaBaru: 60000, tanggal: "2026-08-22T00:00:00.000Z" },
   { id: 4, bahanBakuId: 4, hargaLama: 60000, hargaBaru: 61500, tanggal: "2026-08-28T00:00:00.000Z" },
   { id: 5, bahanBakuId: 4, hargaLama: 61500, hargaBaru: 63000, tanggal: "2026-09-03T00:00:00.000Z" },
   { id: 6, bahanBakuId: 4, hargaLama: 63000, hargaBaru: 65000, tanggal: "2026-09-09T00:00:00.000Z" },
+
+  // Ayam fillet — naik tipis lalu turun
+  { id: 7, bahanBakuId: 1, hargaLama: 41000, hargaBaru: 41000, tanggal: "2026-08-11T00:00:00.000Z" },
+  { id: 8, bahanBakuId: 1, hargaLama: 41000, hargaBaru: 43500, tanggal: "2026-08-19T00:00:00.000Z" },
+  { id: 9, bahanBakuId: 1, hargaLama: 43500, hargaBaru: 44000, tanggal: "2026-08-27T00:00:00.000Z" },
+  { id: 10, bahanBakuId: 1, hargaLama: 44000, hargaBaru: 42000, tanggal: "2026-09-06T00:00:00.000Z" },
+
+  // Minyak goreng — stabil
+  { id: 11, bahanBakuId: 3, hargaLama: 19500, hargaBaru: 19500, tanggal: "2026-08-12T00:00:00.000Z" },
+  { id: 12, bahanBakuId: 3, hargaLama: 19500, hargaBaru: 20000, tanggal: "2026-08-24T00:00:00.000Z" },
+  { id: 13, bahanBakuId: 3, hargaLama: 20000, hargaBaru: 20000, tanggal: "2026-09-05T00:00:00.000Z" },
 ];
