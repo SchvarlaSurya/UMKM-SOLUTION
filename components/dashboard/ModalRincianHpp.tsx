@@ -5,7 +5,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { IconPanahKanan } from "@/components/ui/icons";
 import { formatPersen, formatRupiah } from "@/lib/format";
-import type { RincianHpp } from "@/lib/mock/hpp";
+import type { RincianHpp } from "@/lib/hpp";
 
 export function ModalRincianHpp({
   terbuka,

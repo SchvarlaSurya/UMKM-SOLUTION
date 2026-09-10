@@ -14,6 +14,7 @@ type SidebarProps = {
   kategoriUsaha: string;
   namaPemilik: string;
   peran: string;
+  email?: string;
   /** Dipakai versi drawer di layar kecil. */
   onTutup?: () => void;
 };
@@ -23,6 +24,7 @@ export function Sidebar({
   kategoriUsaha,
   namaPemilik,
   peran,
+  email,
   onTutup,
 }: SidebarProps) {
   const pathname = usePathname();
@@ -115,7 +117,9 @@ export function Sidebar({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium text-sidebar-foreground">{peran}</span>
-          <span className="block text-xs text-muted-foreground">Mode demo</span>
+          <span className="block truncate text-xs text-muted-foreground">
+            {email ?? namaPemilik}
+          </span>
         </span>
         <Button
           varian="ghost"

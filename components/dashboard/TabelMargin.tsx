@@ -9,7 +9,7 @@ import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/u
 import { Tabs } from "@/components/ui/Tabs";
 import { IconCari, IconCentang, IconPanahKeluar, IconPeringatan } from "@/components/ui/icons";
 import { formatPersen, formatRupiah } from "@/lib/format";
-import type { RincianHpp } from "@/lib/mock/hpp";
+import type { RincianHpp } from "@/lib/hpp";
 import type { ProdukDenganHpp } from "@/lib/types";
 import { ModalRincianHpp } from "./ModalRincianHpp";
 
