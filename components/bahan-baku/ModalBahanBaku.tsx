@@ -27,6 +27,8 @@ export function ModalBahanBaku({
   mode,
   bahan,
   jumlahProdukTerkait,
+  menyimpan = false,
+  galatServer = null,
   onTutup,
   onSimpan,
 }: {
@@ -34,6 +36,10 @@ export function ModalBahanBaku({
   mode: "tambah" | "edit";
   bahan: BahanBaku | null;
   jumlahProdukTerkait: number;
+  /** Server Action sedang berjalan. */
+  menyimpan?: boolean;
+  /** Pesan penolakan dari server, mis. nama bahan bentrok. */
+  galatServer?: string | null;
   onTutup: () => void;
   onSimpan: (nilai: NilaiFormBahan) => void;
 }) {
@@ -48,13 +54,13 @@ export function ModalBahanBaku({
           : "Catat bahan beserta harga beli per satuannya."
       }
       aksiSekunder={
-        <Button varian="secondary" ukuran="sm" type="button" onClick={onTutup}>
+        <Button varian="secondary" ukuran="sm" type="button" disabled={menyimpan} onClick={onTutup}>
           Batal
         </Button>
       }
       aksiPrimer={
-        <Button varian="primary" ukuran="sm" type="submit" form={ID_FORM}>
-          Simpan bahan
+        <Button varian="primary" ukuran="sm" type="submit" form={ID_FORM} disabled={menyimpan}>
+          {menyimpan ? "Menyimpan…" : "Simpan bahan"}
         </Button>
       }
     >
@@ -64,6 +70,7 @@ export function ModalBahanBaku({
         mode={mode}
         bahan={bahan}
         jumlahProdukTerkait={jumlahProdukTerkait}
+        galatServer={galatServer}
         onSimpan={onSimpan}
       />
     </Modal>
@@ -74,14 +81,18 @@ function FormBahan({
   mode,
   bahan,
   jumlahProdukTerkait,
+  galatServer,
   onSimpan,
 }: {
   mode: "tambah" | "edit";
   bahan: BahanBaku | null;
   jumlahProdukTerkait: number;
+  galatServer: string | null;
   onSimpan: (nilai: NilaiFormBahan) => void;
 }) {
   const [error, setError] = useState<string | null>(null);
+  // Galat dari server menimpa galat validasi lokal karena datangnya belakangan.
+  const pesanGalat = galatServer ?? error;
 
   function kirim(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -139,7 +150,7 @@ function FormBahan({
           inputMode="numeric"
           defaultValue={bahan ? String(bahan.hargaPerSatuan) : ""}
           placeholder="0"
-          error={error ?? undefined}
+          error={pesanGalat ?? undefined}
         />
       </div>
 

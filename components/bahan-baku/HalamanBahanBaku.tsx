@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { perbaruiHargaBahan, tambahBahanBaku } from "@/lib/actions/bahan-baku";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Banner } from "@/components/ui/Banner";
@@ -13,22 +15,24 @@ import type { BahanBaku } from "@/lib/types";
 import { ModalBahanBaku, type NilaiFormBahan } from "./ModalBahanBaku";
 
 /**
- * Perubahan hanya disimpan di state komponen — lapisan data masih mock.
- * Saat lib/data.ts beralih ke API, simpan diganti panggilan
- * POST /api/bahan-baku dan PUT /api/bahan-baku/[id].
+ * Daftar bahan datang dari Server Component dan tidak disalin ke state:
+ * setelah Server Action selesai, revalidatePath membuat halaman ini dirender
+ * ulang dengan data terbaru dari database.
  */
 export function HalamanBahanBaku({
-  bahanAwal,
+  bahan,
   pemakaian,
 }: {
-  bahanAwal: BahanBaku[];
+  bahan: BahanBaku[];
   pemakaian: Record<number, number>;
 }) {
-  const [bahan, setBahan] = useState(bahanAwal);
+  const router = useRouter();
+  const [menyimpan, mulaiSimpan] = useTransition();
   const [cari, setCari] = useState("");
   const [mode, setMode] = useState<"tambah" | "edit">("tambah");
   const [terpilih, setTerpilih] = useState<BahanBaku | null>(null);
   const [modalTerbuka, setModalTerbuka] = useState(false);
+  const [galat, setGalat] = useState<string | null>(null);
 
   const terlihat = useMemo(() => {
     const kunci = cari.trim().toLowerCase();
@@ -38,36 +42,34 @@ export function HalamanBahanBaku({
   function bukaTambah() {
     setMode("tambah");
     setTerpilih(null);
+    setGalat(null);
     setModalTerbuka(true);
   }
 
   function bukaEdit(item: BahanBaku) {
     setMode("edit");
     setTerpilih(item);
+    setGalat(null);
     setModalTerbuka(true);
   }
 
   function simpan(nilai: NilaiFormBahan) {
-    const sekarang = new Date().toISOString();
-    setBahan((sebelumnya) =>
-      mode === "edit" && terpilih
-        ? sebelumnya.map((b) =>
-            b.id === terpilih.id
-              ? { ...b, hargaPerSatuan: nilai.hargaPerSatuan, updatedAt: sekarang }
-              : b,
-          )
-        : [
-            ...sebelumnya,
-            {
-              id: Math.max(0, ...sebelumnya.map((b) => b.id)) + 1,
-              nama: nilai.nama,
-              satuan: nilai.satuan,
-              hargaPerSatuan: nilai.hargaPerSatuan,
-              updatedAt: sekarang,
-            },
-          ].sort((a, b) => a.nama.localeCompare(b.nama, "id-ID")),
-    );
-    setModalTerbuka(false);
+    setGalat(null);
+    mulaiSimpan(async () => {
+      const hasil =
+        mode === "edit" && terpilih
+          ? await perbaruiHargaBahan(terpilih.id, nilai.hargaPerSatuan)
+          : await tambahBahanBaku(nilai);
+
+      if (!hasil.ok) {
+        setGalat(hasil.error);
+        return;
+      }
+
+      setModalTerbuka(false);
+      // Ambil ulang hasil render server yang sudah disegarkan Server Action.
+      router.refresh();
+    });
   }
 
   return (
@@ -175,6 +177,8 @@ export function HalamanBahanBaku({
         mode={mode}
         bahan={terpilih}
         jumlahProdukTerkait={terpilih ? (pemakaian[terpilih.id] ?? 0) : 0}
+        menyimpan={menyimpan}
+        galatServer={galat}
         onTutup={() => setModalTerbuka(false)}
         onSimpan={simpan}
       />
