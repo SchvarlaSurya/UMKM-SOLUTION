@@ -19,6 +19,8 @@ export function ModalBiaya({
   mode,
   biaya,
   estimasiPorsi,
+  menyimpan = false,
+  galatServer = null,
   onTutup,
   onSimpan,
 }: {
@@ -26,6 +28,10 @@ export function ModalBiaya({
   mode: "tambah" | "edit";
   biaya: BiayaOperasional | null;
   estimasiPorsi: number;
+  /** Server Action sedang berjalan. */
+  menyimpan?: boolean;
+  /** Pesan penolakan dari server. */
+  galatServer?: string | null;
   onTutup: () => void;
   onSimpan: (nilai: NilaiFormBiaya) => void;
 }) {
@@ -36,13 +42,13 @@ export function ModalBiaya({
       judul={mode === "edit" ? "Edit biaya operasional" : "Tambah biaya operasional"}
       subjudul="Biaya tetap dibagi rata ke setiap porsi, biaya persentase dipotong dari harga jual."
       aksiSekunder={
-        <Button varian="secondary" ukuran="sm" type="button" onClick={onTutup}>
+        <Button varian="secondary" ukuran="sm" type="button" disabled={menyimpan} onClick={onTutup}>
           Batal
         </Button>
       }
       aksiPrimer={
-        <Button varian="primary" ukuran="sm" type="submit" form={ID_FORM}>
-          Simpan biaya
+        <Button varian="primary" ukuran="sm" type="submit" form={ID_FORM} disabled={menyimpan}>
+          {menyimpan ? "Menyimpan…" : "Simpan biaya"}
         </Button>
       }
     >
@@ -50,6 +56,7 @@ export function ModalBiaya({
         key={`${mode}-${biaya?.id ?? "baru"}`}
         biaya={biaya}
         estimasiPorsi={estimasiPorsi}
+        galatServer={galatServer}
         onSimpan={onSimpan}
       />
     </Modal>
@@ -59,14 +66,18 @@ export function ModalBiaya({
 function FormBiaya({
   biaya,
   estimasiPorsi,
+  galatServer,
   onSimpan,
 }: {
   biaya: BiayaOperasional | null;
   estimasiPorsi: number;
+  galatServer: string | null;
   onSimpan: (nilai: NilaiFormBiaya) => void;
 }) {
   const [jenis, setJenis] = useState<JenisBiaya>(biaya?.jenis ?? "tetap");
   const [error, setError] = useState<string | null>(null);
+  // Galat server menimpa galat lokal karena datangnya belakangan.
+  const pesanGalat = galatServer ?? error;
 
   function kirim(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -123,7 +134,7 @@ function FormBiaya({
           inputMode="decimal"
           defaultValue={biaya ? String(biaya.nilai) : ""}
           placeholder="0"
-          error={error ?? undefined}
+          error={pesanGalat ?? undefined}
           helper={
             jenis === "tetap"
               ? `Dibagi rata ke ${estimasiPorsi.toLocaleString("id-ID")} porsi per bulan.`

@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import {
+  perbaruiBiaya,
+  simpanPengaturan,
+  tambahBiaya,
+} from "@/lib/actions/biaya-operasional";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -13,25 +19,34 @@ import type { BiayaOperasional, Pengaturan } from "@/lib/types";
 import { ModalBiaya, type NilaiFormBiaya } from "./ModalBiaya";
 
 /**
- * Perubahan hanya disimpan di state komponen — lapisan data masih mock.
- * Saat lib/data.ts beralih ke API: POST/PUT /api/biaya-operasional dan
- * PUT /api/pengaturan.
+ * Daftar biaya datang dari Server Component; setelah Server Action selesai,
+ * revalidatePath membuat halaman ini dirender ulang dari database.
+ *
+ * Dua input pengaturan tetap dipegang state karena hasil pembagiannya dihitung
+ * langsung saat diketik. Penyimpanannya sendiri harus ditekan, supaya angka
+ * setengah jadi tidak ikut tersimpan.
  */
 export function HalamanBiayaOperasional({
-  biayaAwal,
-  pengaturanAwal,
+  biaya,
+  pengaturan,
 }: {
-  biayaAwal: BiayaOperasional[];
-  pengaturanAwal: Pengaturan;
+  biaya: BiayaOperasional[];
+  pengaturan: Pengaturan;
 }) {
-  const [biaya, setBiaya] = useState(biayaAwal);
-  const [porsi, setPorsi] = useState(String(pengaturanAwal.estimasiPorsiPerBulan));
-  const [batasMargin, setBatasMargin] = useState(String(pengaturanAwal.batasMarginAman));
+  const router = useRouter();
+  const [menyimpan, mulaiSimpan] = useTransition();
+  const [porsi, setPorsi] = useState(String(pengaturan.estimasiPorsiPerBulan));
+  const [batasMargin, setBatasMargin] = useState(String(pengaturan.batasMarginAman));
+  const [galatPengaturan, setGalatPengaturan] = useState<string | null>(null);
   const [mode, setMode] = useState<"tambah" | "edit">("tambah");
   const [terpilih, setTerpilih] = useState<BiayaOperasional | null>(null);
   const [modalTerbuka, setModalTerbuka] = useState(false);
+  const [galatBiaya, setGalatBiaya] = useState<string | null>(null);
 
   const estimasiPorsi = Number(porsi) > 0 ? Number(porsi) : 0;
+  const pengaturanBerubah =
+    Number(porsi) !== pengaturan.estimasiPorsiPerBulan ||
+    Number(batasMargin) !== pengaturan.batasMarginAman;
 
   const { totalTetap, totalPersentase, perPorsi } = useMemo(() => {
     const tetap = biaya
@@ -50,25 +65,50 @@ export function HalamanBiayaOperasional({
   function bukaTambah() {
     setMode("tambah");
     setTerpilih(null);
+    setGalatBiaya(null);
     setModalTerbuka(true);
   }
 
   function bukaEdit(item: BiayaOperasional) {
     setMode("edit");
     setTerpilih(item);
+    setGalatBiaya(null);
     setModalTerbuka(true);
   }
 
   function simpan(nilai: NilaiFormBiaya) {
-    setBiaya((sebelumnya) =>
-      mode === "edit" && terpilih
-        ? sebelumnya.map((b) => (b.id === terpilih.id ? { ...b, ...nilai } : b))
-        : [
-            ...sebelumnya,
-            { id: Math.max(0, ...sebelumnya.map((b) => b.id)) + 1, ...nilai },
-          ].sort((a, b) => a.nama.localeCompare(b.nama, "id-ID")),
-    );
-    setModalTerbuka(false);
+    setGalatBiaya(null);
+    mulaiSimpan(async () => {
+      const hasil =
+        mode === "edit" && terpilih
+          ? await perbaruiBiaya(terpilih.id, nilai)
+          : await tambahBiaya(nilai);
+
+      if (!hasil.ok) {
+        setGalatBiaya(hasil.error);
+        return;
+      }
+
+      setModalTerbuka(false);
+      router.refresh();
+    });
+  }
+
+  function simpanAlokasi() {
+    setGalatPengaturan(null);
+    mulaiSimpan(async () => {
+      const hasil = await simpanPengaturan({
+        estimasiPorsiPerBulan: Number(porsi),
+        batasMarginAman: Number(batasMargin),
+      });
+
+      if (!hasil.ok) {
+        setGalatPengaturan(hasil.error);
+        return;
+      }
+
+      router.refresh();
+    });
   }
 
   return (
@@ -132,6 +172,26 @@ export function HalamanBiayaOperasional({
               {totalPersentase > 0 && ` · plus ${formatPersen(totalPersentase, 0)} dari harga jual`}
             </span>
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">
+          <p className="text-xs text-muted-foreground">
+            {galatPengaturan ? (
+              <span className="text-destructive">{galatPengaturan}</span>
+            ) : pengaturanBerubah ? (
+              "Angka di atas baru berlaku setelah disimpan."
+            ) : (
+              "Angka ini dipakai seluruh perhitungan HPP."
+            )}
+          </p>
+          <Button
+            varian="primary"
+            ukuran="sm"
+            disabled={!pengaturanBerubah || menyimpan}
+            onClick={simpanAlokasi}
+          >
+            {menyimpan ? "Menyimpan…" : "Simpan pengaturan"}
+          </Button>
         </div>
       </Card>
 
@@ -201,6 +261,8 @@ export function HalamanBiayaOperasional({
         mode={mode}
         biaya={terpilih}
         estimasiPorsi={estimasiPorsi}
+        menyimpan={menyimpan}
+        galatServer={galatBiaya}
         onTutup={() => setModalTerbuka(false)}
         onSimpan={simpan}
       />
