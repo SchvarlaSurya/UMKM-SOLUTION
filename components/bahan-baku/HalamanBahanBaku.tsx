@@ -157,8 +157,20 @@ export function HalamanBahanBaku({
               })}
               {terlihat.length === 0 && (
                 <TR className="hover:bg-transparent">
-                  <TD colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
-                    Tidak ada bahan yang cocok dengan pencarian.
+                  <TD colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                    {bahan.length === 0 ? (
+                      <>
+                        <span className="block font-medium text-foreground">
+                          Belum ada bahan baku
+                        </span>
+                        <span className="mx-auto mt-1 block max-w-sm">
+                          Mulai dari bahan yang paling sering dibeli. Harganya dipakai
+                          menghitung HPP setiap resep.
+                        </span>
+                      </>
+                    ) : (
+                      "Tidak ada bahan yang cocok dengan pencarian."
+                    )}
                   </TD>
                 </TR>
               )}

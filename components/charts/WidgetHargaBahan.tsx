@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
-import { IconPanahKanan, IconPanahNaik, IconPanahTurun } from "@/components/ui/icons";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { IconPanahKanan, IconPanahNaik, IconPanahTurun, IconTren } from "@/components/ui/icons";
 import { formatPersen, formatRupiah, formatTanggalPendek } from "@/lib/format";
 import type { TitikHarga } from "@/lib/data";
 import type { BahanBaku } from "@/lib/types";
@@ -27,6 +28,29 @@ export function WidgetHargaBahan({
       })),
     [deret, bahanId],
   );
+
+  // Tanpa satu pun catatan harga, kartu ini hanya akan memperlihatkan "Rp 0"
+  // dan grafik kosong yang tidak menjelaskan apa-apa.
+  if (bahan.length === 0) {
+    return (
+      <Card className="flex h-full flex-col">
+        <CardHeader className="flex-col items-stretch">
+          <div>
+            <CardTitle>Pergerakan harga bahan</CardTitle>
+            <CardDescription className="mt-1">Belum ada catatan perubahan</CardDescription>
+          </div>
+        </CardHeader>
+        <div className="flex flex-1 items-center px-5 py-5">
+          <EmptyState
+            ikon={<IconTren />}
+            judul="Grafik muncul setelah harga berubah"
+            deskripsi="Setiap kali kamu memperbarui harga sebuah bahan, perubahannya tercatat otomatis di sini."
+            className="w-full border-0 bg-transparent py-6"
+          />
+        </div>
+      </Card>
+    );
+  }
 
   const hargaAwal = data[0]?.harga ?? 0;
   const hargaAkhir = data.at(-1)?.harga ?? 0;

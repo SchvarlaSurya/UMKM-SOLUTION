@@ -1,5 +1,6 @@
 import { WidgetHargaBahan } from "@/components/charts/WidgetHargaBahan";
 import { AlertMargin } from "@/components/dashboard/AlertMargin";
+import { LangkahAwal } from "@/components/dashboard/LangkahAwal";
 import { PanelCatatanMargin } from "@/components/dashboard/PanelCatatanMargin";
 import { RingkasanCards } from "@/components/dashboard/RingkasanCards";
 import { TabelMargin } from "@/components/dashboard/TabelMargin";
@@ -29,6 +30,10 @@ export default async function DashboardPage() {
   );
   const deret: Record<number, TitikHarga[]> = Object.fromEntries(deretPerBahan);
 
+  // Akun yang baru mendaftar belum punya apa pun; tabel dan grafik kosong tidak
+  // memberi tahu apa-apa, jadi ganti dengan urutan langkah pertama.
+  const belumAdaData = produk.length === 0 && bahan.length === 0;
+
   return (
     <>
       <PageHeader
@@ -45,16 +50,22 @@ export default async function DashboardPage() {
         batasMargin={ringkasan.batasMarginAman}
       />
 
-      <TabelMargin produk={produk} rincian={rincian} />
+      {belumAdaData ? (
+        <LangkahAwal />
+      ) : (
+        <>
+          <TabelMargin produk={produk} rincian={rincian} />
 
-      <div className="grid gap-4 lg:grid-cols-5">
-        <div className="lg:col-span-3">
-          <WidgetHargaBahan bahan={bahanBerhistori} deret={deret} />
-        </div>
-        <div className="lg:col-span-2">
-          <PanelCatatanMargin biayaTetapPerPorsi={ringkasan.biayaTetapPerPorsi} />
-        </div>
-      </div>
+          <div className="grid gap-4 lg:grid-cols-5">
+            <div className="lg:col-span-3">
+              <WidgetHargaBahan bahan={bahanBerhistori} deret={deret} />
+            </div>
+            <div className="lg:col-span-2">
+              <PanelCatatanMargin biayaTetapPerPorsi={ringkasan.biayaTetapPerPorsi} />
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }
