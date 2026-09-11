@@ -32,6 +32,8 @@ export function ModalProduk({
   mode,
   produk,
   bahan,
+  menyimpan = false,
+  galatServer = null,
   onTutup,
   onSimpan,
 }: {
@@ -39,6 +41,10 @@ export function ModalProduk({
   mode: "tambah" | "edit";
   produk: Produk | null;
   bahan: BahanBaku[];
+  /** Server Action sedang berjalan. */
+  menyimpan?: boolean;
+  /** Pesan penolakan dari server. */
+  galatServer?: string | null;
   onTutup: () => void;
   onSimpan: (nilai: NilaiFormProduk) => void;
 }) {
@@ -50,13 +56,13 @@ export function ModalProduk({
       subjudul="Takaran per porsi menentukan HPP produk ini."
       lebar="lg"
       aksiSekunder={
-        <Button varian="secondary" ukuran="sm" type="button" onClick={onTutup}>
+        <Button varian="secondary" ukuran="sm" type="button" disabled={menyimpan} onClick={onTutup}>
           Batal
         </Button>
       }
       aksiPrimer={
-        <Button varian="primary" ukuran="sm" type="submit" form={ID_FORM}>
-          Simpan produk
+        <Button varian="primary" ukuran="sm" type="submit" form={ID_FORM} disabled={menyimpan}>
+          {menyimpan ? "Menyimpan…" : "Simpan produk"}
         </Button>
       }
     >
@@ -64,6 +70,7 @@ export function ModalProduk({
         key={`${mode}-${produk?.id ?? "baru"}`}
         produk={produk}
         bahan={bahan}
+        galatServer={galatServer}
         onSimpan={onSimpan}
       />
     </Modal>
@@ -75,10 +82,12 @@ type BarisForm = { key: number; bahanBakuId: number; jumlah: string };
 function FormProduk({
   produk,
   bahan,
+  galatServer,
   onSimpan,
 }: {
   produk: Produk | null;
   bahan: BahanBaku[];
+  galatServer: string | null;
   onSimpan: (nilai: NilaiFormProduk) => void;
 }) {
   const [baris, setBaris] = useState<BarisForm[]>(() =>
@@ -262,7 +271,10 @@ function FormProduk({
           })}
         </ul>
 
-        {error && <p className="mt-3 text-xs text-destructive">{error}</p>}
+        {/* Galat server menimpa galat lokal karena datangnya belakangan. */}
+        {(galatServer ?? error) && (
+          <p className="mt-3 text-xs text-destructive">{galatServer ?? error}</p>
+        )}
       </section>
     </form>
   );

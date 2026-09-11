@@ -1,46 +1,40 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { perbaruiProduk, tambahProduk } from "@/lib/actions/produk";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Tabs } from "@/components/ui/Tabs";
 import { IconCari, IconProduk, IconTambah } from "@/components/ui/icons";
-import type { BahanBaku, BiayaOperasional, Pengaturan, Produk, ProdukDenganHpp } from "@/lib/types";
-import { turunkanHpp } from "@/lib/hpp";
+import type { BahanBaku, ProdukDenganHpp } from "@/lib/types";
 import { KartuProduk } from "./KartuProduk";
 import { ModalProduk, type NilaiFormProduk } from "./ModalProduk";
 
 type Filter = "semua" | "perhatian" | "aman";
 
 /**
- * Perubahan hanya disimpan di state komponen — lapisan data masih mock.
- * Saat lib/data.ts beralih ke API: POST /api/produk dan PUT /api/produk/[id],
- * lalu HPP diambil ulang dari GET /api/produk/hpp-semua.
+ * Produk beserta HPP-nya datang dari Server Component; setelah Server Action
+ * selesai, revalidatePath membuat halaman ini dirender ulang dari database.
  */
 export function HalamanProduk({
-  produkAwal,
+  produk,
   bahan,
-  biaya,
-  pengaturan,
 }: {
-  produkAwal: Produk[];
+  produk: ProdukDenganHpp[];
   bahan: BahanBaku[];
-  biaya: BiayaOperasional[];
-  pengaturan: Pengaturan;
 }) {
-  const [produk, setProduk] = useState(produkAwal);
+  const router = useRouter();
+  const [menyimpan, mulaiSimpan] = useTransition();
   const [filter, setFilter] = useState<Filter>("semua");
   const [cari, setCari] = useState("");
   const [mode, setMode] = useState<"tambah" | "edit">("tambah");
-  const [terpilih, setTerpilih] = useState<Produk | null>(null);
+  const [terpilih, setTerpilih] = useState<ProdukDenganHpp | null>(null);
   const [modalTerbuka, setModalTerbuka] = useState(false);
+  const [galat, setGalat] = useState<string | null>(null);
 
-  const denganHpp: ProdukDenganHpp[] = useMemo(
-    () => turunkanHpp(produk, biaya, pengaturan),
-    [produk, biaya, pengaturan],
-  );
-
+  const denganHpp = produk;
   const jumlahPerhatian = denganHpp.filter((p) => !p.statusAman).length;
 
   const terlihat = useMemo(() => {
@@ -61,39 +55,33 @@ export function HalamanProduk({
   function bukaTambah() {
     setMode("tambah");
     setTerpilih(null);
+    setGalat(null);
     setModalTerbuka(true);
   }
 
-  function bukaEdit(item: Produk) {
+  function bukaEdit(item: ProdukDenganHpp) {
     setMode("edit");
     setTerpilih(item);
+    setGalat(null);
     setModalTerbuka(true);
   }
 
   function simpan(nilai: NilaiFormProduk) {
-    const bahanById = new Map(bahan.map((b) => [b.id, b]));
+    setGalat(null);
+    mulaiSimpan(async () => {
+      const hasil =
+        mode === "edit" && terpilih
+          ? await perbaruiProduk(terpilih.id, nilai)
+          : await tambahProduk(nilai);
 
-    setProduk((sebelumnya) => {
-      const id = mode === "edit" && terpilih ? terpilih.id : Math.max(0, ...sebelumnya.map((p) => p.id)) + 1;
-      const baru: Produk = {
-        id,
-        nama: nilai.nama,
-        kategori: nilai.kategori,
-        hargaJual: nilai.hargaJual,
-        resep: nilai.resep.map((r) => ({
-          produkId: id,
-          bahanBakuId: r.bahanBakuId,
-          jumlahDipakai: r.jumlahDipakai,
-          bahanBaku: bahanById.get(r.bahanBakuId)!,
-        })),
-      };
+      if (!hasil.ok) {
+        setGalat(hasil.error);
+        return;
+      }
 
-      return mode === "edit" && terpilih
-        ? sebelumnya.map((p) => (p.id === terpilih.id ? baru : p))
-        : [...sebelumnya, baru];
+      setModalTerbuka(false);
+      router.refresh();
     });
-
-    setModalTerbuka(false);
   }
 
   return (
@@ -156,6 +144,8 @@ export function HalamanProduk({
         mode={mode}
         produk={terpilih}
         bahan={bahan}
+        menyimpan={menyimpan}
+        galatServer={galat}
         onTutup={() => setModalTerbuka(false)}
         onSimpan={simpan}
       />
