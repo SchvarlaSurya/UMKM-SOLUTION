@@ -1,11 +1,11 @@
-import { prisma } from "@/lib/prisma";
-import { biayaTetapPerPorsi, rincianHpp, turunkanHpp, type RincianHpp } from "@/lib/hpp";
-import { analyzePriceTrend, type TrendResult } from "@/lib/trendAnalyzer";
+import { apiGet } from "@/lib/api";
+import { biayaTetapPerPorsi, rincianHpp, type RincianHpp } from "@/lib/hpp";
+import type { TrendResult } from "@/lib/trendAnalyzer";
 import type {
   BahanBaku,
   BiayaOperasional,
   HistoriHarga,
-  JenisBiaya,
+  HppResult,
   Pengaturan,
   Produk,
   ProdukDenganHpp,
@@ -14,88 +14,72 @@ import type {
 /**
  * Satu-satunya pintu data untuk halaman UI.
  *
- * Halaman adalah Server Component, jadi query dijalankan langsung lewat Prisma
- * di proses yang sama — tanpa lompatan HTTP ke route sendiri dan tanpa perlu
- * meneruskan cookie sesi. Route di app/api tetap ada untuk pemakaian dari sisi
- * klien dan konsumen luar; keduanya memakai rumus HPP yang sama di lib/hpp.ts.
- *
- * Penjagaan sesi ada di proxy.ts untuk halaman, dan requireAuth() di dalam tiap
+ * Seluruh pembacaan lewat endpoint di app/api, dipanggil dari Server Component
+ * memakai lib/api.ts yang meneruskan cookie sesi. Halaman tidak menyentuh
+ * Prisma langsung, jadi aturan dan bentuk data hanya ditentukan satu tempat:
  * route handler.
  */
 
-/** Dipakai kalau tabel Pengaturan masih kosong; samakan dengan seed. */
-const PENGATURAN_DEFAULT: Pengaturan = {
-  id: 0,
-  estimasiPorsiPerBulan: 1200,
-  batasMarginAman: 30,
+/** Bentuk balasan GET /api/bahan-baku/[id]/histori. */
+type BalasanHistori = {
+  bahanBaku: Pick<BahanBaku, "id" | "nama" | "satuan" | "hargaPerSatuan">;
+  histori: HistoriHarga[];
+  trenNaik: boolean;
+  statusTren: TrendResult["status"];
+  jumlahPerubahanDiperiksa: number;
 };
 
 export async function getBahanBaku(): Promise<BahanBaku[]> {
-  const baris = await prisma.bahanBaku.findMany({ orderBy: { nama: "asc" } });
-  return baris.map((b) => ({ ...b, updatedAt: b.updatedAt.toISOString() }));
+  return apiGet<BahanBaku[]>("/bahan-baku");
 }
 
 export async function getProduk(): Promise<Produk[]> {
-  const baris = await prisma.produk.findMany({
-    include: { resep: { include: { bahanBaku: true } } },
-    orderBy: { nama: "asc" },
-  });
-
-  return baris.map((p) => ({
-    id: p.id,
-    nama: p.nama,
-    kategori: p.kategori,
-    hargaJual: p.hargaJual,
-    resep: p.resep.map((r) => ({
-      produkId: r.produkId,
-      bahanBakuId: r.bahanBakuId,
-      jumlahDipakai: r.jumlahDipakai,
-      bahanBaku: { ...r.bahanBaku, updatedAt: r.bahanBaku.updatedAt.toISOString() },
-    })),
-  }));
+  return apiGet<Produk[]>("/produk");
 }
 
 export async function getBiayaOperasional(): Promise<BiayaOperasional[]> {
-  const baris = await prisma.biayaOperasional.findMany({ orderBy: { nama: "asc" } });
-  // Kolom `jenis` di schema masih String bebas; dipersempit di sini.
-  return baris.map((b) => ({ ...b, jenis: b.jenis as JenisBiaya }));
+  return apiGet<BiayaOperasional[]>("/biaya-operasional");
 }
 
-/** Baca saja: pembuatan baris pertama tetap tugas GET /api/pengaturan. */
 export async function getPengaturan(): Promise<Pengaturan> {
-  return (await prisma.pengaturan.findFirst()) ?? PENGATURAN_DEFAULT;
+  return apiGet<Pengaturan>("/pengaturan");
 }
 
 export async function getHistoriHarga(bahanBakuId: number): Promise<HistoriHarga[]> {
-  const baris = await prisma.historiHarga.findMany({
-    where: { bahanBakuId },
-    orderBy: [{ tanggal: "asc" }, { id: "asc" }],
-  });
-  // `delta` mengikuti bentuk yang dikembalikan GET /api/bahan-baku/[id]/histori.
-  return baris.map((h) => ({
-    ...h,
-    delta: h.hargaBaru - h.hargaLama,
-    tanggal: h.tanggal.toISOString(),
-  }));
+  const balasan = await apiGet<BalasanHistori>(`/bahan-baku/${bahanBakuId}/histori`);
+  return balasan.histori;
 }
 
 /**
- * Produk + hasil HPP untuk tabel dashboard.
- *
- * Sengaja tidak memakai calculateAllHpp() dari lib/hppCalculator.ts: fungsi itu
- * menjalankan beberapa query per produk, sedangkan di sini tiga query cukup
- * untuk seluruh produk. Rumusnya tetap sama karena keduanya memakai lib/hpp.ts.
+ * Produk + hasil HPP untuk tabel dashboard dan kartu produk.
+ * HPP diambil dari endpoint, bukan dihitung ulang di sini.
  */
 export async function getProdukDenganHpp(): Promise<ProdukDenganHpp[]> {
-  const [produk, biaya, pengaturan] = await Promise.all([
+  const [produk, hpp] = await Promise.all([
     getProduk(),
-    getBiayaOperasional(),
-    getPengaturan(),
+    apiGet<HppResult[]>("/produk/hpp-semua"),
   ]);
-  return turunkanHpp(produk, biaya, pengaturan);
+
+  const hppById = new Map(hpp.map((h) => [h.produkId, h]));
+
+  return produk.map((p) => {
+    const hasil = hppById.get(p.id);
+    return {
+      ...p,
+      hppTerhitung: hasil?.hppTerhitung ?? 0,
+      marginPersen: hasil?.marginPersen ?? 0,
+      statusAman: hasil?.statusAman ?? false,
+    };
+  });
 }
 
-/** Rincian pembentuk HPP per produk, dipakai modal "Rincian HPP". */
+/**
+ * Rincian pembentuk HPP per produk untuk modal "Rincian HPP".
+ *
+ * Belum ada endpoint yang memecah HPP jadi per komponen, jadi uraiannya
+ * disusun di sini dari data yang sudah diambil, memakai rumus yang sama
+ * dengan backend di lib/hpp.ts.
+ */
 export async function getRincianHppSemua(): Promise<Record<number, RincianHpp>> {
   const [produk, biaya, pengaturan] = await Promise.all([
     getProduk(),
@@ -146,44 +130,48 @@ export async function getDeretHarga(bahanBakuId: number): Promise<TitikHarga[]> 
   return histori.map((h) => ({ tanggal: h.tanggal, harga: h.hargaBaru }));
 }
 
-/** Bahan baku yang punya catatan histori harga (isi dropdown widget & tren). */
-export async function getBahanBerhistori(): Promise<BahanBaku[]> {
-  const punyaHistori = await prisma.historiHarga.findMany({
-    distinct: ["bahanBakuId"],
-    select: { bahanBakuId: true },
-  });
-  if (punyaHistori.length === 0) return [];
-
-  const baris = await prisma.bahanBaku.findMany({
-    where: { id: { in: punyaHistori.map((h) => h.bahanBakuId) } },
-    orderBy: { nama: "asc" },
-  });
-  return baris.map((b) => ({ ...b, updatedAt: b.updatedAt.toISOString() }));
-}
-
 /**
- * Status tren harga sebuah bahan menurut tiga perubahan terakhir.
- * Memakai analyzePriceTrend dari lib/trendAnalyzer.ts.
+ * Bahan baku yang punya catatan histori harga, untuk dropdown widget dan
+ * halaman tren.
+ *
+ * Belum ada endpoint yang menjawab ini dalam satu panggilan, jadi histori tiap
+ * bahan diperiksa satu per satu secara paralel. Kalau daftar bahan tumbuh
+ * besar, endpoint ringkasan dari backend akan jauh lebih hemat.
  */
-export async function getStatusTren(bahanBakuId: number): Promise<TrendResult> {
-  const histori = await getHistoriHarga(bahanBakuId);
-  return analyzePriceTrend(
-    bahanBakuId,
-    histori.map((h) => ({
-      id: h.id,
-      bahanBakuId: h.bahanBakuId,
-      hargaLama: h.hargaLama,
-      hargaBaru: h.hargaBaru,
-      tanggal: new Date(h.tanggal),
+export async function getBahanBerhistori(): Promise<BahanBaku[]> {
+  const bahan = await getBahanBaku();
+
+  const diperiksa = await Promise.all(
+    bahan.map(async (b) => ({
+      bahan: b,
+      punyaHistori: (await getHistoriHarga(b.id)).length > 0,
     })),
   );
+
+  return diperiksa.filter((d) => d.punyaHistori).map((d) => d.bahan);
+}
+
+/** Status tren harga sebuah bahan menurut tiga perubahan terakhir. */
+export async function getStatusTren(bahanBakuId: number): Promise<TrendResult> {
+  const balasan = await apiGet<BalasanHistori>(`/bahan-baku/${bahanBakuId}/histori`);
+  return {
+    bahanBakuId,
+    status: balasan.statusTren,
+    trenNaik: balasan.trenNaik,
+    jumlahPerubahanDiperiksa: balasan.jumlahPerubahanDiperiksa,
+  };
 }
 
 /** Jumlah produk yang memakai sebuah bahan baku (kolom "Dipakai di"). */
 export async function getPemakaianBahan(): Promise<Map<number, number>> {
-  const kelompok = await prisma.resep.groupBy({
-    by: ["bahanBakuId"],
-    _count: { produkId: true },
-  });
-  return new Map(kelompok.map((k) => [k.bahanBakuId, k._count.produkId]));
+  const produk = await getProduk();
+  const pemakaian = new Map<number, number>();
+
+  for (const p of produk) {
+    for (const r of p.resep) {
+      pemakaian.set(r.bahanBakuId, (pemakaian.get(r.bahanBakuId) ?? 0) + 1);
+    }
+  }
+
+  return pemakaian;
 }
