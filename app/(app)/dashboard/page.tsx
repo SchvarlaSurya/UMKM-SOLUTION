@@ -3,10 +3,10 @@ import { AlertMargin } from "@/components/dashboard/AlertMargin";
 import { PanelCatatanMargin } from "@/components/dashboard/PanelCatatanMargin";
 import { RingkasanCards } from "@/components/dashboard/RingkasanCards";
 import { TabelMargin } from "@/components/dashboard/TabelMargin";
-import { Button } from "@/components/ui/Button";
+import { TombolTambahProduk } from "@/components/produk/TombolTambahProduk";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { IconTambah } from "@/components/ui/icons";
 import {
+  getBahanBaku,
   getBahanBerhistori,
   getDeretHarga,
   getProdukDenganHpp,
@@ -16,11 +16,12 @@ import {
 } from "@/lib/data";
 
 export default async function DashboardPage() {
-  const [produk, rincian, ringkasan, bahanBerhistori] = await Promise.all([
+  const [produk, rincian, ringkasan, bahanBerhistori, bahan] = await Promise.all([
     getProdukDenganHpp(),
     getRincianHppSemua(),
     getRingkasanDashboard(),
     getBahanBerhistori(),
+    getBahanBaku(),
   ]);
 
   const deretPerBahan = await Promise.all(
@@ -34,12 +35,7 @@ export default async function DashboardPage() {
         label="Kesehatan usaha"
         judul="Kenali angka. Jaga untung."
         subjudul="Pantau HPP dan margin setiap produk, tanpa biaya yang terlewat."
-        aksi={
-          <Button varian="primary">
-            <IconTambah width={16} height={16} />
-            Tambah produk
-          </Button>
-        }
+        aksi={<TombolTambahProduk bahan={bahan} />}
       />
 
       <RingkasanCards ringkasan={ringkasan} />
