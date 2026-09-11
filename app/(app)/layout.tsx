@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/authOptions";
 import { AppShell } from "@/components/layout/AppShell";
 
 /**
@@ -8,7 +9,7 @@ import { AppShell } from "@/components/layout/AppShell";
 export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
   const nama = session?.user?.name ?? "Usahaku";
 
   return (
