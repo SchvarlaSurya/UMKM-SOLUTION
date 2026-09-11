@@ -8,17 +8,23 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  nama      String
-  createdAt DateTime @default(now())
+  id               Int                @id @default(autoincrement())
+  email            String             @unique
+  password         String
+  nama             String
+  createdAt        DateTime           @default(now())
+  pengaturan       Pengaturan?
+  bahanBaku        BahanBaku[]
+  biayaOperasional BiayaOperasional[]
+  produk           Produk[]
 }
 
 model Pengaturan {
   id                    Int   @id @default(autoincrement())
   estimasiPorsiPerBulan Int   @default(1200)
   batasMarginAman       Float @default(10)
+  userId                Int   @unique
+  user                  User  @relation(fields: [userId], references: [id])
 }
 
 model BahanBaku {
@@ -27,8 +33,12 @@ model BahanBaku {
   satuan         String
   hargaPerSatuan Float
   updatedAt      DateTime       @updatedAt
+  userId         Int
+  user           User           @relation(fields: [userId], references: [id])
   histori        HistoriHarga[]
   resep          Resep[]
+
+  @@unique([userId, nama])
 }
 
 model HistoriHarga {
@@ -41,10 +51,14 @@ model HistoriHarga {
 }
 
 model BiayaOperasional {
-  id    Int    @id @default(autoincrement())
-  nama  String
-  jenis String
-  nilai Float
+  id     Int    @id @default(autoincrement())
+  nama   String
+  jenis  String
+  nilai  Float
+  userId Int
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 model Produk {
@@ -52,8 +66,12 @@ model Produk {
   nama      String
   kategori  String        @default("Umum")
   hargaJual Float
+  userId    Int
+  user      User          @relation(fields: [userId], references: [id])
   resep     Resep[]
   snapshot  HppSnapshot[]
+
+  @@index([userId])
 }
 
 model Resep {

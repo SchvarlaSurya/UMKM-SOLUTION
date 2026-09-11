@@ -20,7 +20,7 @@ export async function GET(req: Request) {
       threshold = angka
     }
 
-    const hasil = await calculateAllHpp(threshold)
+    const hasil = await calculateAllHpp(auth.userId, threshold)
     return NextResponse.json(hasil)
   } catch (error) {
     return handleError(error, 'Gagal menghitung HPP semua produk')

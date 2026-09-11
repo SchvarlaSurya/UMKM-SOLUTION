@@ -25,10 +25,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       thresholdOverride = angka
     }
 
-    const produk = await prisma.produk.findUnique({ where: { id }, select: { id: true } })
+    const produk = await prisma.produk.findFirst({
+      where: { id, userId: auth.userId },
+      select: { id: true },
+    })
     if (!produk) return errorResponse('Produk tidak ditemukan', 404)
 
-    const result = await calculateHpp(id, { thresholdOverride })
+    const result = await calculateHpp(id, auth.userId, { thresholdOverride })
     return NextResponse.json(result)
   } catch (error) {
     return handleError(error, 'Gagal menghitung HPP produk')

@@ -21,9 +21,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const id = parseId(idParam)
     if (id === null) return errorResponse('ID produk tidak valid', 400)
 
-    const produk = await prisma.produk.findUnique({
-      where: { id },
-      include: { resep: { include: { bahanBaku: true } } },
+    const produk = await prisma.produk.findFirst({
+      where: { id, userId: auth.userId },
+      omit: { userId: true },
+      include: {
+        resep: {
+          where: { bahanBaku: { userId: auth.userId } },
+          include: { bahanBaku: { omit: { userId: true } } },
+        },
+      },
     })
     if (!produk) return errorResponse('Produk tidak ditemukan', 404)
 
@@ -54,7 +60,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       return errorResponse('Kategori tidak boleh kosong', 400)
     }
 
-    const existing = await prisma.produk.findUnique({ where: { id } })
+    const existing = await prisma.produk.findFirst({ where: { id, userId: auth.userId } })
     if (!existing) return errorResponse('Produk tidak ditemukan', 404)
 
     // `resep` opsional: kalau tidak dikirim, resep lama dibiarkan apa adanya.
@@ -65,7 +71,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       if (!cekResep.ok) return errorResponse(cekResep.error, 400)
 
       const bahanAda = await prisma.bahanBaku.findMany({
-        where: { id: { in: cekResep.data.map((r) => r.bahanBakuId) } },
+        where: {
+          userId: auth.userId,
+          id: { in: cekResep.data.map((r) => r.bahanBakuId) },
+        },
         select: { id: true },
       })
       const idHilang = cekResep.data
@@ -88,13 +97,19 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         })
       }
       return tx.produk.update({
-        where: { id },
+        where: { id, userId: auth.userId },
         data: {
           nama: nama.trim(),
           kategori: isTeksTerisi(kategori) ? kategori.trim() : existing.kategori,
           hargaJual,
         },
-        include: { resep: { include: { bahanBaku: true } } },
+        omit: { userId: true },
+        include: {
+          resep: {
+            where: { bahanBaku: { userId: auth.userId } },
+            include: { bahanBaku: { omit: { userId: true } } },
+          },
+        },
       })
     })
 
@@ -113,14 +128,14 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     const id = parseId(idParam)
     if (id === null) return errorResponse('ID produk tidak valid', 400)
 
-    const existing = await prisma.produk.findUnique({ where: { id } })
+    const existing = await prisma.produk.findFirst({ where: { id, userId: auth.userId } })
     if (!existing) return errorResponse('Produk tidak ditemukan', 404)
 
     // Schema belum pakai onDelete cascade, jadi relasi dihapus manual dulu.
     await prisma.$transaction([
       prisma.resep.deleteMany({ where: { produkId: id } }),
       prisma.hppSnapshot.deleteMany({ where: { produkId: id } }),
-      prisma.produk.delete({ where: { id } }),
+      prisma.produk.delete({ where: { id, userId: auth.userId } }),
     ])
 
     return NextResponse.json({ success: true })
