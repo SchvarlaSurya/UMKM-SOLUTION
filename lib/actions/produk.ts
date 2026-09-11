@@ -31,7 +31,7 @@ function segarkan() {
   for (const halaman of HALAMAN_TERDAMPAK) revalidatePath(halaman);
 }
 
-async function periksaMasukan(masukan: MasukanProduk): Promise<string | null> {
+async function periksaMasukan(masukan: MasukanProduk, userId: number): Promise<string | null> {
   const nama = masukan.nama?.trim() ?? "";
   if (nama === "") return "Nama produk wajib diisi.";
   if (!Number.isFinite(masukan.hargaJual) || masukan.hargaJual <= 0) {
@@ -49,7 +49,9 @@ async function periksaMasukan(masukan: MasukanProduk): Promise<string | null> {
     return "Ada bahan yang dipilih lebih dari sekali.";
   }
 
-  const ditemukan = await prisma.bahanBaku.count({ where: { id: { in: idBahan } } });
+  const ditemukan = await prisma.bahanBaku.count({
+    where: { userId, id: { in: idBahan } },
+  });
   if (ditemukan !== idBahan.length) {
     return "Ada bahan yang sudah tidak tersedia. Muat ulang halaman lalu coba lagi.";
   }
@@ -63,7 +65,7 @@ export async function tambahProduk(masukan: MasukanProduk): Promise<HasilAksi> {
     return { ok: false, error: "Sesi berakhir. Masuk lagi untuk menyimpan." };
   }
 
-  const galat = await periksaMasukan(masukan);
+  const galat = await periksaMasukan(masukan, auth.userId);
   if (galat) return { ok: false, error: galat };
 
   await prisma.produk.create({
@@ -71,6 +73,7 @@ export async function tambahProduk(masukan: MasukanProduk): Promise<HasilAksi> {
       nama: masukan.nama.trim(),
       kategori: masukan.kategori?.trim() || "Umum",
       hargaJual: masukan.hargaJual,
+      userId: auth.userId,
       resep: {
         create: masukan.resep.map((r) => ({
           bahanBakuId: r.bahanBakuId,
@@ -93,10 +96,10 @@ export async function perbaruiProduk(
     return { ok: false, error: "Sesi berakhir. Masuk lagi untuk menyimpan." };
   }
 
-  const galat = await periksaMasukan(masukan);
+  const galat = await periksaMasukan(masukan, auth.userId);
   if (galat) return { ok: false, error: galat };
 
-  const ada = await prisma.produk.findUnique({ where: { id } });
+  const ada = await prisma.produk.findFirst({ where: { id, userId: auth.userId } });
   if (!ada) return { ok: false, error: "Produk tidak ditemukan." };
 
   // Resep lama dihapus lalu ditulis ulang. Dibungkus transaksi supaya produk
@@ -111,7 +114,7 @@ export async function perbaruiProduk(
       })),
     }),
     prisma.produk.update({
-      where: { id },
+      where: { id, userId: auth.userId },
       data: {
         nama: masukan.nama.trim(),
         kategori: masukan.kategori?.trim() || ada.kategori,

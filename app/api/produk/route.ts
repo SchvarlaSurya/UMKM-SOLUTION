@@ -17,7 +17,14 @@ export async function GET() {
     if (!auth.authorized) return unauthorizedResponse()
 
     const data = await prisma.produk.findMany({
-      include: { resep: { include: { bahanBaku: true } } },
+      where: { userId: auth.userId },
+      omit: { userId: true },
+      include: {
+        resep: {
+          where: { bahanBaku: { userId: auth.userId } },
+          include: { bahanBaku: { omit: { userId: true } } },
+        },
+      },
       orderBy: { nama: 'asc' },
     })
     return NextResponse.json(data)
@@ -47,7 +54,10 @@ export async function POST(req: Request) {
     if (!cekResep.ok) return errorResponse(cekResep.error, 400)
 
     const bahanAda = await prisma.bahanBaku.findMany({
-      where: { id: { in: cekResep.data.map((r) => r.bahanBakuId) } },
+      where: {
+        userId: auth.userId,
+        id: { in: cekResep.data.map((r) => r.bahanBakuId) },
+      },
       select: { id: true },
     })
     const idHilang = cekResep.data
@@ -62,9 +72,16 @@ export async function POST(req: Request) {
         nama: nama.trim(),
         kategori: isTeksTerisi(kategori) ? kategori.trim() : 'Umum',
         hargaJual,
+        userId: auth.userId,
         resep: { create: cekResep.data },
       },
-      include: { resep: { include: { bahanBaku: true } } },
+      omit: { userId: true },
+      include: {
+        resep: {
+          where: { bahanBaku: { userId: auth.userId } },
+          include: { bahanBaku: { omit: { userId: true } } },
+        },
+      },
     })
 
     return NextResponse.json(produk, { status: 201 })

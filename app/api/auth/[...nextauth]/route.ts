@@ -1,9 +1,9 @@
-import NextAuth from 'next-auth'
+import NextAuth, { type NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 
-const handler = NextAuth({
+export const authOptions = {
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -25,7 +25,19 @@ const handler = NextAuth({
     }),
   ],
   session: { strategy: 'jwt' },
+  callbacks: {
+    jwt({ token, user }) {
+      if (user?.id) token.id = user.id
+      return token
+    },
+    session({ session, token }) {
+      if (session.user && token.id) session.user.id = token.id
+      return session
+    },
+  },
   pages: { signIn: '/login' },
-})
+} satisfies NextAuthOptions
+
+const handler = NextAuth(authOptions)
 
 export { handler as GET, handler as POST }

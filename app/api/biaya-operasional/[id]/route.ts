@@ -34,12 +34,15 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       return errorResponse('Nilai persentase tidak boleh lebih dari 100', 400)
     }
 
-    const existing = await prisma.biayaOperasional.findUnique({ where: { id } })
+    const existing = await prisma.biayaOperasional.findFirst({
+      where: { id, userId: auth.userId },
+    })
     if (!existing) return errorResponse('Biaya operasional tidak ditemukan', 404)
 
     const updated = await prisma.biayaOperasional.update({
-      where: { id },
+      where: { id, userId: auth.userId },
       data: { nama: nama.trim(), jenis, nilai },
+      omit: { userId: true },
     })
     return NextResponse.json(updated)
   } catch (error) {
@@ -56,10 +59,12 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     const id = parseId(idParam)
     if (id === null) return errorResponse('ID biaya operasional tidak valid', 400)
 
-    const existing = await prisma.biayaOperasional.findUnique({ where: { id } })
+    const existing = await prisma.biayaOperasional.findFirst({
+      where: { id, userId: auth.userId },
+    })
     if (!existing) return errorResponse('Biaya operasional tidak ditemukan', 404)
 
-    await prisma.biayaOperasional.delete({ where: { id } })
+    await prisma.biayaOperasional.delete({ where: { id, userId: auth.userId } })
     return NextResponse.json({ success: true })
   } catch (error) {
     return handleError(error, 'Gagal menghapus biaya operasional')
