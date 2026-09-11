@@ -11,6 +11,12 @@ export type BahanBaku = {
   updatedAt: string;
 };
 
+/** Response `GET /api/bahan-baku`. `_count.histori` sudah diratakan. */
+export type BahanBakuDenganHistori = BahanBaku & {
+  jumlahHistori: number;
+  punyaHistori: boolean;
+};
+
 export type Resep = {
   produkId: number;
   bahanBakuId: number;

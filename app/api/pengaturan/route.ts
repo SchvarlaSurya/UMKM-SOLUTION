@@ -3,7 +3,11 @@ import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { errorResponse, handleError, readJsonBody, unauthorizedResponse } from '@/lib/apiHelpers'
 
-// Pengaturan bersifat singleton: selalu ambil/buat baris pertama.
+/**
+ * Pengaturan bersifat singleton: selalu ambil/buat baris pertama.
+ * Route inilah yang bertugas membuat baris itu. `lib/hppCalculator.ts` sengaja
+ * tidak melakukannya supaya endpoint HPP tetap nol write.
+ */
 async function getOrCreatePengaturan() {
   const pengaturan = await prisma.pengaturan.findFirst()
   if (pengaturan) return pengaturan
@@ -31,6 +35,9 @@ export async function PUT(req: Request) {
     if (!parsed.ok) return errorResponse('Body request harus JSON yang valid', 400)
     const { estimasiPorsiPerBulan, batasMarginAman } = parsed.body
 
+    // Porsi dipakai sebagai pembagi alokasi biaya tetap, jadi harus bilangan
+    // bulat lebih dari 0. Cek tipe juga, supaya "1200" ditolak di sini dan
+    // bukan jadi error Prisma.
     if (
       typeof estimasiPorsiPerBulan !== 'number' ||
       !Number.isSafeInteger(estimasiPorsiPerBulan) ||
@@ -44,7 +51,7 @@ export async function PUT(req: Request) {
       batasMarginAman < 0 ||
       batasMarginAman > 100
     ) {
-      return errorResponse('Batas margin aman harus angka antara 0 dan 100', 400)
+      return errorResponse('Batas margin aman harus angka antara 0 sampai 100', 400)
     }
 
     const existing = await getOrCreatePengaturan()
