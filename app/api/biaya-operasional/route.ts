@@ -16,7 +16,11 @@ export async function GET() {
     const auth = await requireAuth()
     if (!auth.authorized) return unauthorizedResponse()
 
-    const data = await prisma.biayaOperasional.findMany({ orderBy: { nama: 'asc' } })
+    const data = await prisma.biayaOperasional.findMany({
+      where: { userId: auth.userId },
+      orderBy: { nama: 'asc' },
+      omit: { userId: true },
+    })
     return NextResponse.json(data)
   } catch (error) {
     return handleError(error, 'Gagal mengambil daftar biaya operasional')
@@ -42,7 +46,8 @@ export async function POST(req: Request) {
     }
 
     const data = await prisma.biayaOperasional.create({
-      data: { nama: nama.trim(), jenis, nilai },
+      data: { nama: nama.trim(), jenis, nilai, userId: auth.userId },
+      omit: { userId: true },
     })
     return NextResponse.json(data, { status: 201 })
   } catch (error) {

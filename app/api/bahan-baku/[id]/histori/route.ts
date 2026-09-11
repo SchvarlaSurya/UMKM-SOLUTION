@@ -20,7 +20,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const id = parseId(idParam)
     if (id === null) return errorResponse('ID bahan baku tidak valid', 400)
 
-    const bahan = await prisma.bahanBaku.findUnique({ where: { id } })
+    const bahan = await prisma.bahanBaku.findFirst({ where: { id, userId: auth.userId } })
     if (!bahan) return errorResponse('Bahan baku tidak ditemukan', 404)
 
     const histori = await prisma.historiHarga.findMany({

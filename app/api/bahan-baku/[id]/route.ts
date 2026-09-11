@@ -21,7 +21,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const id = parseId(idParam)
     if (id === null) return errorResponse('ID bahan baku tidak valid', 400)
 
-    const bahan = await prisma.bahanBaku.findUnique({ where: { id } })
+    const bahan = await prisma.bahanBaku.findFirst({
+      where: { id, userId: auth.userId },
+      omit: { userId: true },
+    })
     if (!bahan) return errorResponse('Bahan baku tidak ditemukan', 404)
 
     return NextResponse.json(bahan)
@@ -64,7 +67,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       return errorResponse('Tidak ada data yang diubah', 400)
     }
 
-    const bahan = await prisma.bahanBaku.findUnique({ where: { id } })
+    const bahan = await prisma.bahanBaku.findFirst({ where: { id, userId: auth.userId } })
     if (!bahan) return errorResponse('Bahan baku tidak ditemukan', 404)
 
     const namaBersih = nama !== undefined ? (nama as string).trim() : undefined
@@ -73,7 +76,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     // bahan ini boleh disimpan dengan namanya sendiri.
     if (namaBersih !== undefined && namaBersih.toLowerCase() !== bahan.nama.toLowerCase()) {
       const kembar = await prisma.bahanBaku.findFirst({
-        where: { nama: { equals: namaBersih, mode: 'insensitive' }, id: { not: id } },
+        where: {
+          userId: auth.userId,
+          nama: { equals: namaBersih, mode: 'insensitive' },
+          id: { not: id },
+        },
       })
       if (kembar) {
         return errorResponse(`Bahan dengan nama "${kembar.nama}" sudah ada`, 409)
@@ -94,17 +101,18 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
 
     const updated = await prisma.bahanBaku.update({
-      where: { id },
+      where: { id, userId: auth.userId },
       data: {
         ...(namaBersih !== undefined ? { nama: namaBersih } : {}),
         ...(satuan !== undefined ? { satuan: (satuan as string).trim() } : {}),
         ...(hargaBerubah ? { hargaPerSatuan: hargaPerSatuan as number } : {}),
       },
+      omit: { userId: true },
     })
 
     // HPP hanya perlu dihitung ulang kalau harga yang berubah.
     if (hargaBerubah) {
-      await recalculateAllAffectedByBahan(id)
+      await recalculateAllAffectedByBahan(id, auth.userId)
     }
 
     return NextResponse.json({ ...updated, hargaBerubah })
@@ -122,12 +130,12 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     const id = parseId(idParam)
     if (id === null) return errorResponse('ID bahan baku tidak valid', 400)
 
-    const bahan = await prisma.bahanBaku.findUnique({ where: { id } })
+    const bahan = await prisma.bahanBaku.findFirst({ where: { id, userId: auth.userId } })
     if (!bahan) return errorResponse('Bahan baku tidak ditemukan', 404)
 
     // Tolak lebih awal dengan pesan jelas, jangan biarkan jadi error foreign key.
     const dipakai = await prisma.resep.findMany({
-      where: { bahanBakuId: id },
+      where: { bahanBakuId: id, produk: { userId: auth.userId } },
       select: { produk: { select: { nama: true } } },
     })
     if (dipakai.length > 0) {
@@ -143,7 +151,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
     // HistoriHarga tidak punya onDelete cascade di schema, hapus manual dulu.
     await prisma.historiHarga.deleteMany({ where: { bahanBakuId: id } })
-    await prisma.bahanBaku.delete({ where: { id } })
+    await prisma.bahanBaku.delete({ where: { id, userId: auth.userId } })
 
     return NextResponse.json({ success: true })
   } catch (error) {

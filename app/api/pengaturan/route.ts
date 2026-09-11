@@ -4,14 +4,17 @@ import { requireAuth } from '@/lib/auth'
 import { errorResponse, handleError, readJsonBody, unauthorizedResponse } from '@/lib/apiHelpers'
 
 /**
- * Pengaturan bersifat singleton: selalu ambil/buat baris pertama.
+ * Pengaturan bersifat singleton per akun: selalu ambil/buat baris milik user.
  * Route inilah yang bertugas membuat baris itu. `lib/hppCalculator.ts` sengaja
  * tidak melakukannya supaya endpoint HPP tetap nol write.
  */
-async function getOrCreatePengaturan() {
-  const pengaturan = await prisma.pengaturan.findFirst()
-  if (pengaturan) return pengaturan
-  return prisma.pengaturan.create({ data: {} })
+async function getOrCreatePengaturan(userId: number) {
+  return prisma.pengaturan.upsert({
+    where: { userId },
+    update: {},
+    create: { userId },
+    omit: { userId: true },
+  })
 }
 
 export async function GET() {
@@ -19,7 +22,7 @@ export async function GET() {
     const auth = await requireAuth()
     if (!auth.authorized) return unauthorizedResponse()
 
-    const pengaturan = await getOrCreatePengaturan()
+    const pengaturan = await getOrCreatePengaturan(auth.userId)
     return NextResponse.json(pengaturan)
   } catch (error) {
     return handleError(error, 'Gagal mengambil pengaturan')
@@ -54,10 +57,11 @@ export async function PUT(req: Request) {
       return errorResponse('Batas margin aman harus angka antara 0 sampai 100', 400)
     }
 
-    const existing = await getOrCreatePengaturan()
+    const existing = await getOrCreatePengaturan(auth.userId)
     const updated = await prisma.pengaturan.update({
-      where: { id: existing.id },
+      where: { id: existing.id, userId: auth.userId },
       data: { estimasiPorsiPerBulan, batasMarginAman },
+      omit: { userId: true },
     })
     return NextResponse.json(updated)
   } catch (error) {

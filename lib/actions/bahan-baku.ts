@@ -44,14 +44,17 @@ export async function tambahBahanBaku(masukan: {
   }
 
   const kembar = await prisma.bahanBaku.findFirst({
-    where: { nama: { equals: nama, mode: "insensitive" } },
+    where: {
+      userId: auth.userId,
+      nama: { equals: nama, mode: "insensitive" },
+    },
   });
   if (kembar) {
     return { ok: false, error: `Bahan bernama "${kembar.nama}" sudah ada.` };
   }
 
   await prisma.bahanBaku.create({
-    data: { nama, satuan, hargaPerSatuan: masukan.hargaPerSatuan },
+    data: { nama, satuan, hargaPerSatuan: masukan.hargaPerSatuan, userId: auth.userId },
   });
 
   segarkan();
@@ -76,7 +79,7 @@ export async function perbaruiHargaBahan(
     return { ok: false, error: "Harga per satuan harus lebih dari 0." };
   }
 
-  const bahan = await prisma.bahanBaku.findUnique({ where: { id } });
+  const bahan = await prisma.bahanBaku.findFirst({ where: { id, userId: auth.userId } });
   if (!bahan) return { ok: false, error: "Bahan tidak ditemukan." };
 
   if (bahan.hargaPerSatuan === hargaPerSatuan) {
@@ -86,8 +89,11 @@ export async function perbaruiHargaBahan(
   await prisma.historiHarga.create({
     data: { bahanBakuId: id, hargaLama: bahan.hargaPerSatuan, hargaBaru: hargaPerSatuan },
   });
-  await prisma.bahanBaku.update({ where: { id }, data: { hargaPerSatuan } });
-  await recalculateAllAffectedByBahan(id);
+  await prisma.bahanBaku.update({
+    where: { id, userId: auth.userId },
+    data: { hargaPerSatuan },
+  });
+  await recalculateAllAffectedByBahan(id, auth.userId);
 
   segarkan();
   return { ok: true };

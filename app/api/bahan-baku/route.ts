@@ -16,6 +16,7 @@ export async function GET() {
     if (!auth.authorized) return unauthorizedResponse()
 
     const data = await prisma.bahanBaku.findMany({
+      where: { userId: auth.userId },
       orderBy: { nama: 'asc' },
       include: { _count: { select: { histori: true } } },
     })
@@ -59,14 +60,23 @@ export async function POST(req: Request) {
     // Nama bahan kembar membuat daftar membingungkan dan resep gampang salah
     // pilih. Perbandingan case-insensitive, jadi "Gula" dan "gula" dianggap sama.
     const kembar = await prisma.bahanBaku.findFirst({
-      where: { nama: { equals: namaBersih, mode: 'insensitive' } },
+      where: {
+        userId: auth.userId,
+        nama: { equals: namaBersih, mode: 'insensitive' },
+      },
     })
     if (kembar) {
       return errorResponse(`Bahan dengan nama "${kembar.nama}" sudah ada`, 409)
     }
 
     const data = await prisma.bahanBaku.create({
-      data: { nama: namaBersih, satuan: satuan.trim(), hargaPerSatuan },
+      data: {
+        nama: namaBersih,
+        satuan: satuan.trim(),
+        hargaPerSatuan,
+        userId: auth.userId,
+      },
+      omit: { userId: true },
     })
     return NextResponse.json(data, { status: 201 })
   } catch (error) {

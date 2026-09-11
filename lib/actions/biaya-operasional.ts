@@ -54,7 +54,12 @@ export async function tambahBiaya(masukan: MasukanBiaya): Promise<HasilAksi> {
   if (galat) return { ok: false, error: galat };
 
   await prisma.biayaOperasional.create({
-    data: { nama: masukan.nama.trim(), jenis: masukan.jenis, nilai: masukan.nilai },
+    data: {
+      nama: masukan.nama.trim(),
+      jenis: masukan.jenis,
+      nilai: masukan.nilai,
+      userId: auth.userId,
+    },
   });
 
   segarkan();
@@ -70,11 +75,13 @@ export async function perbaruiBiaya(id: number, masukan: MasukanBiaya): Promise<
   const galat = periksaMasukan(masukan);
   if (galat) return { ok: false, error: galat };
 
-  const ada = await prisma.biayaOperasional.findUnique({ where: { id } });
+  const ada = await prisma.biayaOperasional.findFirst({
+    where: { id, userId: auth.userId },
+  });
   if (!ada) return { ok: false, error: "Biaya tidak ditemukan." };
 
   await prisma.biayaOperasional.update({
-    where: { id },
+    where: { id, userId: auth.userId },
     data: { nama: masukan.nama.trim(), jenis: masukan.jenis, nilai: masukan.nilai },
   });
 
@@ -106,12 +113,11 @@ export async function simpanPengaturan(masukan: {
     return { ok: false, error: "Batas margin aman harus antara 0 dan 100." };
   }
 
-  const ada = await prisma.pengaturan.findFirst();
-  if (ada) {
-    await prisma.pengaturan.update({ where: { id: ada.id }, data: masukan });
-  } else {
-    await prisma.pengaturan.create({ data: masukan });
-  }
+  await prisma.pengaturan.upsert({
+    where: { userId: auth.userId },
+    update: masukan,
+    create: { ...masukan, userId: auth.userId },
+  });
 
   segarkan();
   return { ok: true };
