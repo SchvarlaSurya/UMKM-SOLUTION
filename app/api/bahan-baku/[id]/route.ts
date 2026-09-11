@@ -35,7 +35,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
  * form edit bisa mengirim sebagian saja.
  *
  * HistoriHarga HANYA ditulis kalau `hargaPerSatuan` benar-benar berbeda dari
- * nilai sekarang. Edit nama/satuan saja tidak mengotori grafik tren harga.
+ * nilai sekarang. Edit nama atau satuan saja tidak mengotori grafik tren harga,
+ * dan tidak memicu perhitungan ulang HPP.
  */
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -66,6 +67,19 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     const bahan = await prisma.bahanBaku.findUnique({ where: { id } })
     if (!bahan) return errorResponse('Bahan baku tidak ditemukan', 404)
 
+    const namaBersih = nama !== undefined ? (nama as string).trim() : undefined
+
+    // Cek bentrok hanya kalau namanya memang berubah. `id: { not: id }` supaya
+    // bahan ini boleh disimpan dengan namanya sendiri.
+    if (namaBersih !== undefined && namaBersih.toLowerCase() !== bahan.nama.toLowerCase()) {
+      const kembar = await prisma.bahanBaku.findFirst({
+        where: { nama: { equals: namaBersih, mode: 'insensitive' }, id: { not: id } },
+      })
+      if (kembar) {
+        return errorResponse(`Bahan dengan nama "${kembar.nama}" sudah ada`, 409)
+      }
+    }
+
     const hargaBerubah =
       hargaPerSatuan !== undefined && (hargaPerSatuan as number) !== bahan.hargaPerSatuan
 
@@ -82,13 +96,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     const updated = await prisma.bahanBaku.update({
       where: { id },
       data: {
-        ...(nama !== undefined ? { nama: (nama as string).trim() } : {}),
+        ...(namaBersih !== undefined ? { nama: namaBersih } : {}),
         ...(satuan !== undefined ? { satuan: (satuan as string).trim() } : {}),
         ...(hargaBerubah ? { hargaPerSatuan: hargaPerSatuan as number } : {}),
       },
     })
 
-    // Snapshot HPP hanya perlu dicatat ulang kalau harga yang berubah.
+    // HPP hanya perlu dihitung ulang kalau harga yang berubah.
     if (hargaBerubah) {
       await recalculateAllAffectedByBahan(id)
     }
@@ -111,7 +125,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     const bahan = await prisma.bahanBaku.findUnique({ where: { id } })
     if (!bahan) return errorResponse('Bahan baku tidak ditemukan', 404)
 
-    // Tolak lebih awal dengan pesan jelas, jangan biarkan jadi error FK dari DB.
+    // Tolak lebih awal dengan pesan jelas, jangan biarkan jadi error foreign key.
     const dipakai = await prisma.resep.findMany({
       where: { bahanBakuId: id },
       select: { produk: { select: { nama: true } } },
@@ -120,14 +134,14 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       const namaProduk = [...new Set(dipakai.map((r) => r.produk.nama))]
       return NextResponse.json(
         {
-          error: `Bahan masih dipakai di ${namaProduk.length} produk`,
+          error: `Bahan masih dipakai di ${namaProduk.length} produk. Hapus dari resep dulu.`,
           produkTerkait: namaProduk,
         },
         { status: 400 }
       )
     }
 
-    // Histori harga tidak punya onDelete cascade di schema, hapus manual dulu.
+    // HistoriHarga tidak punya onDelete cascade di schema, hapus manual dulu.
     await prisma.historiHarga.deleteMany({ where: { bahanBakuId: id } })
     await prisma.bahanBaku.delete({ where: { id } })
 

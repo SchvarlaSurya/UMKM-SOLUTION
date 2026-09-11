@@ -15,8 +15,25 @@ export async function GET() {
     const auth = await requireAuth()
     if (!auth.authorized) return unauthorizedResponse()
 
-    const data = await prisma.bahanBaku.findMany({ orderBy: { nama: 'asc' } })
-    return NextResponse.json(data)
+    const data = await prisma.bahanBaku.findMany({
+      orderBy: { nama: 'asc' },
+      include: { _count: { select: { histori: true } } },
+    })
+
+    // `_count` diratakan jadi field biasa supaya frontend tidak perlu
+    // memanggil endpoint histori satu per satu hanya untuk tahu bahan mana
+    // yang punya catatan perubahan harga.
+    const hasil = data.map((b) => ({
+      id: b.id,
+      nama: b.nama,
+      satuan: b.satuan,
+      hargaPerSatuan: b.hargaPerSatuan,
+      updatedAt: b.updatedAt,
+      jumlahHistori: b._count.histori,
+      punyaHistori: b._count.histori > 0,
+    }))
+
+    return NextResponse.json(hasil)
   } catch (error) {
     return handleError(error, 'Gagal mengambil daftar bahan baku')
   }
@@ -37,8 +54,19 @@ export async function POST(req: Request) {
       return errorResponse('Harga per satuan harus angka lebih dari 0', 400)
     }
 
+    const namaBersih = nama.trim()
+
+    // Nama bahan kembar membuat daftar membingungkan dan resep gampang salah
+    // pilih. Perbandingan case-insensitive, jadi "Gula" dan "gula" dianggap sama.
+    const kembar = await prisma.bahanBaku.findFirst({
+      where: { nama: { equals: namaBersih, mode: 'insensitive' } },
+    })
+    if (kembar) {
+      return errorResponse(`Bahan dengan nama "${kembar.nama}" sudah ada`, 409)
+    }
+
     const data = await prisma.bahanBaku.create({
-      data: { nama: nama.trim(), satuan: satuan.trim(), hargaPerSatuan },
+      data: { nama: namaBersih, satuan: satuan.trim(), hargaPerSatuan },
     })
     return NextResponse.json(data, { status: 201 })
   } catch (error) {
