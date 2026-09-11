@@ -1,20 +1,8 @@
 import { HalamanProduk } from "@/components/produk/HalamanProduk";
-import { getBahanBaku, getBiayaOperasional, getPengaturan, getProduk } from "@/lib/data";
+import { getBahanBaku, getProdukDenganHpp } from "@/lib/data";
 
 export default async function ProdukPage() {
-  const [produk, bahan, biaya, pengaturan] = await Promise.all([
-    getProduk(),
-    getBahanBaku(),
-    getBiayaOperasional(),
-    getPengaturan(),
-  ]);
+  const [produk, bahan] = await Promise.all([getProdukDenganHpp(), getBahanBaku()]);
 
-  return (
-    <HalamanProduk
-      produkAwal={produk}
-      bahan={bahan}
-      biaya={biaya}
-      pengaturan={pengaturan}
-    />
-  );
+  return <HalamanProduk produk={produk} bahan={bahan} />;
 }
