@@ -151,7 +151,9 @@ export function TabelMargin({
             {terlihat.length === 0 && (
               <TR className="hover:bg-transparent">
                 <TD colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
-                  Tidak ada produk yang cocok dengan pencarian.
+                  {produk.length === 0
+                    ? "Belum ada produk yang dicatat."
+                    : "Tidak ada produk yang cocok dengan pencarian."}
                 </TD>
               </TR>
             )}

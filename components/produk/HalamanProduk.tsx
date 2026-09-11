@@ -3,11 +3,11 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { perbaruiProduk, tambahProduk } from "@/lib/actions/produk";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Tabs } from "@/components/ui/Tabs";
-import { IconCari, IconProduk, IconTambah } from "@/components/ui/icons";
+import { IconCari, IconPanahKanan, IconProduk, IconTambah } from "@/components/ui/icons";
 import type { BahanBaku, ProdukDenganHpp } from "@/lib/types";
 import { KartuProduk } from "./KartuProduk";
 import { ModalProduk, type NilaiFormProduk } from "./ModalProduk";
@@ -131,6 +131,29 @@ export function HalamanProduk({
             <KartuProduk key={p.id} produk={p} onEdit={() => bukaEdit(p)} />
           ))}
         </div>
+      ) : produk.length === 0 ? (
+        <EmptyState
+          ikon={<IconProduk />}
+          judul="Belum ada produk"
+          deskripsi={
+            bahan.length === 0
+              ? "Catat bahan baku dulu, karena resep butuh minimal satu bahan."
+              : "Buat produk pertama beserta takaran per porsinya, lalu HPP dan marginnya terhitung otomatis."
+          }
+          aksi={
+            bahan.length === 0 ? (
+              <ButtonLink href="/bahan-baku" varian="secondary" ukuran="sm">
+                Ke bahan baku
+                <IconPanahKanan width={14} height={14} />
+              </ButtonLink>
+            ) : (
+              <Button varian="primary" ukuran="sm" onClick={bukaTambah}>
+                <IconTambah width={14} height={14} />
+                Tambah produk
+              </Button>
+            )
+          }
+        />
       ) : (
         <EmptyState
           ikon={<IconProduk />}

@@ -7,7 +7,11 @@ import { PrismaClient } from "../app/generated/prisma/client";
  * beserta resepnya, 5 pos biaya operasional, pengaturan, dan histori harga
  * untuk tiga bahan.
  *
+ * Sejak data dipisah per akun, seluruh isian dimiliki satu akun. Akun tujuan
+ * ditentukan SEED_EMAIL; kalau tidak diisi, dipakai akun paling awal.
+ *
  * Jalankan: npm run seed
+ * Pilih akun: SEED_EMAIL=nama@usaha.com npm run seed
  * Isi ulang dari nol: SEED_RESET=1 npm run seed
  *
  * Tabel User tidak pernah disentuh, jadi akun yang sudah terdaftar aman.
@@ -147,43 +151,78 @@ const HISTORI: Array<[nama: string, hargaLama: number, hargaBaru: number, tangga
   ["Minyak goreng", 20000, 20000, "2026-09-05"],
 ];
 
-/** Hapus data demo. User sengaja dilewati supaya akun yang ada tetap utuh. */
-async function kosongkan() {
-  await prisma.hppSnapshot.deleteMany();
-  await prisma.resep.deleteMany();
-  await prisma.historiHarga.deleteMany();
-  await prisma.produk.deleteMany();
-  await prisma.bahanBaku.deleteMany();
-  await prisma.biayaOperasional.deleteMany();
-  await prisma.pengaturan.deleteMany();
+/**
+ * Hapus data demo milik SATU akun saja. Akun lain tidak boleh ikut terhapus,
+ * karena sejak pemisahan data tiap akun punya ruangnya sendiri.
+ */
+async function kosongkan(userId: number) {
+  await prisma.hppSnapshot.deleteMany({ where: { produk: { userId } } });
+  await prisma.resep.deleteMany({ where: { produk: { userId } } });
+  await prisma.historiHarga.deleteMany({ where: { bahanBaku: { userId } } });
+  await prisma.produk.deleteMany({ where: { userId } });
+  await prisma.bahanBaku.deleteMany({ where: { userId } });
+  await prisma.biayaOperasional.deleteMany({ where: { userId } });
+  await prisma.pengaturan.deleteMany({ where: { userId } });
+}
+
+/** Akun tujuan seed: SEED_EMAIL kalau diisi, selain itu akun paling awal. */
+async function tentukanPemilik() {
+  const email = process.env.SEED_EMAIL;
+
+  if (email) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      throw new Error(`Tidak ada akun dengan email "${email}". Daftarkan dulu lewat /register.`);
+    }
+    return user;
+  }
+
+  const pertama = await prisma.user.findFirst({ orderBy: { id: "asc" } });
+  if (!pertama) {
+    throw new Error(
+      "Belum ada satu pun akun. Daftar dulu lewat /register, " +
+        "lalu jalankan ulang seed (boleh sekalian pilih akunnya dengan SEED_EMAIL).",
+    );
+  }
+  return pertama;
 }
 
 async function main() {
   const reset = process.env.SEED_RESET === "1";
+  const pemilik = await tentukanPemilik();
+  const userId = pemilik.id;
+
   const sudahAdaIsi =
-    (await prisma.bahanBaku.count()) > 0 || (await prisma.produk.count()) > 0;
+    (await prisma.bahanBaku.count({ where: { userId } })) > 0 ||
+    (await prisma.produk.count({ where: { userId } })) > 0;
 
   if (sudahAdaIsi && !reset) {
     console.log(
-      "Database sudah berisi bahan baku atau produk, seed dilewati.\n" +
-        "Jalankan dengan SEED_RESET=1 kalau memang mau menimpa data yang ada.",
+      `Akun ${pemilik.email} sudah punya bahan baku atau produk, seed dilewati.\n` +
+        "Jalankan dengan SEED_RESET=1 kalau memang mau menimpa data akun itu.",
     );
     return;
   }
 
+  console.log(`Mengisi data demo untuk akun ${pemilik.email} (id ${userId}).`);
+
   if (reset) {
-    console.log("SEED_RESET=1 — menghapus data demo lama…");
-    await kosongkan();
+    console.log("SEED_RESET=1 — menghapus data demo lama milik akun ini…");
+    await kosongkan(userId);
   }
 
-  await prisma.pengaturan.create({
-    data: { estimasiPorsiPerBulan: 1200, batasMarginAman: 30 },
+  // Baris Pengaturan bisa sudah dibuat lebih dulu oleh GET /api/pengaturan
+  // saat akun pertama kali membuka aplikasi, jadi upsert bukan create.
+  await prisma.pengaturan.upsert({
+    where: { userId },
+    update: { estimasiPorsiPerBulan: 1200, batasMarginAman: 30 },
+    create: { estimasiPorsiPerBulan: 1200, batasMarginAman: 30, userId },
   });
 
-  await prisma.bahanBaku.createMany({ data: BAHAN });
-  await prisma.biayaOperasional.createMany({ data: BIAYA });
+  await prisma.bahanBaku.createMany({ data: BAHAN.map((b) => ({ ...b, userId })) });
+  await prisma.biayaOperasional.createMany({ data: BIAYA.map((b) => ({ ...b, userId })) });
 
-  const bahanTersimpan = await prisma.bahanBaku.findMany();
+  const bahanTersimpan = await prisma.bahanBaku.findMany({ where: { userId } });
   const idBahan = new Map(bahanTersimpan.map((b) => [b.nama, b.id]));
 
   for (const produk of PRODUK) {
@@ -192,6 +231,7 @@ async function main() {
         nama: produk.nama,
         kategori: produk.kategori,
         hargaJual: produk.hargaJual,
+        userId,
         resep: {
           create: produk.resep.map(([nama, jumlah]) => ({
             bahanBakuId: idBahan.get(nama)!,
