@@ -1,16 +1,14 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Banner } from "./Banner";
-import { Button } from "./Button";
-import { Modal } from "./Modal";
+import { ModalKonfirmasi } from "./ModalKonfirmasi";
 
 /**
  * Konfirmasi sebelum menghapus, dipakai bersama halaman bahan baku, biaya
  * operasional, dan produk.
  *
  * Penghapusan tidak bisa dibatalkan, jadi namanya selalu disebut dan tombol
- * utamanya diberi warna bahaya — bukan hijau seperti aksi simpan, supaya tidak
+ * utamanya memakai nada bahaya — bukan hijau seperti aksi simpan, supaya tidak
  * tertekan karena kebiasaan.
  */
 export function ModalKonfirmasiHapus({
@@ -35,40 +33,23 @@ export function ModalKonfirmasiHapus({
   onHapus: () => void;
 }) {
   return (
-    <Modal
+    <ModalKonfirmasi
       terbuka={terbuka}
-      onTutup={onTutup}
       judul={judul}
       subjudul="Tindakan ini tidak bisa dibatalkan."
-      aksiSekunder={
-        <Button varian="secondary" ukuran="sm" type="button" disabled={menghapus} onClick={onTutup}>
-          Batal
-        </Button>
-      }
-      aksiPrimer={
-        <Button
-          varian="primary"
-          ukuran="sm"
-          type="button"
-          disabled={menghapus}
-          onClick={onHapus}
-          className="border-transparent bg-destructive hover:bg-destructive/90"
-        >
-          {menghapus ? "Menghapus…" : "Hapus"}
-        </Button>
-      }
+      nada="bahaya"
+      labelKonfirmasi="Hapus"
+      labelSedangProses="Menghapus…"
+      galat={galat}
+      memproses={menghapus}
+      onTutup={onTutup}
+      onKonfirmasi={onHapus}
     >
       <p className="text-sm text-foreground">
         Hapus <span className="font-semibold">{nama}</span>?
       </p>
 
       {keterangan && <p className="mt-2 text-sm text-muted-foreground">{keterangan}</p>}
-
-      {galat && (
-        <Banner varian="warning" className="mt-4">
-          {galat}
-        </Banner>
-      )}
-    </Modal>
+    </ModalKonfirmasi>
   );
 }
