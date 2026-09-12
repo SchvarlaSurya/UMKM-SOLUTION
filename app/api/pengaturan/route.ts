@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@/app/generated/prisma/client'
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { errorResponse, handleError, readJsonBody, unauthorizedResponse } from '@/lib/apiHelpers'
@@ -9,12 +10,28 @@ import { errorResponse, handleError, readJsonBody, unauthorizedResponse } from '
  * tidak melakukannya supaya endpoint HPP tetap nol write.
  */
 async function getOrCreatePengaturan(userId: number) {
-  return prisma.pengaturan.upsert({
-    where: { userId },
-    update: {},
-    create: { userId },
-    omit: { userId: true },
-  })
+  try {
+    return await prisma.pengaturan.upsert({
+      where: { userId },
+      update: {},
+      create: { userId },
+      omit: { userId: true },
+    })
+  } catch (error) {
+    // Dashboard meminta pengaturan dari beberapa loader secara paralel. Untuk
+    // akun baru, dua upsert dapat sama-sama mencoba membuat baris pertama.
+    // Request yang kalah menerima P2002; pada saat itu baris milik user sudah
+    // dibuat request lain, jadi baca ulang alih-alih membocorkan 409 ke UI.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const pengaturan = await prisma.pengaturan.findUnique({
+        where: { userId },
+        omit: { userId: true },
+      })
+      if (pengaturan) return pengaturan
+    }
+
+    throw error
+  }
 }
 
 export async function GET() {
