@@ -8,6 +8,7 @@ import {
   IconPensil,
   IconPeringatan,
   IconProduk,
+  IconRiwayat,
 } from "@/components/ui/icons";
 import { formatPersen, formatRupiah } from "@/lib/format";
 import type { ProdukDenganHpp } from "@/lib/types";
@@ -23,10 +24,12 @@ function IkonKategori({ kategori }: { kategori: string }) {
 export function KartuProduk({
   produk,
   onEdit,
+  onLihatHistori,
   onHapus,
 }: {
   produk: ProdukDenganHpp;
   onEdit: () => void;
+  onLihatHistori: () => void;
   onHapus: () => void;
 }) {
   return (
@@ -76,6 +79,15 @@ export function KartuProduk({
           Margin {formatPersen(produk.marginPersen)}
         </span>
         <span className="inline-flex items-center gap-1">
+          <Button
+            varian="ghost"
+            ukuran="sm"
+            className="px-2"
+            aria-label={`Lihat riwayat harga jual ${produk.nama}`}
+            onClick={onLihatHistori}
+          >
+            <IconRiwayat width={15} height={15} />
+          </Button>
           <Button varian="link" ukuran="sm" onClick={onEdit}>
             <IconPensil width={14} height={14} />
             Edit resep

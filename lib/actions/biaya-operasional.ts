@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import {
+  PerhitunganHargaTargetError,
+  recalculateAllByBiayaOperasional,
+} from "@/lib/hppCalculator";
 import type { JenisBiaya } from "@/lib/types";
 
 /**
@@ -14,6 +18,12 @@ import type { JenisBiaya } from "@/lib/types";
  */
 
 export type HasilAksi = { ok: true } | { ok: false; error: string };
+
+function galatPerhitungan(error: unknown): HasilAksi | null {
+  return error instanceof PerhitunganHargaTargetError
+    ? { ok: false, error: error.message }
+    : null;
+}
 
 /** Biaya dan pengaturan ikut menentukan HPP, jadi halaman ini ikut disegarkan. */
 const HALAMAN_TERDAMPAK = ["/biaya-operasional", "/dashboard", "/produk"];
@@ -53,14 +63,23 @@ export async function tambahBiaya(masukan: MasukanBiaya): Promise<HasilAksi> {
   const galat = periksaMasukan(masukan);
   if (galat) return { ok: false, error: galat };
 
-  await prisma.biayaOperasional.create({
-    data: {
-      nama: masukan.nama.trim(),
-      jenis: masukan.jenis,
-      nilai: masukan.nilai,
-      userId: auth.userId,
-    },
-  });
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.biayaOperasional.create({
+        data: {
+          nama: masukan.nama.trim(),
+          jenis: masukan.jenis,
+          nilai: masukan.nilai,
+          userId: auth.userId,
+        },
+      });
+      await recalculateAllByBiayaOperasional(auth.userId, tx);
+    });
+  } catch (error) {
+    const hasil = galatPerhitungan(error);
+    if (hasil) return hasil;
+    throw error;
+  }
 
   segarkan();
   return { ok: true };
@@ -80,10 +99,19 @@ export async function perbaruiBiaya(id: number, masukan: MasukanBiaya): Promise<
   });
   if (!ada) return { ok: false, error: "Biaya tidak ditemukan." };
 
-  await prisma.biayaOperasional.update({
-    where: { id, userId: auth.userId },
-    data: { nama: masukan.nama.trim(), jenis: masukan.jenis, nilai: masukan.nilai },
-  });
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.biayaOperasional.update({
+        where: { id, userId: auth.userId },
+        data: { nama: masukan.nama.trim(), jenis: masukan.jenis, nilai: masukan.nilai },
+      });
+      await recalculateAllByBiayaOperasional(auth.userId, tx);
+    });
+  } catch (error) {
+    const hasil = galatPerhitungan(error);
+    if (hasil) return hasil;
+    throw error;
+  }
 
   segarkan();
   return { ok: true };
@@ -113,11 +141,20 @@ export async function simpanPengaturan(masukan: {
     return { ok: false, error: "Batas margin aman harus antara 0 dan 100." };
   }
 
-  await prisma.pengaturan.upsert({
-    where: { userId: auth.userId },
-    update: masukan,
-    create: { ...masukan, userId: auth.userId },
-  });
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.pengaturan.upsert({
+        where: { userId: auth.userId },
+        update: masukan,
+        create: { ...masukan, userId: auth.userId },
+      });
+      await recalculateAllByBiayaOperasional(auth.userId, tx);
+    });
+  } catch (error) {
+    const hasil = galatPerhitungan(error);
+    if (hasil) return hasil;
+    throw error;
+  }
 
   segarkan();
   return { ok: true };
@@ -133,7 +170,16 @@ export async function hapusBiaya(id: number): Promise<HasilAksi> {
   const ada = await prisma.biayaOperasional.findFirst({ where: { id, userId: auth.userId } });
   if (!ada) return { ok: false, error: "Biaya tidak ditemukan." };
 
-  await prisma.biayaOperasional.delete({ where: { id, userId: auth.userId } });
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.biayaOperasional.delete({ where: { id, userId: auth.userId } });
+      await recalculateAllByBiayaOperasional(auth.userId, tx);
+    });
+  } catch (error) {
+    const hasil = galatPerhitungan(error);
+    if (hasil) return hasil;
+    throw error;
+  }
 
   segarkan();
   return { ok: true };

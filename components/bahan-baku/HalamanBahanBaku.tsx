@@ -91,6 +91,7 @@ export function HalamanBahanBaku({
       }
 
       setModalTerbuka(false);
+      window.dispatchEvent(new Event("notifikasi:segarkan"));
       // Ambil ulang hasil render server yang sudah disegarkan Server Action.
       router.refresh();
     });

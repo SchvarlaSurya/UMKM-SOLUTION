@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { hapusProduk, perbaruiProduk, tambahProduk } from "@/lib/actions/produk";
+import { hapusProduk } from "@/lib/actions/produk";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ModalKonfirmasiHapus } from "@/components/ui/ModalKonfirmasiHapus";
@@ -11,6 +11,7 @@ import { Tabs } from "@/components/ui/Tabs";
 import { IconCari, IconPanahKanan, IconProduk, IconTambah } from "@/components/ui/icons";
 import type { BahanBaku, ProdukDenganHpp } from "@/lib/types";
 import { KartuProduk } from "./KartuProduk";
+import { ModalHistoriHargaJual } from "./ModalHistoriHargaJual";
 import { ModalProduk, type NilaiFormProduk } from "./ModalProduk";
 
 type Filter = "semua" | "perhatian" | "aman";
@@ -35,6 +36,7 @@ export function HalamanProduk({
   const [modalTerbuka, setModalTerbuka] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
   const [akanDihapus, setAkanDihapus] = useState<ProdukDenganHpp | null>(null);
+  const [produkHistori, setProdukHistori] = useState<ProdukDenganHpp | null>(null);
   const [galatHapus, setGalatHapus] = useState<string | null>(null);
 
   const denganHpp = produk;
@@ -88,18 +90,37 @@ export function HalamanProduk({
   function simpan(nilai: NilaiFormProduk) {
     setGalat(null);
     mulaiSimpan(async () => {
-      const hasil =
-        mode === "edit" && terpilih
-          ? await perbaruiProduk(terpilih.id, nilai)
-          : await tambahProduk(nilai);
+      try {
+        const url =
+          mode === "edit" && terpilih
+            ? `/api/produk/${terpilih.id}`
+            : "/api/produk";
+        const respons = await fetch(url, {
+          method: mode === "edit" ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(nilai),
+          cache: "no-store",
+        });
+        const isi: unknown = await respons.json().catch(() => null);
 
-      if (!hasil.ok) {
-        setGalat(hasil.error);
-        return;
+        if (!respons.ok) {
+          const pesan =
+            isi &&
+            typeof isi === "object" &&
+            "error" in isi &&
+            typeof isi.error === "string"
+              ? isi.error
+              : "Produk belum dapat disimpan. Coba lagi.";
+          setGalat(pesan);
+          return;
+        }
+
+        setModalTerbuka(false);
+        window.dispatchEvent(new Event("notifikasi:segarkan"));
+        router.refresh();
+      } catch {
+        setGalat("Tidak dapat terhubung ke server. Periksa koneksi lalu coba lagi.");
       }
-
-      setModalTerbuka(false);
-      router.refresh();
     });
   }
 
@@ -151,6 +172,7 @@ export function HalamanProduk({
               key={p.id}
               produk={p}
               onEdit={() => bukaEdit(p)}
+              onLihatHistori={() => setProdukHistori(p)}
               onHapus={() => {
                 setAkanDihapus(p);
                 setGalatHapus(null);
@@ -199,7 +221,12 @@ export function HalamanProduk({
         onTutup={() => setModalTerbuka(false)}
         onSimpan={simpan}
       />
-    <ModalKonfirmasiHapus
+      <ModalHistoriHargaJual
+        produk={produkHistori}
+        terbuka={produkHistori !== null}
+        onTutup={() => setProdukHistori(null)}
+      />
+      <ModalKonfirmasiHapus
         terbuka={akanDihapus !== null}
         judul="Hapus produk"
         nama={akanDihapus?.nama ?? ""}
@@ -210,6 +237,6 @@ export function HalamanProduk({
         onHapus={hapus}
       />
 
-      </>
+    </>
   );
 }

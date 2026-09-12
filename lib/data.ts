@@ -87,6 +87,8 @@ async function ambilProduk(userId: number): Promise<Produk[]> {
       nama: true,
       kategori: true,
       hargaJual: true,
+      modePenentuanHarga: true,
+      targetMarginPersen: true,
       resep: {
         where: {
           produk: { userId },
@@ -112,6 +114,7 @@ async function ambilProduk(userId: number): Promise<Produk[]> {
 
   return produk.map((item) => ({
     ...item,
+    modePenentuanHarga: item.modePenentuanHarga as Produk["modePenentuanHarga"],
     resep: item.resep.map((baris) => ({
       ...baris,
       bahanBaku: serialisasiBahan(baris.bahanBaku),

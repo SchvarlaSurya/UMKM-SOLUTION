@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, type MouseEvent, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { Button } from "./Button";
 import { IconTutup } from "./icons";
@@ -33,6 +33,8 @@ export function Modal({
   lebar?: "md" | "lg";
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const idJudul = useId();
+  const idSubjudul = useId();
 
   useEffect(() => {
     const dialog = ref.current;
@@ -58,19 +60,24 @@ export function Modal({
     <dialog
       ref={ref}
       onClick={klikBackdrop}
-      aria-labelledby="modal-judul"
+      aria-labelledby={idJudul}
+      aria-describedby={subjudul ? idSubjudul : undefined}
       className={cn(
-        "m-auto w-[calc(100vw-2rem)] rounded-card border border-border bg-card p-0 text-foreground",
+        "m-auto max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] overflow-y-auto rounded-card border border-border bg-card p-0 text-foreground",
         "backdrop:bg-foreground/40",
         lebar === "lg" ? "max-w-2xl" : "max-w-lg",
       )}
     >
       <div className="flex items-start justify-between gap-4 px-5 pt-5">
         <div>
-          <h2 id="modal-judul" className="text-base font-semibold">
+          <h2 id={idJudul} className="text-base font-semibold">
             {judul}
           </h2>
-          {subjudul && <p className="mt-1 text-sm text-muted-foreground">{subjudul}</p>}
+          {subjudul && (
+            <p id={idSubjudul} className="mt-1 text-sm text-muted-foreground">
+              {subjudul}
+            </p>
+          )}
         </div>
         <Button
           varian="ghost"
