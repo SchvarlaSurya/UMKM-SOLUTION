@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
+import { InputAngka } from "@/components/ui/InputAngka";
 import { Modal } from "@/components/ui/Modal";
 import { IconKalkulator, IconTambah, IconTutup } from "@/components/ui/icons";
 import { formatRupiah } from "@/lib/format";
@@ -439,17 +440,13 @@ function FormProduk({
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           {modeHarga === "manual" ? (
-            <Input
+            <InputAngka
               id="harga-jual"
               name="hargaJual"
-              label="Harga jual (Rp)"
-              type="number"
-              min={0}
-              step={500}
-              inputMode="numeric"
-              value={hargaManual}
-              onChange={(e) => setHargaManual(e.target.value)}
-              placeholder="0"
+              label="Harga jual"
+              awalan="Rp"
+              nilai={hargaManual}
+              onNilaiUbah={setHargaManual}
               helper="Masukkan harga yang dibayar pelanggan per porsi."
             />
           ) : (
@@ -477,18 +474,25 @@ function FormProduk({
             <div className="flex flex-col gap-1.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <label htmlFor="harga-jual" className="text-sm font-medium text-foreground">
-                  Harga jual (Rp)
+                  Harga jual
                 </label>
                 <Badge varian="count" ikon={<IconKalkulator width={13} height={13} />}>
                   Dihitung sistem
                 </Badge>
               </div>
+              {/* Nilai polos dikirim lewat kolom tersembunyi; yang terlihat
+                  diformat supaya sebangun dengan mode harga manual. */}
+              <input type="hidden" name="hargaJual" value={hargaSistem} />
               <input
                 id="harga-jual"
-                name="hargaJual"
-                type="number"
+                type="text"
+                inputMode="numeric"
                 readOnly
-                value={simulasiAktif?.status === "sukses" ? hargaSistem : ""}
+                value={
+                  simulasiAktif?.status === "sukses" && hargaSistem !== ""
+                    ? `Rp ${Number(hargaSistem).toLocaleString("id-ID")}`
+                    : ""
+                }
                 placeholder={
                   simulasiAktif?.status === "memuat" ? "Menghitung..." : "Menunggu resep"
                 }

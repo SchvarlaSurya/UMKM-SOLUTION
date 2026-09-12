@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
+import { InputAngka } from "@/components/ui/InputAngka";
 import { Modal } from "@/components/ui/Modal";
 import type { BiayaOperasional, JenisBiaya } from "@/lib/types";
 
@@ -124,23 +125,36 @@ function FormBiaya({
           <option value="persentase">Persentase (dari harga jual)</option>
         </Select>
 
-        <Input
-          id="nilai-biaya"
-          name="nilai"
-          label={jenis === "tetap" ? "Nilai per bulan (Rp)" : "Besar potongan (%)"}
-          type="number"
-          min={0}
-          step={jenis === "tetap" ? 1000 : 0.5}
-          inputMode="decimal"
-          defaultValue={biaya ? String(biaya.nilai) : ""}
-          placeholder="0"
-          error={pesanGalat ?? undefined}
-          helper={
-            jenis === "tetap"
-              ? `Dibagi rata ke ${estimasiPorsi.toLocaleString("id-ID")} porsi per bulan.`
-              : "Dipotong dari harga jual setiap produk."
-          }
-        />
+        {jenis === "tetap" ? (
+          /* key memaksa kolom dibuat ulang saat jenis berganti, supaya nilai
+             persentase tidak tertinggal jadi angka rupiah. */
+          <InputAngka
+            key="nilai-tetap"
+            id="nilai-biaya"
+            name="nilai"
+            label="Nilai per bulan"
+            awalan="Rp"
+            nilai={biaya?.jenis === "tetap" ? String(biaya.nilai) : ""}
+            error={pesanGalat ?? undefined}
+            helper={`Dibagi rata ke ${estimasiPorsi.toLocaleString("id-ID")} porsi per bulan.`}
+          />
+        ) : (
+          <Input
+            key="nilai-persentase"
+            id="nilai-biaya"
+            name="nilai"
+            label="Besar potongan (%)"
+            type="number"
+            min={0}
+            max={100}
+            step={0.5}
+            inputMode="decimal"
+            defaultValue={biaya?.jenis === "persentase" ? String(biaya.nilai) : ""}
+            placeholder="0"
+            error={pesanGalat ?? undefined}
+            helper="Dipotong dari harga jual setiap produk."
+          />
+        )}
       </div>
     </form>
   );
