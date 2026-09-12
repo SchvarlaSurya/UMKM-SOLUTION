@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
+  hapusBiaya,
   perbaruiBiaya,
   simpanPengaturan,
   tambahBiaya,
@@ -13,7 +14,8 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Ca
 import { Input } from "@/components/ui/Input";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/ui/Table";
-import { IconPensil, IconTambah } from "@/components/ui/icons";
+import { ModalKonfirmasiHapus } from "@/components/ui/ModalKonfirmasiHapus";
+import { IconHapus, IconPensil, IconTambah } from "@/components/ui/icons";
 import { formatPersen, formatRupiah } from "@/lib/format";
 import type { BiayaOperasional, Pengaturan } from "@/lib/types";
 import { ModalBiaya, type NilaiFormBiaya } from "./ModalBiaya";
@@ -42,6 +44,8 @@ export function HalamanBiayaOperasional({
   const [terpilih, setTerpilih] = useState<BiayaOperasional | null>(null);
   const [modalTerbuka, setModalTerbuka] = useState(false);
   const [galatBiaya, setGalatBiaya] = useState<string | null>(null);
+  const [akanDihapus, setAkanDihapus] = useState<BiayaOperasional | null>(null);
+  const [galatHapus, setGalatHapus] = useState<string | null>(null);
 
   const estimasiPorsi = Number(porsi) > 0 ? Number(porsi) : 0;
   const pengaturanBerubah =
@@ -90,6 +94,22 @@ export function HalamanBiayaOperasional({
       }
 
       setModalTerbuka(false);
+      router.refresh();
+    });
+  }
+
+  function hapus() {
+    if (!akanDihapus) return;
+    setGalatHapus(null);
+    mulaiSimpan(async () => {
+      const hasil = await hapusBiaya(akanDihapus.id);
+
+      if (!hasil.ok) {
+        setGalatHapus(hasil.error);
+        return;
+      }
+
+      setAkanDihapus(null);
       router.refresh();
     });
   }
@@ -232,10 +252,24 @@ export function HalamanBiayaOperasional({
                       : "Dari harga jual setiap produk"}
                   </TD>
                   <TD className="text-right">
-                    <Button varian="link" ukuran="sm" onClick={() => bukaEdit(b)}>
-                      <IconPensil width={14} height={14} />
-                      Edit
-                    </Button>
+                    <span className="inline-flex items-center gap-1">
+                      <Button varian="link" ukuran="sm" onClick={() => bukaEdit(b)}>
+                        <IconPensil width={14} height={14} />
+                        Edit
+                      </Button>
+                      <Button
+                        varian="ghost"
+                        ukuran="sm"
+                        className="px-2 hover:text-destructive"
+                        aria-label={`Hapus ${b.nama}`}
+                        onClick={() => {
+                          setAkanDihapus(b);
+                          setGalatHapus(null);
+                        }}
+                      >
+                        <IconHapus width={16} height={16} />
+                      </Button>
+                    </span>
                   </TD>
                 </TR>
               ))}
@@ -265,6 +299,17 @@ export function HalamanBiayaOperasional({
         galatServer={galatBiaya}
         onTutup={() => setModalTerbuka(false)}
         onSimpan={simpan}
+      />
+
+      <ModalKonfirmasiHapus
+        terbuka={akanDihapus !== null}
+        judul="Hapus biaya operasional"
+        nama={akanDihapus?.nama ?? ""}
+        keterangan="Alokasi biaya tetap per porsi ikut terhitung ulang, jadi HPP seluruh produk akan berubah."
+        galat={galatHapus}
+        menghapus={menyimpan}
+        onTutup={() => setAkanDihapus(null)}
+        onHapus={hapus}
       />
     </>
   );

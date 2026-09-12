@@ -126,3 +126,27 @@ export async function perbaruiProduk(
   segarkan();
   return { ok: true };
 }
+
+/**
+ * Menghapus produk beserta resep dan snapshot HPP-nya.
+ * Bahan baku tidak ikut terhapus, hanya kaitannya di resep.
+ */
+export async function hapusProduk(id: number): Promise<HasilAksi> {
+  const auth = await requireAuth();
+  if (!auth.authorized) {
+    return { ok: false, error: "Sesi berakhir. Masuk lagi untuk menghapus." };
+  }
+
+  const ada = await prisma.produk.findFirst({ where: { id, userId: auth.userId } });
+  if (!ada) return { ok: false, error: "Produk tidak ditemukan." };
+
+  // Schema belum memakai onDelete cascade, jadi relasi dihapus manual dulu.
+  await prisma.$transaction([
+    prisma.resep.deleteMany({ where: { produkId: id } }),
+    prisma.hppSnapshot.deleteMany({ where: { produkId: id } }),
+    prisma.produk.delete({ where: { id, userId: auth.userId } }),
+  ]);
+
+  segarkan();
+  return { ok: true };
+}

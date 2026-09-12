@@ -2,9 +2,10 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { perbaruiProduk, tambahProduk } from "@/lib/actions/produk";
+import { hapusProduk, perbaruiProduk, tambahProduk } from "@/lib/actions/produk";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ModalKonfirmasiHapus } from "@/components/ui/ModalKonfirmasiHapus";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Tabs } from "@/components/ui/Tabs";
 import { IconCari, IconPanahKanan, IconProduk, IconTambah } from "@/components/ui/icons";
@@ -33,6 +34,8 @@ export function HalamanProduk({
   const [terpilih, setTerpilih] = useState<ProdukDenganHpp | null>(null);
   const [modalTerbuka, setModalTerbuka] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
+  const [akanDihapus, setAkanDihapus] = useState<ProdukDenganHpp | null>(null);
+  const [galatHapus, setGalatHapus] = useState<string | null>(null);
 
   const denganHpp = produk;
   const jumlahPerhatian = denganHpp.filter((p) => !p.statusAman).length;
@@ -64,6 +67,22 @@ export function HalamanProduk({
     setTerpilih(item);
     setGalat(null);
     setModalTerbuka(true);
+  }
+
+  function hapus() {
+    if (!akanDihapus) return;
+    setGalatHapus(null);
+    mulaiSimpan(async () => {
+      const hasil = await hapusProduk(akanDihapus.id);
+
+      if (!hasil.ok) {
+        setGalatHapus(hasil.error);
+        return;
+      }
+
+      setAkanDihapus(null);
+      router.refresh();
+    });
   }
 
   function simpan(nilai: NilaiFormProduk) {
@@ -128,7 +147,15 @@ export function HalamanProduk({
       {terlihat.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {terlihat.map((p) => (
-            <KartuProduk key={p.id} produk={p} onEdit={() => bukaEdit(p)} />
+            <KartuProduk
+              key={p.id}
+              produk={p}
+              onEdit={() => bukaEdit(p)}
+              onHapus={() => {
+                setAkanDihapus(p);
+                setGalatHapus(null);
+              }}
+            />
           ))}
         </div>
       ) : produk.length === 0 ? (
@@ -172,6 +199,17 @@ export function HalamanProduk({
         onTutup={() => setModalTerbuka(false)}
         onSimpan={simpan}
       />
-    </>
+    <ModalKonfirmasiHapus
+        terbuka={akanDihapus !== null}
+        judul="Hapus produk"
+        nama={akanDihapus?.nama ?? ""}
+        keterangan="Resep produk ini ikut terhapus. Bahan bakunya tetap ada, hanya kaitannya yang hilang."
+        galat={galatHapus}
+        menghapus={menyimpan}
+        onTutup={() => setAkanDihapus(null)}
+        onHapus={hapus}
+      />
+
+      </>
   );
 }

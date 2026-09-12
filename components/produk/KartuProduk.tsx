@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/Card";
 import {
   IconBahan,
   IconCentang,
+  IconHapus,
   IconPensil,
   IconPeringatan,
   IconProduk,
@@ -22,9 +23,11 @@ function IkonKategori({ kategori }: { kategori: string }) {
 export function KartuProduk({
   produk,
   onEdit,
+  onHapus,
 }: {
   produk: ProdukDenganHpp;
   onEdit: () => void;
+  onHapus: () => void;
 }) {
   return (
     <Card className="flex h-full flex-col p-5">
@@ -72,10 +75,21 @@ export function KartuProduk({
         >
           Margin {formatPersen(produk.marginPersen)}
         </span>
-        <Button varian="link" ukuran="sm" onClick={onEdit}>
-          <IconPensil width={14} height={14} />
-          Edit resep
-        </Button>
+        <span className="inline-flex items-center gap-1">
+          <Button varian="link" ukuran="sm" onClick={onEdit}>
+            <IconPensil width={14} height={14} />
+            Edit resep
+          </Button>
+          <Button
+            varian="ghost"
+            ukuran="sm"
+            className="px-2 hover:text-destructive"
+            aria-label={`Hapus ${produk.nama}`}
+            onClick={onHapus}
+          >
+            <IconHapus width={16} height={16} />
+          </Button>
+        </span>
       </div>
     </Card>
   );
