@@ -10,6 +10,7 @@ export const metadata = {
 export default function LoginPage() {
   return (
     <KartuAuth
+      varian="masuk"
       judul="Masuk ke ruang usahamu"
       subjudul="Pantau HPP dan margin setiap produk dari satu tempat."
       footer={

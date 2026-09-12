@@ -9,6 +9,7 @@ export const metadata = {
 export default function RegisterPage() {
   return (
     <KartuAuth
+      varian="daftar"
       judul="Buat akun usaha"
       subjudul="Satu akun untuk mencatat bahan, biaya, dan margin produkmu."
       footer={
