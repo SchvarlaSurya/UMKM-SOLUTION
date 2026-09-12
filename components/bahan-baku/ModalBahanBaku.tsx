@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
+import { InputAngka } from "@/components/ui/InputAngka";
 import { Modal } from "@/components/ui/Modal";
 import { Banner } from "@/components/ui/Banner";
 import type { BahanBaku } from "@/lib/types";
@@ -140,16 +141,12 @@ function FormBahan({
           ))}
         </Select>
 
-        <Input
+        <InputAngka
           id="harga-bahan"
           name="harga"
-          label="Harga per satuan (Rp)"
-          type="number"
-          min={0}
-          step={100}
-          inputMode="numeric"
-          defaultValue={bahan ? String(bahan.hargaPerSatuan) : ""}
-          placeholder="0"
+          label="Harga per satuan"
+          awalan="Rp"
+          nilai={bahan ? String(bahan.hargaPerSatuan) : ""}
           error={pesanGalat ?? undefined}
         />
       </div>

@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { InputAngka } from "@/components/ui/InputAngka";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/ui/Table";
 import { ModalKonfirmasiHapus } from "@/components/ui/ModalKonfirmasiHapus";
@@ -154,15 +155,12 @@ export function HalamanBiayaOperasional({
         </CardHeader>
 
         <div className="grid gap-5 px-5 py-5 md:grid-cols-3">
-          <Input
+          <InputAngka
             id="estimasi-porsi"
             label="Estimasi porsi per bulan"
-            type="number"
-            min={1}
-            step={50}
-            inputMode="numeric"
-            value={porsi}
-            onChange={(e) => setPorsi(e.target.value)}
+            akhiran="porsi"
+            nilai={porsi}
+            onNilaiUbah={setPorsi}
             helper="Perkiraan total porsi terjual seluruh produk."
             error={estimasiPorsi === 0 ? "Isi lebih dari 0 agar bisa dibagi." : undefined}
           />
