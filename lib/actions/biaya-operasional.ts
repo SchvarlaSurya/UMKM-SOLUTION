@@ -122,3 +122,19 @@ export async function simpanPengaturan(masukan: {
   segarkan();
   return { ok: true };
 }
+
+/** Menghapus satu pos biaya. Alokasi per porsi ikut berubah setelahnya. */
+export async function hapusBiaya(id: number): Promise<HasilAksi> {
+  const auth = await requireAuth();
+  if (!auth.authorized) {
+    return { ok: false, error: "Sesi berakhir. Masuk lagi untuk menghapus." };
+  }
+
+  const ada = await prisma.biayaOperasional.findFirst({ where: { id, userId: auth.userId } });
+  if (!ada) return { ok: false, error: "Biaya tidak ditemukan." };
+
+  await prisma.biayaOperasional.delete({ where: { id, userId: auth.userId } });
+
+  segarkan();
+  return { ok: true };
+}

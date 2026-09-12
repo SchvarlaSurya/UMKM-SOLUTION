@@ -98,3 +98,46 @@ export async function perbaruiHargaBahan(
   segarkan();
   return { ok: true };
 }
+
+/**
+ * Menghapus bahan baku beserta histori harganya.
+ *
+ * Aturannya sama dengan DELETE /api/bahan-baku/[id]: bahan yang masih dipakai
+ * resep ditolak lebih dulu dengan menyebut produknya, jangan dibiarkan gagal
+ * sebagai galat foreign key yang tidak bisa dibaca pengguna.
+ */
+export async function hapusBahanBaku(id: number): Promise<HasilAksi> {
+  const auth = await requireAuth();
+  if (!auth.authorized) {
+    return { ok: false, error: "Sesi berakhir. Masuk lagi untuk menghapus." };
+  }
+
+  const bahan = await prisma.bahanBaku.findFirst({ where: { id, userId: auth.userId } });
+  if (!bahan) return { ok: false, error: "Bahan tidak ditemukan." };
+
+  const dipakai = await prisma.resep.findMany({
+    where: { bahanBakuId: id, produk: { userId: auth.userId } },
+    select: { produk: { select: { nama: true } } },
+  });
+
+  if (dipakai.length > 0) {
+    const namaProduk = [...new Set(dipakai.map((r) => r.produk.nama))];
+    const daftar =
+      namaProduk.length <= 3
+        ? namaProduk.join(", ")
+        : `${namaProduk.slice(0, 3).join(", ")}, dan ${namaProduk.length - 3} lainnya`;
+    return {
+      ok: false,
+      error: `Masih dipakai ${namaProduk.length} produk (${daftar}). Keluarkan dari resepnya dulu.`,
+    };
+  }
+
+  // HistoriHarga belum punya onDelete cascade di schema, hapus manual dulu.
+  await prisma.$transaction([
+    prisma.historiHarga.deleteMany({ where: { bahanBakuId: id } }),
+    prisma.bahanBaku.delete({ where: { id, userId: auth.userId } }),
+  ]);
+
+  segarkan();
+  return { ok: true };
+}

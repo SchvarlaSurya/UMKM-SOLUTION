@@ -2,14 +2,15 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { perbaruiHargaBahan, tambahBahanBaku } from "@/lib/actions/bahan-baku";
+import { hapusBahanBaku, perbaruiHargaBahan, tambahBahanBaku } from "@/lib/actions/bahan-baku";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Banner } from "@/components/ui/Banner";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
+import { ModalKonfirmasiHapus } from "@/components/ui/ModalKonfirmasiHapus";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/ui/Table";
-import { IconCari, IconPensil, IconTambah } from "@/components/ui/icons";
+import { IconCari, IconHapus, IconPensil, IconTambah } from "@/components/ui/icons";
 import { formatRupiah, formatTanggal } from "@/lib/format";
 import type { BahanBaku } from "@/lib/types";
 import { ModalBahanBaku, type NilaiFormBahan } from "./ModalBahanBaku";
@@ -33,6 +34,8 @@ export function HalamanBahanBaku({
   const [terpilih, setTerpilih] = useState<BahanBaku | null>(null);
   const [modalTerbuka, setModalTerbuka] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
+  const [akanDihapus, setAkanDihapus] = useState<BahanBaku | null>(null);
+  const [galatHapus, setGalatHapus] = useState<string | null>(null);
 
   const terlihat = useMemo(() => {
     const kunci = cari.trim().toLowerCase();
@@ -51,6 +54,27 @@ export function HalamanBahanBaku({
     setTerpilih(item);
     setGalat(null);
     setModalTerbuka(true);
+  }
+
+  function bukaHapus(item: BahanBaku) {
+    setAkanDihapus(item);
+    setGalatHapus(null);
+  }
+
+  function hapus() {
+    if (!akanDihapus) return;
+    setGalatHapus(null);
+    mulaiSimpan(async () => {
+      const hasil = await hapusBahanBaku(akanDihapus.id);
+
+      if (!hasil.ok) {
+        setGalatHapus(hasil.error);
+        return;
+      }
+
+      setAkanDihapus(null);
+      router.refresh();
+    });
   }
 
   function simpan(nilai: NilaiFormBahan) {
@@ -147,10 +171,21 @@ export function HalamanBahanBaku({
                       )}
                     </TD>
                     <TD className="text-right">
-                      <Button varian="link" ukuran="sm" onClick={() => bukaEdit(b)}>
-                        <IconPensil width={14} height={14} />
-                        Edit harga
-                      </Button>
+                      <span className="inline-flex items-center gap-1">
+                        <Button varian="link" ukuran="sm" onClick={() => bukaEdit(b)}>
+                          <IconPensil width={14} height={14} />
+                          Edit harga
+                        </Button>
+                        <Button
+                          varian="ghost"
+                          ukuran="sm"
+                          className="px-2 hover:text-destructive"
+                          aria-label={`Hapus ${b.nama}`}
+                          onClick={() => bukaHapus(b)}
+                        >
+                          <IconHapus width={16} height={16} />
+                        </Button>
+                      </span>
                     </TD>
                   </TR>
                 );
@@ -193,6 +228,17 @@ export function HalamanBahanBaku({
         galatServer={galat}
         onTutup={() => setModalTerbuka(false)}
         onSimpan={simpan}
+      />
+
+      <ModalKonfirmasiHapus
+        terbuka={akanDihapus !== null}
+        judul="Hapus bahan baku"
+        nama={akanDihapus?.nama ?? ""}
+        keterangan="Catatan perubahan harganya ikut terhapus. Produk yang memakai bahan ini harus dilepas dari resepnya lebih dulu."
+        galat={galatHapus}
+        menghapus={menyimpan}
+        onTutup={() => setAkanDihapus(null)}
+        onHapus={hapus}
       />
     </>
   );
