@@ -9,14 +9,6 @@ import {
 } from "@/lib/hppCalculator";
 import type { JenisBiaya } from "@/lib/types";
 
-/**
- * Server Action untuk halaman Biaya Operasional.
- *
- * Sesi diperiksa di dalam tiap action karena Server Function bisa dipanggil
- * lewat POST langsung, bukan hanya dari tombol di UI. Aturan validasinya
- * disamakan dengan route di app/api/biaya-operasional dan app/api/pengaturan.
- */
-
 export type HasilAksi = { ok: true } | { ok: false; error: string };
 
 function galatPerhitungan(error: unknown): HasilAksi | null {
@@ -25,7 +17,6 @@ function galatPerhitungan(error: unknown): HasilAksi | null {
     : null;
 }
 
-/** Biaya dan pengaturan ikut menentukan HPP, jadi halaman ini ikut disegarkan. */
 const HALAMAN_TERDAMPAK = ["/biaya-operasional", "/dashboard", "/produk"];
 
 function segarkan() {
@@ -38,7 +29,6 @@ type MasukanBiaya = {
   nilai: number;
 };
 
-/** Aturan yang sama dipakai saat menambah maupun menyunting. */
 function periksaMasukan(masukan: MasukanBiaya): string | null {
   const nama = masukan.nama?.trim() ?? "";
   if (nama === "") return "Nama biaya wajib diisi.";
@@ -64,17 +54,20 @@ export async function tambahBiaya(masukan: MasukanBiaya): Promise<HasilAksi> {
   if (galat) return { ok: false, error: galat };
 
   try {
-    await prisma.$transaction(async (tx) => {
-      await tx.biayaOperasional.create({
-        data: {
-          nama: masukan.nama.trim(),
-          jenis: masukan.jenis,
-          nilai: masukan.nilai,
-          userId: auth.userId,
-        },
-      });
-      await recalculateAllByBiayaOperasional(auth.userId, tx);
-    });
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.biayaOperasional.create({
+          data: {
+            nama: masukan.nama.trim(),
+            jenis: masukan.jenis,
+            nilai: masukan.nilai,
+            userId: auth.userId,
+          },
+        });
+        await recalculateAllByBiayaOperasional(auth.userId, tx);
+      },
+      { maxWait: 10000, timeout: 20000 }
+    );
   } catch (error) {
     const hasil = galatPerhitungan(error);
     if (hasil) return hasil;
@@ -100,13 +93,16 @@ export async function perbaruiBiaya(id: number, masukan: MasukanBiaya): Promise<
   if (!ada) return { ok: false, error: "Biaya tidak ditemukan." };
 
   try {
-    await prisma.$transaction(async (tx) => {
-      await tx.biayaOperasional.update({
-        where: { id, userId: auth.userId },
-        data: { nama: masukan.nama.trim(), jenis: masukan.jenis, nilai: masukan.nilai },
-      });
-      await recalculateAllByBiayaOperasional(auth.userId, tx);
-    });
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.biayaOperasional.update({
+          where: { id, userId: auth.userId },
+          data: { nama: masukan.nama.trim(), jenis: masukan.jenis, nilai: masukan.nilai },
+        });
+        await recalculateAllByBiayaOperasional(auth.userId, tx);
+      },
+      { maxWait: 10000, timeout: 20000 }
+    );
   } catch (error) {
     const hasil = galatPerhitungan(error);
     if (hasil) return hasil;
@@ -117,10 +113,6 @@ export async function perbaruiBiaya(id: number, masukan: MasukanBiaya): Promise<
   return { ok: true };
 }
 
-/**
- * Pengaturan bersifat singleton: baris pertama dipakai, dibuat kalau belum ada.
- * Keduanya disimpan sekaligus karena dua input itu tampil di card yang sama.
- */
 export async function simpanPengaturan(masukan: {
   estimasiPorsiPerBulan: number;
   batasMarginAman: number;
@@ -142,14 +134,17 @@ export async function simpanPengaturan(masukan: {
   }
 
   try {
-    await prisma.$transaction(async (tx) => {
-      await tx.pengaturan.upsert({
-        where: { userId: auth.userId },
-        update: masukan,
-        create: { ...masukan, userId: auth.userId },
-      });
-      await recalculateAllByBiayaOperasional(auth.userId, tx);
-    });
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.pengaturan.upsert({
+          where: { userId: auth.userId },
+          update: masukan,
+          create: { ...masukan, userId: auth.userId },
+        });
+        await recalculateAllByBiayaOperasional(auth.userId, tx);
+      },
+      { maxWait: 10000, timeout: 20000 }
+    );
   } catch (error) {
     const hasil = galatPerhitungan(error);
     if (hasil) return hasil;
@@ -160,7 +155,6 @@ export async function simpanPengaturan(masukan: {
   return { ok: true };
 }
 
-/** Menghapus satu pos biaya. Alokasi per porsi ikut berubah setelahnya. */
 export async function hapusBiaya(id: number): Promise<HasilAksi> {
   const auth = await requireAuth();
   if (!auth.authorized) {
@@ -171,10 +165,13 @@ export async function hapusBiaya(id: number): Promise<HasilAksi> {
   if (!ada) return { ok: false, error: "Biaya tidak ditemukan." };
 
   try {
-    await prisma.$transaction(async (tx) => {
-      await tx.biayaOperasional.delete({ where: { id, userId: auth.userId } });
-      await recalculateAllByBiayaOperasional(auth.userId, tx);
-    });
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.biayaOperasional.delete({ where: { id, userId: auth.userId } });
+        await recalculateAllByBiayaOperasional(auth.userId, tx);
+      },
+      { maxWait: 10000, timeout: 20000 }
+    );
   } catch (error) {
     const hasil = galatPerhitungan(error);
     if (hasil) return hasil;
