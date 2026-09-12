@@ -1,3 +1,5 @@
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { WidgetHargaBahan } from "@/components/charts/WidgetHargaBahan";
 import { AlertMargin } from "@/components/dashboard/AlertMargin";
 import { LangkahAwal } from "@/components/dashboard/LangkahAwal";
@@ -6,29 +8,16 @@ import { RingkasanCards } from "@/components/dashboard/RingkasanCards";
 import { TabelMargin } from "@/components/dashboard/TabelMargin";
 import { TombolTambahProduk } from "@/components/produk/TombolTambahProduk";
 import { PageHeader } from "@/components/ui/PageHeader";
-import {
-  getBahanBaku,
-  getBahanBerhistori,
-  getDeretHarga,
-  getProdukDenganHpp,
-  getRincianHppSemua,
-  getRingkasanDashboard,
-  type TitikHarga,
-} from "@/lib/data";
+import { authOptions } from "@/lib/authOptions";
+import { getDataDashboard } from "@/lib/data";
 
 export default async function DashboardPage() {
-  const [produk, rincian, ringkasan, bahanBerhistori, bahan] = await Promise.all([
-    getProdukDenganHpp(),
-    getRincianHppSemua(),
-    getRingkasanDashboard(),
-    getBahanBerhistori(),
-    getBahanBaku(),
-  ]);
+  const session = await getServerSession(authOptions);
+  const userId = Number(session?.user?.id);
+  if (!Number.isSafeInteger(userId) || userId <= 0) redirect("/login");
 
-  const deretPerBahan = await Promise.all(
-    bahanBerhistori.map(async (b) => [b.id, await getDeretHarga(b.id)] as const),
-  );
-  const deret: Record<number, TitikHarga[]> = Object.fromEntries(deretPerBahan);
+  const { produk, rincian, ringkasan, bahanBerhistori, bahan, deret } =
+    await getDataDashboard(userId);
 
   // Akun yang baru mendaftar belum punya apa pun; tabel dan grafik kosong tidak
   // memberi tahu apa-apa, jadi ganti dengan urutan langkah pertama.

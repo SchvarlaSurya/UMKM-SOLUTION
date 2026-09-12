@@ -1,92 +1,190 @@
-import { apiGet } from "@/lib/api";
-import { biayaTetapPerPorsi, rincianHpp, type RincianHpp } from "@/lib/hpp";
-import type { TrendResult } from "@/lib/trendAnalyzer";
+import "server-only";
+
+import { Prisma } from "@/app/generated/prisma/client";
+import { prisma } from "@/lib/prisma";
+import {
+  biayaTetapPerPorsi,
+  rincianHpp,
+  turunkanHpp,
+  type RincianHpp,
+} from "@/lib/hpp";
+import { analyzePriceTrend, type TrendResult } from "@/lib/trendAnalyzer";
 import type {
   BahanBaku,
   BiayaOperasional,
   HistoriHarga,
-  HppResult,
   Pengaturan,
   Produk,
-  ProdukDenganHpp,
 } from "@/lib/types";
 
 /**
- * Satu-satunya pintu data untuk halaman UI.
+ * Loader data khusus Server Component.
  *
- * Seluruh pembacaan lewat endpoint di app/api, dipanggil dari Server Component
- * memakai lib/api.ts yang meneruskan cookie sesi. Halaman tidak menyentuh
- * Prisma langsung, jadi aturan dan bentuk data hanya ditentukan satu tempat:
- * route handler.
+ * Semua fungsi menerima `userId` dari sesi dan setiap query Prisma membatasi
+ * data ke user tersebut. Tidak ada fetch ke route API sendiri dan tidak ada
+ * cache lintas request, sehingga hasil setelah `router.refresh()` selalu baru.
  */
 
-/** Bentuk balasan GET /api/bahan-baku/[id]/histori. */
-type BalasanHistori = {
-  bahanBaku: Pick<BahanBaku, "id" | "nama" | "satuan" | "hargaPerSatuan">;
-  histori: HistoriHarga[];
-  trenNaik: boolean;
-  statusTren: TrendResult["status"];
-  jumlahPerubahanDiperiksa: number;
+type BarisBahan = {
+  id: number;
+  nama: string;
+  satuan: string;
+  hargaPerSatuan: number;
+  updatedAt: Date;
 };
 
-export async function getBahanBaku(): Promise<BahanBaku[]> {
-  return apiGet<BahanBaku[]>("/bahan-baku");
+type BarisHistori = {
+  id: number;
+  bahanBakuId: number;
+  hargaLama: number;
+  hargaBaru: number;
+  tanggal: Date;
+};
+
+function serialisasiBahan(bahan: BarisBahan): BahanBaku {
+  return {
+    id: bahan.id,
+    nama: bahan.nama,
+    satuan: bahan.satuan,
+    hargaPerSatuan: bahan.hargaPerSatuan,
+    updatedAt: bahan.updatedAt.toISOString(),
+  };
 }
 
-export async function getProduk(): Promise<Produk[]> {
-  return apiGet<Produk[]>("/produk");
+function serialisasiHistori(histori: BarisHistori): HistoriHarga {
+  return {
+    id: histori.id,
+    bahanBakuId: histori.bahanBakuId,
+    hargaLama: histori.hargaLama,
+    hargaBaru: histori.hargaBaru,
+    delta: histori.hargaBaru - histori.hargaLama,
+    tanggal: histori.tanggal.toISOString(),
+  };
 }
 
-export async function getBiayaOperasional(): Promise<BiayaOperasional[]> {
-  return apiGet<BiayaOperasional[]>("/biaya-operasional");
-}
-
-export async function getPengaturan(): Promise<Pengaturan> {
-  return apiGet<Pengaturan>("/pengaturan");
-}
-
-export async function getHistoriHarga(bahanBakuId: number): Promise<HistoriHarga[]> {
-  const balasan = await apiGet<BalasanHistori>(`/bahan-baku/${bahanBakuId}/histori`);
-  return balasan.histori;
-}
-
-/**
- * Produk + hasil HPP untuk tabel dashboard dan kartu produk.
- * HPP diambil dari endpoint, bukan dihitung ulang di sini.
- */
-export async function getProdukDenganHpp(): Promise<ProdukDenganHpp[]> {
-  const [produk, hpp] = await Promise.all([
-    getProduk(),
-    apiGet<HppResult[]>("/produk/hpp-semua"),
-  ]);
-
-  const hppById = new Map(hpp.map((h) => [h.produkId, h]));
-
-  return produk.map((p) => {
-    const hasil = hppById.get(p.id);
-    return {
-      ...p,
-      hppTerhitung: hasil?.hppTerhitung ?? 0,
-      marginPersen: hasil?.marginPersen ?? 0,
-      statusAman: hasil?.statusAman ?? false,
-    };
+async function ambilBahanBaku(userId: number): Promise<BahanBaku[]> {
+  const bahan = await prisma.bahanBaku.findMany({
+    where: { userId },
+    orderBy: { nama: "asc" },
+    select: {
+      id: true,
+      nama: true,
+      satuan: true,
+      hargaPerSatuan: true,
+      updatedAt: true,
+    },
   });
+
+  return bahan.map(serialisasiBahan);
 }
 
-/**
- * Rincian pembentuk HPP per produk untuk modal "Rincian HPP".
- *
- * Belum ada endpoint yang memecah HPP jadi per komponen, jadi uraiannya
- * disusun di sini dari data yang sudah diambil, memakai rumus yang sama
- * dengan backend di lib/hpp.ts.
- */
-export async function getRincianHppSemua(): Promise<Record<number, RincianHpp>> {
-  const [produk, biaya, pengaturan] = await Promise.all([
-    getProduk(),
-    getBiayaOperasional(),
-    getPengaturan(),
-  ]);
-  return Object.fromEntries(produk.map((p) => [p.id, rincianHpp(p, biaya, pengaturan)]));
+async function ambilProduk(userId: number): Promise<Produk[]> {
+  const produk = await prisma.produk.findMany({
+    where: { userId },
+    orderBy: { nama: "asc" },
+    select: {
+      id: true,
+      nama: true,
+      kategori: true,
+      hargaJual: true,
+      resep: {
+        where: {
+          produk: { userId },
+          bahanBaku: { userId },
+        },
+        select: {
+          produkId: true,
+          bahanBakuId: true,
+          jumlahDipakai: true,
+          bahanBaku: {
+            select: {
+              id: true,
+              nama: true,
+              satuan: true,
+              hargaPerSatuan: true,
+              updatedAt: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return produk.map((item) => ({
+    ...item,
+    resep: item.resep.map((baris) => ({
+      ...baris,
+      bahanBaku: serialisasiBahan(baris.bahanBaku),
+    })),
+  }));
+}
+
+async function ambilBiayaOperasional(userId: number): Promise<BiayaOperasional[]> {
+  const biaya = await prisma.biayaOperasional.findMany({
+    where: { userId },
+    orderBy: { nama: "asc" },
+    select: { id: true, nama: true, jenis: true, nilai: true },
+  });
+
+  return biaya.map((item) => ({
+    ...item,
+    jenis: item.jenis as BiayaOperasional["jenis"],
+  }));
+}
+
+/** Pertahankan perilaku lama: baris default dibuat saat pertama kali dibaca. */
+async function ambilPengaturan(userId: number): Promise<Pengaturan> {
+  try {
+    return await prisma.pengaturan.upsert({
+      where: { userId },
+      update: {},
+      create: { userId },
+      omit: { userId: true },
+    });
+  } catch (error) {
+    // Dua render awal akun yang sama dapat membuat baris secara bersamaan.
+    // Setelah salah satunya menang, baca baris tersebut alih-alih gagal P2002.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const pengaturan = await prisma.pengaturan.findUnique({
+        where: { userId },
+        omit: { userId: true },
+      });
+      if (pengaturan) return pengaturan;
+    }
+
+    throw error;
+  }
+}
+
+async function ambilPemakaianBahan(userId: number): Promise<Map<number, number>> {
+  const resep = await prisma.resep.findMany({
+    where: {
+      produk: { userId },
+      bahanBaku: { userId },
+    },
+    select: { bahanBakuId: true },
+  });
+  const pemakaian = new Map<number, number>();
+
+  for (const baris of resep) {
+    pemakaian.set(baris.bahanBakuId, (pemakaian.get(baris.bahanBakuId) ?? 0) + 1);
+  }
+
+  return pemakaian;
+}
+
+function analisaTrenAman(bahanBakuId: number, histori: BarisHistori[]): TrendResult {
+  try {
+    return analyzePriceTrend(bahanBakuId, histori);
+  } catch (error) {
+    console.error(`[data] histori harga bahan ${bahanBakuId} tidak bisa dianalisa:`, error);
+    return {
+      bahanBakuId,
+      status: "data_belum_cukup",
+      trenNaik: false,
+      jumlahPerubahanDiperiksa: 0,
+    };
+  }
 }
 
 export type RingkasanDashboard = {
@@ -98,80 +196,139 @@ export type RingkasanDashboard = {
   biayaTetapPerPorsi: number;
 };
 
-/** Angka untuk empat summary card dan alert banner di dashboard. */
-export async function getRingkasanDashboard(): Promise<RingkasanDashboard> {
-  const [daftar, biaya, pengaturan] = await Promise.all([
-    getProdukDenganHpp(),
-    getBiayaOperasional(),
-    getPengaturan(),
+export type TitikHarga = { tanggal: string; harga: number };
+
+/** Satu loader untuk seluruh data dashboard agar dataset per render konsisten. */
+export async function getDataDashboard(userId: number) {
+  const [barisBahan, produk, biaya, pengaturan] = await Promise.all([
+    prisma.bahanBaku.findMany({
+      where: { userId },
+      orderBy: { nama: "asc" },
+      select: {
+        id: true,
+        nama: true,
+        satuan: true,
+        hargaPerSatuan: true,
+        updatedAt: true,
+        histori: {
+          orderBy: [{ tanggal: "asc" }, { id: "asc" }],
+          select: {
+            id: true,
+            bahanBakuId: true,
+            hargaLama: true,
+            hargaBaru: true,
+            tanggal: true,
+          },
+        },
+      },
+    }),
+    ambilProduk(userId),
+    ambilBiayaOperasional(userId),
+    ambilPengaturan(userId),
   ]);
 
-  const bermasalah = daftar.filter((p) => !p.statusAman);
+  const bahan = barisBahan.map(serialisasiBahan);
+  const produkDenganHpp = turunkanHpp(produk, biaya, pengaturan);
+  const rincian: Record<number, RincianHpp> = Object.fromEntries(
+    produk.map((item) => [item.id, rincianHpp(item, biaya, pengaturan)]),
+  );
+  const bermasalah = produkDenganHpp.filter((item) => !item.statusAman);
   const rataMargin =
-    daftar.length === 0
+    produkDenganHpp.length === 0
       ? 0
-      : daftar.reduce((total, p) => total + p.marginPersen, 0) / daftar.length;
-
-  return {
-    totalProduk: daftar.length,
+      : produkDenganHpp.reduce((total, item) => total + item.marginPersen, 0) /
+        produkDenganHpp.length;
+  const ringkasan: RingkasanDashboard = {
+    totalProduk: produkDenganHpp.length,
     rataMargin,
     perluPerhatian: bermasalah.length,
-    namaPerluPerhatian: bermasalah.map((p) => p.nama),
+    namaPerluPerhatian: bermasalah.map((item) => item.nama),
     batasMarginAman: pengaturan.batasMarginAman,
     biayaTetapPerPorsi: biayaTetapPerPorsi(biaya, pengaturan),
   };
-}
 
-export type TitikHarga = { tanggal: string; harga: number };
-
-/** Deret harga sebuah bahan untuk grafik. */
-export async function getDeretHarga(bahanBakuId: number): Promise<TitikHarga[]> {
-  const histori = await getHistoriHarga(bahanBakuId);
-  return histori.map((h) => ({ tanggal: h.tanggal, harga: h.hargaBaru }));
-}
-
-/**
- * Bahan baku yang punya catatan histori harga, untuk dropdown widget dan
- * halaman tren.
- *
- * Belum ada endpoint yang menjawab ini dalam satu panggilan, jadi histori tiap
- * bahan diperiksa satu per satu secara paralel. Kalau daftar bahan tumbuh
- * besar, endpoint ringkasan dari backend akan jauh lebih hemat.
- */
-export async function getBahanBerhistori(): Promise<BahanBaku[]> {
-  const bahan = await getBahanBaku();
-
-  const diperiksa = await Promise.all(
-    bahan.map(async (b) => ({
-      bahan: b,
-      punyaHistori: (await getHistoriHarga(b.id)).length > 0,
-    })),
-  );
-
-  return diperiksa.filter((d) => d.punyaHistori).map((d) => d.bahan);
-}
-
-/** Status tren harga sebuah bahan menurut tiga perubahan terakhir. */
-export async function getStatusTren(bahanBakuId: number): Promise<TrendResult> {
-  const balasan = await apiGet<BalasanHistori>(`/bahan-baku/${bahanBakuId}/histori`);
-  return {
-    bahanBakuId,
-    status: balasan.statusTren,
-    trenNaik: balasan.trenNaik,
-    jumlahPerubahanDiperiksa: balasan.jumlahPerubahanDiperiksa,
-  };
-}
-
-/** Jumlah produk yang memakai sebuah bahan baku (kolom "Dipakai di"). */
-export async function getPemakaianBahan(): Promise<Map<number, number>> {
-  const produk = await getProduk();
-  const pemakaian = new Map<number, number>();
-
-  for (const p of produk) {
-    for (const r of p.resep) {
-      pemakaian.set(r.bahanBakuId, (pemakaian.get(r.bahanBakuId) ?? 0) + 1);
-    }
+  const bahanBerhistori: BahanBaku[] = [];
+  const deret: Record<number, TitikHarga[]> = {};
+  for (const item of barisBahan) {
+    if (item.histori.length === 0) continue;
+    bahanBerhistori.push(serialisasiBahan(item));
+    deret[item.id] = item.histori.map((histori) => ({
+      tanggal: histori.tanggal.toISOString(),
+      harga: histori.hargaBaru,
+    }));
   }
 
-  return pemakaian;
+  return { bahan, bahanBerhistori, deret, produk: produkDenganHpp, rincian, ringkasan };
+}
+
+export async function getDataHalamanBahanBaku(userId: number) {
+  const [bahan, pemakaian] = await Promise.all([
+    ambilBahanBaku(userId),
+    ambilPemakaianBahan(userId),
+  ]);
+
+  return { bahan, pemakaian: Object.fromEntries(pemakaian) };
+}
+
+export async function getDataHalamanBiayaOperasional(userId: number) {
+  const [biaya, pengaturan] = await Promise.all([
+    ambilBiayaOperasional(userId),
+    ambilPengaturan(userId),
+  ]);
+
+  return { biaya, pengaturan };
+}
+
+export async function getDataHalamanProduk(userId: number) {
+  const [produk, bahan, biaya, pengaturan] = await Promise.all([
+    ambilProduk(userId),
+    ambilBahanBaku(userId),
+    ambilBiayaOperasional(userId),
+    ambilPengaturan(userId),
+  ]);
+
+  return { produk: turunkanHpp(produk, biaya, pengaturan), bahan };
+}
+
+export async function getDataHalamanTren(userId: number) {
+  const [barisBahan, pemakaian] = await Promise.all([
+    prisma.bahanBaku.findMany({
+      where: { userId, histori: { some: {} } },
+      orderBy: { nama: "asc" },
+      select: {
+        id: true,
+        nama: true,
+        satuan: true,
+        hargaPerSatuan: true,
+        updatedAt: true,
+        histori: {
+          orderBy: [{ tanggal: "asc" }, { id: "asc" }],
+          select: {
+            id: true,
+            bahanBakuId: true,
+            hargaLama: true,
+            hargaBaru: true,
+            tanggal: true,
+          },
+        },
+      },
+    }),
+    ambilPemakaianBahan(userId),
+  ]);
+
+  const bahan = barisBahan.map(serialisasiBahan);
+  const histori: Record<number, HistoriHarga[]> = {};
+  const tren: Record<number, TrendResult> = {};
+
+  for (const item of barisBahan) {
+    histori[item.id] = item.histori.map(serialisasiHistori);
+    tren[item.id] = analisaTrenAman(item.id, item.histori);
+  }
+
+  return {
+    bahan,
+    histori,
+    pemakaian: Object.fromEntries(pemakaian),
+    tren,
+  };
 }
