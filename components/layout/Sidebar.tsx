@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import { inisial } from "@/lib/format";
 import { navItems } from "./nav-items";
@@ -15,6 +16,7 @@ import {
   IconTutup,
 } from "@/components/ui/icons";
 import { Button } from "@/components/ui/Button";
+import { ModalKonfirmasi } from "@/components/ui/ModalKonfirmasi";
 
 type SidebarProps = {
   namaUsaha: string;
@@ -35,6 +37,16 @@ export function Sidebar({
   onTutup,
 }: SidebarProps) {
   const pathname = usePathname();
+  const [konfirmasiKeluar, setKonfirmasiKeluar] = useState(false);
+  const [keluar, mulaiKeluar] = useTransition();
+
+  function keluarSekarang() {
+    // Halaman berpindah ke /login setelah sesi dihapus, jadi modal tidak perlu
+    // ditutup sendiri; biarkan tombolnya tetap menampilkan status berjalan.
+    mulaiKeluar(async () => {
+      await signOut({ callbackUrl: "/login" });
+    });
+  }
 
   return (
     <div className="flex h-full w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
@@ -133,11 +145,30 @@ export function Sidebar({
           ukuran="sm"
           aria-label="Keluar"
           className="px-2"
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={() => setKonfirmasiKeluar(true)}
         >
           <IconKeluar width={18} height={18} />
         </Button>
       </div>
+
+      <ModalKonfirmasi
+        terbuka={konfirmasiKeluar}
+        judul="Keluar dari akun?"
+        subjudul="Data usahamu tetap tersimpan."
+        labelKonfirmasi="Keluar"
+        labelSedangProses="Keluar…"
+        labelBatal="Tetap di sini"
+        memproses={keluar}
+        onTutup={() => setKonfirmasiKeluar(false)}
+        onKonfirmasi={keluarSekarang}
+      >
+        <p className="text-sm text-foreground">
+          Kamu akan keluar dari <span className="font-semibold">{email ?? namaPemilik}</span>.
+        </p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Untuk membukanya lagi, masuk dengan email dan kata sandi yang sama.
+        </p>
+      </ModalKonfirmasi>
     </div>
   );
 }
