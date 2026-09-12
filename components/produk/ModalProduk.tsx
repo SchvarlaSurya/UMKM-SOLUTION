@@ -85,6 +85,12 @@ type BarisForm = {
   satuanDipilih: string;
 };
 
+type ModeTakaran = "per-porsi" | "sekali-produksi";
+
+function formatJumlah(nilai: number): string {
+  return nilai.toLocaleString("id-ID", { maximumFractionDigits: 8 });
+}
+
 function FormProduk({
   produk,
   bahan,
@@ -116,7 +122,16 @@ function FormProduk({
           },
         ],
   );
+  const [modeTakaran, setModeTakaran] =
+    useState<ModeTakaran>("per-porsi");
+  const [jumlahPorsi, setJumlahPorsi] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  const jumlahPorsiAngka = Number(jumlahPorsi);
+  const jumlahPorsiValid =
+    jumlahPorsi.trim() !== "" &&
+    Number.isFinite(jumlahPorsiAngka) &&
+    jumlahPorsiAngka > 0;
 
   function tambahBaris() {
     setBaris((sebelumnya) => [
@@ -155,17 +170,25 @@ function FormProduk({
       setError("Harga jual harus lebih dari 0.");
       return;
     }
+    if (modeTakaran === "sekali-produksi" && !jumlahPorsiValid) {
+      setError("Isi jumlah porsi dulu dengan angka lebih dari 0.");
+      return;
+    }
 
     const resep: BarisResep[] = baris
       .map((b) => {
         const satuanDasar = bahan.find((item) => item.id === b.bahanBakuId)?.satuan ?? "";
+        const jumlahDalamSatuanDasar = konversiKeSatuanDasar(
+          Number(b.jumlah),
+          b.satuanDipilih,
+          satuanDasar,
+        );
         return {
           bahanBakuId: b.bahanBakuId,
-          jumlahDipakai: konversiKeSatuanDasar(
-            Number(b.jumlah),
-            b.satuanDipilih,
-            satuanDasar,
-          ),
+          jumlahDipakai:
+            modeTakaran === "sekali-produksi"
+              ? jumlahDalamSatuanDasar / jumlahPorsiAngka
+              : jumlahDalamSatuanDasar,
         };
       })
       .filter((r) => r.bahanBakuId > 0 && Number.isFinite(r.jumlahDipakai));
@@ -228,7 +251,9 @@ function FormProduk({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold whitespace-nowrap text-foreground">
-              Komposisi per porsi
+              {modeTakaran === "per-porsi"
+                ? "Komposisi per porsi"
+                : "Komposisi sekali produksi"}
             </h3>
             <Badge varian="count">{baris.length}</Badge>
           </div>
@@ -244,13 +269,83 @@ function FormProduk({
           </Button>
         </div>
 
+        <div className="mt-3 rounded-card border border-border bg-muted/30 p-3">
+          <p className="mb-2 text-xs font-medium text-foreground">
+            Mode input takaran
+          </p>
+          <div
+            role="group"
+            aria-label="Mode input takaran resep"
+            className="inline-flex rounded-card border border-border bg-card p-1"
+          >
+            {(
+              [
+                ["per-porsi", "Takaran per porsi"],
+                ["sekali-produksi", "Sekali produksi"],
+              ] as const
+            ).map(([nilai, label]) => (
+              <button
+                key={nilai}
+                type="button"
+                aria-pressed={modeTakaran === nilai}
+                onClick={() => {
+                  setModeTakaran(nilai);
+                  setError(null);
+                }}
+                className={`rounded-card px-3 py-1.5 text-xs font-medium transition-colors ${
+                  modeTakaran === nilai
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {modeTakaran === "sekali-produksi" && (
+            <Input
+              id="jumlah-porsi-produksi"
+              label="Jumlah porsi yang dihasilkan"
+              type="number"
+              min={0}
+              step="any"
+              inputMode="decimal"
+              value={jumlahPorsi}
+              onChange={(e) => setJumlahPorsi(e.target.value)}
+              placeholder="Contoh: 50"
+              helper="Satu angka ini berlaku untuk seluruh bahan dalam resep."
+              error={
+                jumlahPorsi !== "" && !jumlahPorsiValid
+                  ? "Jumlah porsi harus lebih dari 0."
+                  : undefined
+              }
+              className="mt-3 max-w-xs"
+            />
+          )}
+        </div>
+
         <ul className="mt-3 flex flex-col gap-2">
           {baris.map((b) => {
             const bahanTerpilih = bahan.find((x) => x.id === b.bahanBakuId);
             const pilihanSatuan = pilihanSatuanUntuk(bahanTerpilih?.satuan ?? "");
+            const jumlahInput = Number(b.jumlah);
+            const jumlahDalamSatuanDasar = konversiKeSatuanDasar(
+              jumlahInput,
+              b.satuanDipilih,
+              bahanTerpilih?.satuan ?? "",
+            );
+            const hasilPerPorsi =
+              modeTakaran === "sekali-produksi" &&
+              b.jumlah.trim() !== "" &&
+              Number.isFinite(jumlahDalamSatuanDasar) &&
+              jumlahDalamSatuanDasar > 0 &&
+              jumlahPorsiValid
+                ? jumlahDalamSatuanDasar / jumlahPorsiAngka
+                : null;
             return (
-              <li key={b.key} className="flex items-end gap-2">
-                <label className="flex-1">
+              <li key={b.key} className="flex flex-wrap items-end gap-2">
+                <label className="min-w-48 flex-1">
                   <span className="sr-only">Bahan baku</span>
                   <select
                     value={b.bahanBakuId}
@@ -274,7 +369,11 @@ function FormProduk({
 
                 <div className="flex w-48 items-end gap-1.5">
                   <label className="min-w-0 flex-1">
-                    <span className="sr-only">Jumlah dipakai</span>
+                    <span className="sr-only">
+                      {modeTakaran === "per-porsi"
+                        ? "Jumlah dipakai per porsi"
+                        : "Jumlah dipakai sekali produksi"}
+                    </span>
                     <input
                       type="number"
                       min={0}
@@ -303,6 +402,30 @@ function FormProduk({
                     </select>
                   </label>
                 </div>
+
+                {modeTakaran === "sekali-produksi" && (
+                  <div className="w-40 shrink-0 pb-0.5 text-xs">
+                    <span className="block text-muted-foreground">
+                      Hasil per porsi
+                    </span>
+                    <output
+                      aria-live="polite"
+                      className={
+                        b.jumlah.trim() !== "" && !jumlahPorsiValid
+                          ? "font-medium text-destructive"
+                          : "font-medium text-foreground"
+                      }
+                    >
+                      {b.jumlah.trim() === ""
+                        ? "Masukkan jumlah bahan"
+                        : !jumlahPorsiValid
+                          ? "Isi jumlah porsi dulu"
+                          : hasilPerPorsi === null
+                            ? "Jumlah harus lebih dari 0"
+                            : `${formatJumlah(hasilPerPorsi)} ${bahanTerpilih?.satuan.trim() ?? ""}`}
+                    </output>
+                  </div>
+                )}
 
                 <Button
                   varian="ghost"
