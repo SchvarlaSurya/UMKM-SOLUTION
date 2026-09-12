@@ -1,10 +1,15 @@
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { HalamanBahanBaku } from "@/components/bahan-baku/HalamanBahanBaku";
-import { getBahanBaku, getPemakaianBahan } from "@/lib/data";
+import { authOptions } from "@/lib/authOptions";
+import { getDataHalamanBahanBaku } from "@/lib/data";
 
 export default async function BahanBakuPage() {
-  const [bahan, pemakaian] = await Promise.all([getBahanBaku(), getPemakaianBahan()]);
+  const session = await getServerSession(authOptions);
+  const userId = Number(session?.user?.id);
+  if (!Number.isSafeInteger(userId) || userId <= 0) redirect("/login");
 
-  return (
-    <HalamanBahanBaku bahan={bahan} pemakaian={Object.fromEntries(pemakaian)} />
-  );
+  const { bahan, pemakaian } = await getDataHalamanBahanBaku(userId);
+
+  return <HalamanBahanBaku bahan={bahan} pemakaian={pemakaian} />;
 }
