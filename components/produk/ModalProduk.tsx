@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { IconTambah, IconTutup } from "@/components/ui/icons";
+import { konversiKeSatuanDasar, pilihanSatuanUntuk } from "@/lib/satuan";
 import type { BahanBaku, Produk } from "@/lib/types";
 
 export const KATEGORI = [
@@ -77,7 +78,12 @@ export function ModalProduk({
   );
 }
 
-type BarisForm = { key: number; bahanBakuId: number; jumlah: string };
+type BarisForm = {
+  key: number;
+  bahanBakuId: number;
+  jumlah: string;
+  satuanDipilih: string;
+};
 
 function FormProduk({
   produk,
@@ -92,12 +98,23 @@ function FormProduk({
 }) {
   const [baris, setBaris] = useState<BarisForm[]>(() =>
     produk && produk.resep.length > 0
-      ? produk.resep.map((r, i) => ({
-          key: i,
-          bahanBakuId: r.bahanBakuId,
-          jumlah: String(r.jumlahDipakai),
-        }))
-      : [{ key: 0, bahanBakuId: bahan[0]?.id ?? 0, jumlah: "" }],
+      ? produk.resep.map((r, i) => {
+          const satuanDasar = bahan.find((item) => item.id === r.bahanBakuId)?.satuan ?? "";
+          return {
+            key: i,
+            bahanBakuId: r.bahanBakuId,
+            jumlah: String(r.jumlahDipakai),
+            satuanDipilih: pilihanSatuanUntuk(satuanDasar)[0].nilai,
+          };
+        })
+      : [
+          {
+            key: 0,
+            bahanBakuId: bahan[0]?.id ?? 0,
+            jumlah: "",
+            satuanDipilih: pilihanSatuanUntuk(bahan[0]?.satuan ?? "")[0].nilai,
+          },
+        ],
   );
   const [error, setError] = useState<string | null>(null);
 
@@ -108,6 +125,7 @@ function FormProduk({
         key: Math.max(-1, ...sebelumnya.map((b) => b.key)) + 1,
         bahanBakuId: bahan[0]?.id ?? 0,
         jumlah: "",
+        satuanDipilih: pilihanSatuanUntuk(bahan[0]?.satuan ?? "")[0].nilai,
       },
     ]);
   }
@@ -139,7 +157,17 @@ function FormProduk({
     }
 
     const resep: BarisResep[] = baris
-      .map((b) => ({ bahanBakuId: b.bahanBakuId, jumlahDipakai: Number(b.jumlah) }))
+      .map((b) => {
+        const satuanDasar = bahan.find((item) => item.id === b.bahanBakuId)?.satuan ?? "";
+        return {
+          bahanBakuId: b.bahanBakuId,
+          jumlahDipakai: konversiKeSatuanDasar(
+            Number(b.jumlah),
+            b.satuanDipilih,
+            satuanDasar,
+          ),
+        };
+      })
       .filter((r) => r.bahanBakuId > 0 && Number.isFinite(r.jumlahDipakai));
 
     if (resep.length === 0) {
@@ -218,14 +246,22 @@ function FormProduk({
 
         <ul className="mt-3 flex flex-col gap-2">
           {baris.map((b) => {
-            const satuan = bahan.find((x) => x.id === b.bahanBakuId)?.satuan ?? "";
+            const bahanTerpilih = bahan.find((x) => x.id === b.bahanBakuId);
+            const pilihanSatuan = pilihanSatuanUntuk(bahanTerpilih?.satuan ?? "");
             return (
               <li key={b.key} className="flex items-end gap-2">
                 <label className="flex-1">
                   <span className="sr-only">Bahan baku</span>
                   <select
                     value={b.bahanBakuId}
-                    onChange={(e) => ubahBaris(b.key, { bahanBakuId: Number(e.target.value) })}
+                    onChange={(e) => {
+                      const bahanBakuId = Number(e.target.value);
+                      const satuanDasar = bahan.find((item) => item.id === bahanBakuId)?.satuan ?? "";
+                      ubahBaris(b.key, {
+                        bahanBakuId,
+                        satuanDipilih: pilihanSatuanUntuk(satuanDasar)[0].nilai,
+                      });
+                    }}
                     className="h-10 w-full rounded-card border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
                   >
                     {bahan.map((x) => (
@@ -236,9 +272,9 @@ function FormProduk({
                   </select>
                 </label>
 
-                <label className="w-32">
-                  <span className="sr-only">Jumlah dipakai</span>
-                  <span className="flex h-10 items-center rounded-card border border-border bg-card pr-3 focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-ring">
+                <div className="flex w-48 items-end gap-1.5">
+                  <label className="min-w-0 flex-1">
+                    <span className="sr-only">Jumlah dipakai</span>
                     <input
                       type="number"
                       min={0}
@@ -247,13 +283,26 @@ function FormProduk({
                       value={b.jumlah}
                       placeholder="0"
                       onChange={(e) => ubahBaris(b.key, { jumlah: e.target.value })}
-                      className="h-full w-full rounded-card bg-transparent px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                      className="h-10 w-full rounded-card border border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
                     />
-                    <span className="text-xs whitespace-nowrap text-muted-foreground">
-                      {satuan}
-                    </span>
-                  </span>
-                </label>
+                  </label>
+
+                  <label className="w-20 shrink-0">
+                    <span className="sr-only">Satuan jumlah</span>
+                    <select
+                      value={b.satuanDipilih}
+                      onChange={(e) => ubahBaris(b.key, { satuanDipilih: e.target.value })}
+                      aria-label={`Satuan untuk ${bahanTerpilih?.nama ?? "bahan"}`}
+                      className="h-10 w-full rounded-card border border-border bg-card px-2 text-xs text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                    >
+                      {pilihanSatuan.map((satuan) => (
+                        <option key={satuan.nilai} value={satuan.nilai}>
+                          {satuan.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
 
                 <Button
                   varian="ghost"
