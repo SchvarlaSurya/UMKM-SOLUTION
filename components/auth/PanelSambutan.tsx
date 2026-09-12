@@ -1,4 +1,4 @@
-import { IconBenih, IconCentang } from "@/components/ui/icons";
+import { IconCentang, IconLogo } from "@/components/ui/icons";
 
 /**
  * Sisi dekoratif halaman masuk & daftar.
@@ -109,7 +109,7 @@ export function PanelSambutan({ varian }: { varian: Varian }) {
     <aside className="relative hidden flex-col justify-between overflow-hidden bg-primary px-10 py-12 text-primary-foreground lg:flex">
       <div className="flex items-center gap-2">
         <span className="flex size-9 items-center justify-center rounded-card bg-primary-foreground/15">
-          <IconBenih width={20} height={20} />
+          <IconLogo width={20} height={20} />
         </span>
         <span className="text-base font-semibold tracking-tight">ruangmargin</span>
       </div>

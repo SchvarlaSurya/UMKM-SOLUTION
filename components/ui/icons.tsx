@@ -266,6 +266,64 @@ export function IconPengaturan(props: IconProps) {
   );
 }
 
+/**
+ * Logo aplikasi: tangkai berdaun, versi ringkas dari ilustrasi di panel
+ * sambutan (components/auth/PanelSambutan.tsx).
+ *
+ * Digambar ulang, bukan hasil perkecilan: ilustrasi besar punya tiga pasang
+ * daun dan butiran rempah yang berubah jadi gumpalan di ukuran 18–20px. Di
+ * sini disisakan dua pasang daun dan satu pucuk, dengan bidang isi penuh
+ * supaya tetap terbaca di dalam lingkaran kecil.
+ */
+export function IconLogo(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      focusable="false"
+      width={20}
+      height={20}
+      {...props}
+    >
+      {/*
+        Tangkai berhenti di y=20, bukan mepet tepi: ekor kosong yang panjang
+        membuat bobot logo turun ke bawah lingkaran.
+      */}
+      <path
+        d="M12 20V7.6"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        opacity="0.85"
+      />
+
+      {/* Pasangan daun bawah, sedikit lebih lebar supaya bentuknya terbaca */}
+      <path d="M12 16.2c-2.9 0-4.7-1.2-5.1-3.4 2.3-.9 4.5-.2 5.1 3.4Z" fill="currentColor" />
+      <path
+        d="M12 16.2c2.9 0 4.7-1.2 5.1-3.4-2.3-.9-4.5-.2-5.1 3.4Z"
+        fill="currentColor"
+        opacity="0.7"
+      />
+
+      {/* Pasangan daun atas */}
+      <path
+        d="M12 11.3c-2.3 0-3.8-1-4.1-2.7 1.8-.7 3.6-.2 4.1 2.7Z"
+        fill="currentColor"
+        opacity="0.9"
+      />
+      <path
+        d="M12 11.3c2.3 0 3.8-1 4.1-2.7-1.8-.7-3.6-.2-4.1 2.7Z"
+        fill="currentColor"
+        opacity="0.6"
+      />
+
+      {/* Pucuk */}
+      <path d="M12 7.6c0-2.1 1.1-3.6 3-4.3.2 2.4-1 3.8-3 4.3Z" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function IconBenih(props: IconProps) {
   return (
     <Base {...props}>

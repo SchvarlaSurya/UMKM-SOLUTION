@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { IconBenih } from "@/components/ui/icons";
+import { IconLogo } from "@/components/ui/icons";
 import { PanelSambutan } from "./PanelSambutan";
 
 /**
@@ -36,7 +36,7 @@ export function KartuAuth({
             aria-label="Ruang Margin"
           >
             <span className="flex size-9 items-center justify-center rounded-card bg-primary text-primary-foreground">
-              <IconBenih width={20} height={20} />
+              <IconLogo width={20} height={20} />
             </span>
             <span className="text-base font-semibold tracking-tight">
               ruang<span className="text-primary">margin</span>

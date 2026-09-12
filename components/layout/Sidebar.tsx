@@ -6,7 +6,14 @@ import { signOut } from "next-auth/react";
 import { cn } from "@/lib/cn";
 import { inisial } from "@/lib/format";
 import { navItems } from "./nav-items";
-import { IconBenih, IconKeluar, IconPanahKanan, IconToko, IconTutup } from "@/components/ui/icons";
+import {
+  IconBenih,
+  IconKeluar,
+  IconLogo,
+  IconPanahKanan,
+  IconToko,
+  IconTutup,
+} from "@/components/ui/icons";
 import { Button } from "@/components/ui/Button";
 
 type SidebarProps = {
@@ -34,7 +41,7 @@ export function Sidebar({
       <div className="flex items-center justify-between gap-2 px-4 py-4">
         <Link href="/dashboard" className="flex items-center gap-2 text-sidebar-foreground">
           <span className="flex size-8 items-center justify-center rounded-card bg-primary text-primary-foreground">
-            <IconBenih width={18} height={18} />
+            <IconLogo width={18} height={18} />
           </span>
           <span className="text-base font-semibold tracking-tight">
             ruang<span className="text-primary">margin</span>
