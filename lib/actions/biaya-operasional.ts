@@ -17,10 +17,12 @@ function galatPerhitungan(error: unknown): HasilAksi | null {
     : null;
 }
 
-const HALAMAN_TERDAMPAK = ["/biaya-operasional", "/dashboard", "/produk"];
+const HALAMAN_BIAYA = ["/biaya-operasional"] as const;
+const HALAMAN_PERHITUNGAN_BIAYA = ["/biaya-operasional", "/dashboard", "/produk"] as const;
 
-function segarkan() {
-  for (const halaman of HALAMAN_TERDAMPAK) revalidatePath(halaman);
+function segarkan(halamanTerdampak: readonly string[]) {
+  // revalidatePath sinkron; panggilan ini tidak saling menunggu secara async.
+  for (const halaman of halamanTerdampak) revalidatePath(halaman);
 }
 
 type MasukanBiaya = {
@@ -74,7 +76,7 @@ export async function tambahBiaya(masukan: MasukanBiaya): Promise<HasilAksi> {
     throw error;
   }
 
-  segarkan();
+  segarkan(HALAMAN_PERHITUNGAN_BIAYA);
   return { ok: true };
 }
 
@@ -91,6 +93,9 @@ export async function perbaruiBiaya(id: number, masukan: MasukanBiaya): Promise<
     where: { id, userId: auth.userId },
   });
   if (!ada) return { ok: false, error: "Biaya tidak ditemukan." };
+
+  const memengaruhiPerhitungan =
+    ada.jenis !== masukan.jenis || ada.nilai !== masukan.nilai;
 
   try {
     await prisma.$transaction(
@@ -109,7 +114,9 @@ export async function perbaruiBiaya(id: number, masukan: MasukanBiaya): Promise<
     throw error;
   }
 
-  segarkan();
+  // Nama biaya hanya ditampilkan di halaman biaya operasional. Rekalkulasi
+  // tetap dipertahankan agar perilaku mutasi di luar invalidasi tidak berubah.
+  segarkan(memengaruhiPerhitungan ? HALAMAN_PERHITUNGAN_BIAYA : HALAMAN_BIAYA);
   return { ok: true };
 }
 
@@ -151,7 +158,7 @@ export async function simpanPengaturan(masukan: {
     throw error;
   }
 
-  segarkan();
+  segarkan(HALAMAN_PERHITUNGAN_BIAYA);
   return { ok: true };
 }
 
@@ -178,6 +185,6 @@ export async function hapusBiaya(id: number): Promise<HasilAksi> {
     throw error;
   }
 
-  segarkan();
+  segarkan(HALAMAN_PERHITUNGAN_BIAYA);
   return { ok: true };
 }

@@ -16,11 +16,13 @@ import { recalculateAllAffectedByBahan } from "@/lib/hppCalculator";
 
 export type HasilAksi = { ok: true } | { ok: false; error: string };
 
-/** Halaman yang menampilkan angka turunan harga bahan. */
-const HALAMAN_TERDAMPAK = ["/bahan-baku", "/dashboard", "/produk", "/tren-harga"];
+const HALAMAN_DAFTAR_BAHAN = ["/bahan-baku", "/dashboard", "/produk"] as const;
+const HALAMAN_HARGA_BAHAN = [...HALAMAN_DAFTAR_BAHAN, "/tren-harga"] as const;
 
-function segarkan() {
-  for (const halaman of HALAMAN_TERDAMPAK) revalidatePath(halaman);
+function segarkan(halamanTerdampak: readonly string[]) {
+  // revalidatePath bersifat sinkron; tidak ada pekerjaan async yang perlu
+  // ditunggu atau diparalelkan dengan Promise.all.
+  for (const halaman of halamanTerdampak) revalidatePath(halaman);
 }
 
 export async function tambahBahanBaku(masukan: {
@@ -57,7 +59,8 @@ export async function tambahBahanBaku(masukan: {
     data: { nama, satuan, hargaPerSatuan: masukan.hargaPerSatuan, userId: auth.userId },
   });
 
-  segarkan();
+  // Bahan baru belum punya histori harga, jadi belum muncul di tren harga.
+  segarkan(HALAMAN_DAFTAR_BAHAN);
   return { ok: true };
 }
 
@@ -95,7 +98,7 @@ export async function perbaruiHargaBahan(
   });
   await recalculateAllAffectedByBahan(id, auth.userId);
 
-  segarkan();
+  segarkan(HALAMAN_HARGA_BAHAN);
   return { ok: true };
 }
 
@@ -112,7 +115,10 @@ export async function hapusBahanBaku(id: number): Promise<HasilAksi> {
     return { ok: false, error: "Sesi berakhir. Masuk lagi untuk menghapus." };
   }
 
-  const bahan = await prisma.bahanBaku.findFirst({ where: { id, userId: auth.userId } });
+  const bahan = await prisma.bahanBaku.findFirst({
+    where: { id, userId: auth.userId },
+    include: { _count: { select: { histori: true } } },
+  });
   if (!bahan) return { ok: false, error: "Bahan tidak ditemukan." };
 
   const dipakai = await prisma.resep.findMany({
@@ -138,6 +144,7 @@ export async function hapusBahanBaku(id: number): Promise<HasilAksi> {
     prisma.bahanBaku.delete({ where: { id, userId: auth.userId } }),
   ]);
 
-  segarkan();
+  // Tren hanya berubah bila bahan yang dihapus memang memiliki histori.
+  segarkan(bahan._count.histori > 0 ? HALAMAN_HARGA_BAHAN : HALAMAN_DAFTAR_BAHAN);
   return { ok: true };
 }

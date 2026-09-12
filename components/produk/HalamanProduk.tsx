@@ -83,7 +83,6 @@ export function HalamanProduk({
       }
 
       setAkanDihapus(null);
-      router.refresh();
     });
   }
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { tambahProduk } from "@/lib/actions/produk";
 import { Button } from "@/components/ui/Button";
 import { IconTambah } from "@/components/ui/icons";
@@ -15,7 +14,6 @@ import { ModalProduk, type NilaiFormProduk } from "./ModalProduk";
  * untuk menyunting.
  */
 export function TombolTambahProduk({ bahan }: { bahan: BahanBaku[] }) {
-  const router = useRouter();
   const [menyimpan, mulaiSimpan] = useTransition();
   const [terbuka, setTerbuka] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
@@ -31,7 +29,6 @@ export function TombolTambahProduk({ bahan }: { bahan: BahanBaku[] }) {
       }
 
       setTerbuka(false);
-      router.refresh();
     });
   }
 

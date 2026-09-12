@@ -24,11 +24,12 @@ export type MasukanProduk = {
   resep: BarisResep[];
 };
 
-/** Resep menentukan HPP, dan jumlah pemakaian bahan ikut berubah. */
-const HALAMAN_TERDAMPAK = ["/produk", "/dashboard", "/bahan-baku"];
+const HALAMAN_DATA_PRODUK = ["/produk", "/dashboard"] as const;
+const HALAMAN_RELASI_RESEP = [...HALAMAN_DATA_PRODUK, "/bahan-baku"] as const;
 
-function segarkan() {
-  for (const halaman of HALAMAN_TERDAMPAK) revalidatePath(halaman);
+function segarkan(halamanTerdampak: readonly string[]) {
+  // revalidatePath sinkron; panggilan ini tidak saling menunggu secara async.
+  for (const halaman of halamanTerdampak) revalidatePath(halaman);
 }
 
 async function periksaMasukan(masukan: MasukanProduk, userId: number): Promise<string | null> {
@@ -83,7 +84,7 @@ export async function tambahProduk(masukan: MasukanProduk): Promise<HasilAksi> {
     },
   });
 
-  segarkan();
+  segarkan(HALAMAN_RELASI_RESEP);
   return { ok: true };
 }
 
@@ -99,8 +100,17 @@ export async function perbaruiProduk(
   const galat = await periksaMasukan(masukan, auth.userId);
   if (galat) return { ok: false, error: galat };
 
-  const ada = await prisma.produk.findFirst({ where: { id, userId: auth.userId } });
+  const ada = await prisma.produk.findFirst({
+    where: { id, userId: auth.userId },
+    include: { resep: { select: { bahanBakuId: true } } },
+  });
   if (!ada) return { ok: false, error: "Produk tidak ditemukan." };
+
+  const bahanLama = new Set(ada.resep.map((item) => item.bahanBakuId));
+  const bahanBaru = new Set(masukan.resep.map((item) => item.bahanBakuId));
+  const relasiBahanBerubah =
+    bahanLama.size !== bahanBaru.size ||
+    [...bahanLama].some((bahanBakuId) => !bahanBaru.has(bahanBakuId));
 
   // Resep lama dihapus lalu ditulis ulang. Dibungkus transaksi supaya produk
   // tidak pernah tertinggal tanpa resep kalau penulisan gagal di tengah jalan.
@@ -123,7 +133,9 @@ export async function perbaruiProduk(
     }),
   ]);
 
-  segarkan();
+  // Halaman bahan baku hanya menampilkan jumlah produk pemakai. Perubahan
+  // nama, harga jual, kategori, atau takaran tidak mengubah angka tersebut.
+  segarkan(relasiBahanBerubah ? HALAMAN_RELASI_RESEP : HALAMAN_DATA_PRODUK);
   return { ok: true };
 }
 
@@ -147,6 +159,6 @@ export async function hapusProduk(id: number): Promise<HasilAksi> {
     prisma.produk.delete({ where: { id, userId: auth.userId } }),
   ]);
 
-  segarkan();
+  segarkan(HALAMAN_RELASI_RESEP);
   return { ok: true };
 }

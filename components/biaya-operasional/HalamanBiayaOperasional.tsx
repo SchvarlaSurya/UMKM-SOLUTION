@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import {
   hapusBiaya,
   perbaruiBiaya,
@@ -35,7 +34,6 @@ export function HalamanBiayaOperasional({
   biaya: BiayaOperasional[];
   pengaturan: Pengaturan;
 }) {
-  const router = useRouter();
   const [menyimpan, mulaiSimpan] = useTransition();
   const [porsi, setPorsi] = useState(String(pengaturan.estimasiPorsiPerBulan));
   const [batasMargin, setBatasMargin] = useState(String(pengaturan.batasMarginAman));
@@ -95,7 +93,6 @@ export function HalamanBiayaOperasional({
 
       setModalTerbuka(false);
       window.dispatchEvent(new Event("notifikasi:segarkan"));
-      router.refresh();
     });
   }
 
@@ -112,7 +109,6 @@ export function HalamanBiayaOperasional({
 
       setAkanDihapus(null);
       window.dispatchEvent(new Event("notifikasi:segarkan"));
-      router.refresh();
     });
   }
 
@@ -130,7 +126,6 @@ export function HalamanBiayaOperasional({
       }
 
       window.dispatchEvent(new Event("notifikasi:segarkan"));
-      router.refresh();
     });
   }
 

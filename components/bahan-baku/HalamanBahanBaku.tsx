@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { hapusBahanBaku, perbaruiHargaBahan, tambahBahanBaku } from "@/lib/actions/bahan-baku";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -27,7 +26,6 @@ export function HalamanBahanBaku({
   bahan: BahanBaku[];
   pemakaian: Record<number, number>;
 }) {
-  const router = useRouter();
   const [menyimpan, mulaiSimpan] = useTransition();
   const [cari, setCari] = useState("");
   const [mode, setMode] = useState<"tambah" | "edit">("tambah");
@@ -73,7 +71,6 @@ export function HalamanBahanBaku({
       }
 
       setAkanDihapus(null);
-      router.refresh();
     });
   }
 
@@ -92,8 +89,6 @@ export function HalamanBahanBaku({
 
       setModalTerbuka(false);
       window.dispatchEvent(new Event("notifikasi:segarkan"));
-      // Ambil ulang hasil render server yang sudah disegarkan Server Action.
-      router.refresh();
     });
   }
 
