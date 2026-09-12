@@ -179,21 +179,21 @@ export async function calculateHpp(
 ): Promise<HppResult> {
   const { thresholdOverride, simpanSnapshot = false } = options
 
-  const produk = await prisma.produk.findFirst({
-    where: { id: produkId, userId },
-    include: {
-      resep: {
-        where: { bahanBaku: { userId } },
-        include: { bahanBaku: true },
+  const [produk, konteks] = await Promise.all([
+    prisma.produk.findFirst({
+      where: { id: produkId, userId },
+      include: {
+        resep: {
+          where: { bahanBaku: { userId } },
+          include: { bahanBaku: true },
+        },
       },
-    },
-  })
+    }),
+    getKonteksBiaya(userId),
+  ])
   if (!produk) throw new Error('Produk tidak ditemukan')
 
-  const pengaturan = await getPengaturan(userId)
-  const threshold = thresholdOverride ?? pengaturan.batasMarginAman
-
-  const semuaBiaya = await prisma.biayaOperasional.findMany({ where: { userId } })
+  const threshold = thresholdOverride ?? konteks.pengaturan.batasMarginAman
 
   // Rumusnya sendiri ada di lib/hpp.ts supaya halaman bisa memakai perhitungan
   // yang sama tanpa memanggil fungsi ini sekali per produk:
@@ -202,7 +202,7 @@ export async function calculateHpp(
   const { hppTerhitung, marginPersen } = hitungHpp(
     biayaBahanProduk(produk),
     produk.hargaJual,
-    komponenBiaya(semuaBiaya, pengaturan),
+    konteks.komponen,
     threshold
   )
 
@@ -274,46 +274,50 @@ async function recalculateProduk(
     return { produk, hargaJualBaru, rincian }
   })
 
-  let jumlahHargaBerubah = 0
-  for (const item of hasil) {
-    if (item.hargaJualBaru !== item.produk.hargaJual) {
-      await db.produk.update({
-        where: { id: item.produk.id, userId },
-        data: { hargaJual: item.hargaJualBaru },
-      })
-      await db.historiHargaJual.create({
-        data: {
-          produkId: item.produk.id,
-          hargaLama: item.produk.hargaJual,
-          hargaBaru: item.hargaJualBaru,
-          alasan,
-        },
-      })
-      jumlahHargaBerubah += 1
-    }
-
-    await db.hppSnapshot.create({
-      data: {
-        produkId: item.produk.id,
-        hppTerhitung: item.rincian.hppTerhitung,
-        marginPersen: item.rincian.marginPersen,
-      },
+  const hargaBerubah = hasil.filter(
+    (item) => item.hargaJualBaru !== item.produk.hargaJual
+  )
+  for (const item of hargaBerubah) {
+    await db.produk.update({
+      where: { id: item.produk.id, userId },
+      data: { hargaJual: item.hargaJualBaru },
     })
   }
 
-  if (jumlahHargaBerubah > 0) {
+  if (hargaBerubah.length > 0) {
+    await db.historiHargaJual.createMany({
+      data: hargaBerubah.map((item) => ({
+        produkId: item.produk.id,
+        hargaLama: item.produk.hargaJual,
+        hargaBaru: item.hargaJualBaru,
+        alasan,
+      })),
+    })
+  }
+
+  if (hasil.length > 0) {
+    await db.hppSnapshot.createMany({
+      data: hasil.map((item) => ({
+        produkId: item.produk.id,
+        hppTerhitung: item.rincian.hppTerhitung,
+        marginPersen: item.rincian.marginPersen,
+      })),
+    })
+  }
+
+  if (hargaBerubah.length > 0) {
     await db.notifikasi.create({
       data: {
         userId,
         judul: 'Harga jual diperbarui otomatis',
-        pesan: `${jumlahHargaBerubah} produk mengalami perubahan harga jual karena ${alasan}.`,
+        pesan: `${hargaBerubah.length} produk mengalami perubahan harga jual karena ${alasan}.`,
       },
     })
   }
 
   return {
     jumlahProdukDihitung: hasil.length,
-    jumlahHargaBerubah,
+    jumlahHargaBerubah: hargaBerubah.length,
   }
 }
 
@@ -354,13 +358,33 @@ export async function calculateAllHpp(
   userId: number,
   thresholdOverride?: number
 ): Promise<HppResult[]> {
-  const semuaProduk = await prisma.produk.findMany({
-    where: { userId },
-    select: { id: true },
+  const [semuaProduk, konteks] = await Promise.all([
+    prisma.produk.findMany({
+      where: { userId },
+      include: {
+        resep: {
+          where: { bahanBaku: { userId } },
+          include: { bahanBaku: true },
+        },
+      },
+    }),
+    getKonteksBiaya(userId),
+  ])
+  const threshold = thresholdOverride ?? konteks.pengaturan.batasMarginAman
+
+  return semuaProduk.map((produk) => {
+    const rincian = hitungHpp(
+      biayaBahanProduk(produk),
+      produk.hargaJual,
+      konteks.komponen,
+      threshold
+    )
+
+    return {
+      produkId: produk.id,
+      hppTerhitung: rincian.hppTerhitung,
+      marginPersen: rincian.marginPersen,
+      statusAman: rincian.marginPersen >= threshold,
+    }
   })
-  const hasil: HppResult[] = []
-  for (const p of semuaProduk) {
-    hasil.push(await calculateHpp(p.id, userId, { thresholdOverride }))
-  }
-  return hasil
 }
