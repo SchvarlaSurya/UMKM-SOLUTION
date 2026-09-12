@@ -218,6 +218,34 @@ export function IconMenu(props: IconProps) {
   );
 }
 
+export function IconLonceng(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z" />
+      <path d="M10 21h4" />
+    </Base>
+  );
+}
+
+export function IconRiwayat(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+      <path d="M3 3v5h5" />
+      <path d="M12 7v5l3 2" />
+    </Base>
+  );
+}
+
+export function IconKalkulator(props: IconProps) {
+  return (
+    <Base {...props}>
+      <rect x="5" y="3" width="14" height="18" rx="2" />
+      <path d="M8 7h8v3H8zM8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01" />
+    </Base>
+  );
+}
+
 export function IconKeluar(props: IconProps) {
   return (
     <Base {...props}>

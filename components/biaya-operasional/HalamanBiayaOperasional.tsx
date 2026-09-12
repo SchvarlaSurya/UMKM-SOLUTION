@@ -94,6 +94,7 @@ export function HalamanBiayaOperasional({
       }
 
       setModalTerbuka(false);
+      window.dispatchEvent(new Event("notifikasi:segarkan"));
       router.refresh();
     });
   }
@@ -110,6 +111,7 @@ export function HalamanBiayaOperasional({
       }
 
       setAkanDihapus(null);
+      window.dispatchEvent(new Event("notifikasi:segarkan"));
       router.refresh();
     });
   }
@@ -127,6 +129,7 @@ export function HalamanBiayaOperasional({
         return;
       }
 
+      window.dispatchEvent(new Event("notifikasi:segarkan"));
       router.refresh();
     });
   }

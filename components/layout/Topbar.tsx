@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
+import { PusatNotifikasi } from "@/components/notifikasi/PusatNotifikasi";
 import { Button } from "@/components/ui/Button";
 import { IconChevronKanan, IconMenu } from "@/components/ui/icons";
 import { formatTanggal, inisial } from "@/lib/format";
@@ -55,6 +56,7 @@ export function Topbar({
         <span className="hidden min-w-28 text-right text-xs text-muted-foreground md:inline">
           {tanggal}
         </span>
+        <PusatNotifikasi />
         <span className="flex size-8 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
           {inisial(namaPemilik)}
         </span>

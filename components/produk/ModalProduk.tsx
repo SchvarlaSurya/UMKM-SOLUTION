@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
-import { IconTambah, IconTutup } from "@/components/ui/icons";
+import { IconKalkulator, IconTambah, IconTutup } from "@/components/ui/icons";
+import { formatRupiah } from "@/lib/format";
 import { konversiKeSatuanDasar, pilihanSatuanUntuk } from "@/lib/satuan";
-import type { BahanBaku, Produk } from "@/lib/types";
+import type { BahanBaku, ModePenentuanHarga, Produk } from "@/lib/types";
 
 export const KATEGORI = [
   "Makanan utama",
@@ -23,6 +24,8 @@ export type NilaiFormProduk = {
   nama: string;
   kategori: string;
   hargaJual: number;
+  modePenentuanHarga: ModePenentuanHarga;
+  targetMarginPersen: number | null;
   resep: BarisResep[];
 };
 
@@ -87,8 +90,93 @@ type BarisForm = {
 
 type ModeTakaran = "per-porsi" | "sekali-produksi";
 
+type HasilSimulasi = {
+  hppTerhitung: number;
+  persenKomisi: number;
+  hargaJual: number;
+  targetMarginPersen: number;
+};
+
+type StatusSimulasi = {
+  kunci: string;
+  status: "memuat" | "sukses" | "galat";
+  hasil?: HasilSimulasi;
+  galat?: string;
+};
+
+type HasilResep =
+  | { ok: true; data: BarisResep[] }
+  | { ok: false; error: string };
+
 function formatJumlah(nilai: number): string {
   return nilai.toLocaleString("id-ID", { maximumFractionDigits: 8 });
+}
+
+function susunResep({
+  baris,
+  bahan,
+  modeTakaran,
+  jumlahPorsi,
+}: {
+  baris: BarisForm[];
+  bahan: BahanBaku[];
+  modeTakaran: ModeTakaran;
+  jumlahPorsi: string;
+}): HasilResep {
+  const jumlahPorsiAngka = Number(jumlahPorsi);
+  const jumlahPorsiValid =
+    jumlahPorsi.trim() !== "" &&
+    Number.isFinite(jumlahPorsiAngka) &&
+    jumlahPorsiAngka > 0;
+
+  if (modeTakaran === "sekali-produksi" && !jumlahPorsiValid) {
+    return { ok: false, error: "Isi jumlah porsi dulu dengan angka lebih dari 0." };
+  }
+
+  const resep = baris.map((item) => {
+    const satuanDasar =
+      bahan.find((bahanBaku) => bahanBaku.id === item.bahanBakuId)?.satuan ?? "";
+    const jumlahDalamSatuanDasar = konversiKeSatuanDasar(
+      Number(item.jumlah),
+      item.satuanDipilih,
+      satuanDasar,
+    );
+    return {
+      bahanBakuId: item.bahanBakuId,
+      jumlahDipakai:
+        modeTakaran === "sekali-produksi"
+          ? jumlahDalamSatuanDasar / jumlahPorsiAngka
+          : jumlahDalamSatuanDasar,
+    };
+  });
+
+  if (resep.length === 0 || resep.some((item) => item.bahanBakuId <= 0)) {
+    return { ok: false, error: "Produk harus punya minimal 1 bahan baku di resep." };
+  }
+  if (
+    resep.some(
+      (item) => !Number.isFinite(item.jumlahDipakai) || item.jumlahDipakai <= 0,
+    )
+  ) {
+    return { ok: false, error: "Setiap bahan wajib punya takaran lebih dari 0." };
+  }
+  if (new Set(resep.map((item) => item.bahanBakuId)).size !== resep.length) {
+    return { ok: false, error: "Ada bahan yang dipilih lebih dari sekali." };
+  }
+
+  return { ok: true, data: resep };
+}
+
+function pesanGalatSimulasi(isi: unknown): string {
+  if (
+    isi &&
+    typeof isi === "object" &&
+    "error" in isi &&
+    typeof isi.error === "string"
+  ) {
+    return isi.error;
+  }
+  return "Harga jual belum dapat dihitung. Coba lagi.";
 }
 
 function FormProduk({
@@ -125,6 +213,23 @@ function FormProduk({
   const [modeTakaran, setModeTakaran] =
     useState<ModeTakaran>("per-porsi");
   const [jumlahPorsi, setJumlahPorsi] = useState("");
+  const [modeHarga, setModeHarga] = useState<ModePenentuanHarga>(
+    produk?.modePenentuanHarga ?? "manual",
+  );
+  const [hargaManual, setHargaManual] = useState(
+    produk ? String(produk.hargaJual) : "",
+  );
+  const [hargaSistem, setHargaSistem] = useState(
+    produk?.modePenentuanHarga === "targetMargin"
+      ? String(produk.hargaJual)
+      : "",
+  );
+  const [targetMargin, setTargetMargin] = useState(
+    produk?.targetMarginPersen !== null && produk?.targetMarginPersen !== undefined
+      ? String(produk.targetMarginPersen)
+      : "20",
+  );
+  const [simulasi, setSimulasi] = useState<StatusSimulasi | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const jumlahPorsiAngka = Number(jumlahPorsi);
@@ -132,6 +237,69 @@ function FormProduk({
     jumlahPorsi.trim() !== "" &&
     Number.isFinite(jumlahPorsiAngka) &&
     jumlahPorsiAngka > 0;
+
+  const hasilResep = useMemo(
+    () => susunResep({ baris, bahan, modeTakaran, jumlahPorsi }),
+    [baris, bahan, modeTakaran, jumlahPorsi],
+  );
+  const targetMarginAngka = Number(targetMargin);
+  const targetMarginValid =
+    targetMargin.trim() !== "" &&
+    Number.isFinite(targetMarginAngka) &&
+    targetMarginAngka >= 0 &&
+    targetMarginAngka <= 80;
+  const kunciSimulasi =
+    modeHarga === "targetMargin" && targetMarginValid && hasilResep.ok
+      ? JSON.stringify({ resep: hasilResep.data, targetMarginPersen: targetMarginAngka })
+      : null;
+  const simulasiAktif =
+    kunciSimulasi !== null && simulasi?.kunci === kunciSimulasi ? simulasi : null;
+
+  useEffect(() => {
+    if (!kunciSimulasi || !hasilResep.ok) return;
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setSimulasi({ kunci: kunciSimulasi, status: "memuat" });
+      try {
+        const respons = await fetch("/api/produk/simulasi-harga", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            resep: hasilResep.data,
+            targetMarginPersen: targetMarginAngka,
+          }),
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const isi: unknown = await respons.json().catch(() => null);
+        if (!respons.ok) throw new Error(pesanGalatSimulasi(isi));
+
+        const hasil = isi as HasilSimulasi;
+        setHargaSistem(String(hasil.hargaJual));
+        setSimulasi({
+          kunci: kunciSimulasi,
+          status: "sukses",
+          hasil,
+        });
+      } catch (galat) {
+        if (controller.signal.aborted) return;
+        setSimulasi({
+          kunci: kunciSimulasi,
+          status: "galat",
+          galat:
+            galat instanceof Error
+              ? galat.message
+              : "Harga jual belum dapat dihitung. Coba lagi.",
+        });
+      }
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [hasilResep, kunciSimulasi, targetMarginAngka]);
 
   function tambahBaris() {
     setBaris((sebelumnya) => [
@@ -160,55 +328,45 @@ function FormProduk({
     const data = new FormData(e.currentTarget);
     const nama = String(data.get("nama") ?? "").trim();
     const kategori = String(data.get("kategori") ?? KATEGORI[0]);
-    const hargaJual = Number(data.get("hargaJual"));
+    const hargaJual = Number(modeHarga === "manual" ? hargaManual : hargaSistem);
 
     if (nama === "") {
       setError("Nama produk wajib diisi.");
       return;
     }
-    if (!Number.isFinite(hargaJual) || hargaJual <= 0) {
+    if (modeHarga === "manual" && (!Number.isFinite(hargaJual) || hargaJual <= 0)) {
       setError("Harga jual harus lebih dari 0.");
       return;
     }
-    if (modeTakaran === "sekali-produksi" && !jumlahPorsiValid) {
-      setError("Isi jumlah porsi dulu dengan angka lebih dari 0.");
+    if (modeHarga === "targetMargin" && !targetMarginValid) {
+      setError("Target margin harus antara 0 sampai 80 persen.");
       return;
     }
-
-    const resep: BarisResep[] = baris
-      .map((b) => {
-        const satuanDasar = bahan.find((item) => item.id === b.bahanBakuId)?.satuan ?? "";
-        const jumlahDalamSatuanDasar = konversiKeSatuanDasar(
-          Number(b.jumlah),
-          b.satuanDipilih,
-          satuanDasar,
-        );
-        return {
-          bahanBakuId: b.bahanBakuId,
-          jumlahDipakai:
-            modeTakaran === "sekali-produksi"
-              ? jumlahDalamSatuanDasar / jumlahPorsiAngka
-              : jumlahDalamSatuanDasar,
-        };
-      })
-      .filter((r) => r.bahanBakuId > 0 && Number.isFinite(r.jumlahDipakai));
-
-    if (resep.length === 0) {
-      setError("Produk harus punya minimal 1 bahan baku di resep.");
+    if (!hasilResep.ok) {
+      setError(hasilResep.error);
       return;
     }
-    if (resep.some((r) => r.jumlahDipakai <= 0)) {
-      setError("Setiap bahan wajib punya takaran lebih dari 0.");
-      return;
-    }
-    const unik = new Set(resep.map((r) => r.bahanBakuId));
-    if (unik.size !== resep.length) {
-      setError("Ada bahan yang dipilih lebih dari sekali.");
+    if (
+      modeHarga === "targetMargin" &&
+      (!simulasiAktif || simulasiAktif.status !== "sukses")
+    ) {
+      setError(
+        simulasiAktif?.status === "galat"
+          ? simulasiAktif.galat ?? "Harga jual belum dapat dihitung."
+          : "Tunggu sampai harga jual selesai dihitung.",
+      );
       return;
     }
 
     setError(null);
-    onSimpan({ nama, kategori, hargaJual, resep });
+    onSimpan({
+      nama,
+      kategori,
+      hargaJual,
+      modePenentuanHarga: modeHarga,
+      targetMarginPersen: modeHarga === "targetMargin" ? targetMarginAngka : null,
+      resep: hasilResep.data,
+    });
   }
 
   return (
@@ -234,18 +392,135 @@ function FormProduk({
             </option>
           ))}
         </Select>
-        <Input
-          id="harga-jual"
-          name="hargaJual"
-          label="Harga jual (Rp)"
-          type="number"
-          min={0}
-          step={500}
-          inputMode="numeric"
-          defaultValue={produk ? String(produk.hargaJual) : ""}
-          placeholder="0"
-        />
       </div>
+
+      <section className="rounded-card border border-border bg-muted/30 p-3">
+        <h3 className="text-sm font-semibold text-foreground">Penentuan harga jual</h3>
+        <div
+          role="group"
+          aria-label="Mode penentuan harga jual"
+          className="mt-3 grid gap-2 sm:grid-cols-2"
+        >
+          {(
+            [
+              {
+                nilai: "manual",
+                label: "Tentukan harga sendiri",
+                deskripsi: "Harga tetap mengikuti angka yang Anda masukkan.",
+              },
+              {
+                nilai: "targetMargin",
+                label: "Hitung dari target margin",
+                deskripsi: "Sistem menyesuaikan harga saat biaya berubah.",
+              },
+            ] as const
+          ).map((pilihan) => (
+            <button
+              key={pilihan.nilai}
+              type="button"
+              aria-pressed={modeHarga === pilihan.nilai}
+              onClick={() => {
+                setModeHarga(pilihan.nilai);
+                setError(null);
+              }}
+              className={`rounded-card border px-3 py-2.5 text-left transition-colors active:translate-y-px ${
+                modeHarga === pilihan.nilai
+                  ? "border-primary bg-accent text-accent-foreground"
+                  : "border-border bg-card text-foreground hover:border-primary/40"
+              }`}
+            >
+              <span className="block text-sm font-medium">{pilihan.label}</span>
+              <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+                {pilihan.deskripsi}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          {modeHarga === "manual" ? (
+            <Input
+              id="harga-jual"
+              name="hargaJual"
+              label="Harga jual (Rp)"
+              type="number"
+              min={0}
+              step={500}
+              inputMode="numeric"
+              value={hargaManual}
+              onChange={(e) => setHargaManual(e.target.value)}
+              placeholder="0"
+              helper="Masukkan harga yang dibayar pelanggan per porsi."
+            />
+          ) : (
+            <Input
+              id="target-margin"
+              label="Target margin (%)"
+              type="number"
+              min={0}
+              max={80}
+              step="0.1"
+              inputMode="decimal"
+              value={targetMargin}
+              onChange={(e) => setTargetMargin(e.target.value)}
+              placeholder="20"
+              helper="Boleh diisi dari 0 sampai 80 persen."
+              error={
+                targetMargin !== "" && !targetMarginValid
+                  ? "Target margin harus antara 0 sampai 80 persen."
+                  : undefined
+              }
+            />
+          )}
+
+          {modeHarga === "targetMargin" && (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label htmlFor="harga-jual" className="text-sm font-medium text-foreground">
+                  Harga jual (Rp)
+                </label>
+                <Badge varian="count" ikon={<IconKalkulator width={13} height={13} />}>
+                  Dihitung sistem
+                </Badge>
+              </div>
+              <input
+                id="harga-jual"
+                name="hargaJual"
+                type="number"
+                readOnly
+                value={simulasiAktif?.status === "sukses" ? hargaSistem : ""}
+                placeholder={
+                  simulasiAktif?.status === "memuat" ? "Menghitung..." : "Menunggu resep"
+                }
+                aria-busy={simulasiAktif?.status === "memuat"}
+                aria-describedby="status-harga-sistem"
+                className="h-10 w-full rounded-card border border-primary/35 bg-accent px-3 text-sm font-semibold text-accent-foreground placeholder:font-normal placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+              />
+              <div id="status-harga-sistem" aria-live="polite" className="text-xs">
+                {!targetMarginValid ? (
+                  <p className="text-muted-foreground">Isi target margin yang valid.</p>
+                ) : !hasilResep.ok ? (
+                  <p className="text-muted-foreground">
+                    Lengkapi resep untuk melihat harga yang disarankan.
+                  </p>
+                ) : simulasiAktif?.status === "galat" ? (
+                  <p className="font-medium text-destructive">{simulasiAktif.galat}</p>
+                ) : simulasiAktif?.status === "sukses" && simulasiAktif.hasil ? (
+                  <p className="text-muted-foreground">
+                    HPP {formatRupiah(simulasiAktif.hasil.hppTerhitung)}, komisi{" "}
+                    {simulasiAktif.hasil.persenKomisi.toLocaleString("id-ID", {
+                      maximumFractionDigits: 1,
+                    })}
+                    %.
+                  </p>
+                ) : (
+                  <p className="text-muted-foreground">Menghitung harga terbaru...</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
 
       <section>
         <div className="flex flex-wrap items-center justify-between gap-2">
