@@ -2,6 +2,10 @@ import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import {
+  PerhitunganHargaTargetError,
+  recalculateAllByBiayaOperasional,
+} from '@/lib/hppCalculator'
+import {
   errorResponse,
   handleError,
   isAngkaPositif,
@@ -45,12 +49,19 @@ export async function POST(req: Request) {
       return errorResponse('Nilai persentase tidak boleh lebih dari 100', 400)
     }
 
-    const data = await prisma.biayaOperasional.create({
-      data: { nama: nama.trim(), jenis, nilai, userId: auth.userId },
-      omit: { userId: true },
+    const data = await prisma.$transaction(async (tx) => {
+      const biaya = await tx.biayaOperasional.create({
+        data: { nama: nama.trim(), jenis, nilai, userId: auth.userId },
+        omit: { userId: true },
+      })
+      await recalculateAllByBiayaOperasional(auth.userId, tx)
+      return biaya
     })
     return NextResponse.json(data, { status: 201 })
   } catch (error) {
+    if (error instanceof PerhitunganHargaTargetError) {
+      return errorResponse(error.message, 400)
+    }
     return handleError(error, 'Gagal menambah biaya operasional')
   }
 }
