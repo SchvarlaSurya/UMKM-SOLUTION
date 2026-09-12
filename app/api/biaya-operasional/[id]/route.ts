@@ -2,6 +2,10 @@ import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import {
+  PerhitunganHargaTargetError,
+  recalculateAllByBiayaOperasional,
+} from '@/lib/hppCalculator'
+import {
   errorResponse,
   handleError,
   isAngkaPositif,
@@ -39,13 +43,20 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     })
     if (!existing) return errorResponse('Biaya operasional tidak ditemukan', 404)
 
-    const updated = await prisma.biayaOperasional.update({
-      where: { id, userId: auth.userId },
-      data: { nama: nama.trim(), jenis, nilai },
-      omit: { userId: true },
+    const updated = await prisma.$transaction(async (tx) => {
+      const biaya = await tx.biayaOperasional.update({
+        where: { id, userId: auth.userId },
+        data: { nama: nama.trim(), jenis, nilai },
+        omit: { userId: true },
+      })
+      await recalculateAllByBiayaOperasional(auth.userId, tx)
+      return biaya
     })
     return NextResponse.json(updated)
   } catch (error) {
+    if (error instanceof PerhitunganHargaTargetError) {
+      return errorResponse(error.message, 400)
+    }
     return handleError(error, 'Gagal mengubah biaya operasional')
   }
 }
@@ -64,9 +75,15 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     })
     if (!existing) return errorResponse('Biaya operasional tidak ditemukan', 404)
 
-    await prisma.biayaOperasional.delete({ where: { id, userId: auth.userId } })
+    await prisma.$transaction(async (tx) => {
+      await tx.biayaOperasional.delete({ where: { id, userId: auth.userId } })
+      await recalculateAllByBiayaOperasional(auth.userId, tx)
+    })
     return NextResponse.json({ success: true })
   } catch (error) {
+    if (error instanceof PerhitunganHargaTargetError) {
+      return errorResponse(error.message, 400)
+    }
     return handleError(error, 'Gagal menghapus biaya operasional')
   }
 }

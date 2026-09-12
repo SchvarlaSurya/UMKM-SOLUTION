@@ -24,12 +24,33 @@ export type Resep = {
   bahanBaku: BahanBaku;
 };
 
+export type ModePenentuanHarga = "manual" | "targetMargin";
+
 export type Produk = {
   id: number;
   nama: string;
   kategori: string;
   hargaJual: number;
+  modePenentuanHarga: ModePenentuanHarga;
+  targetMarginPersen: number | null;
   resep: Resep[];
+};
+
+export type HistoriHargaJual = {
+  id: number;
+  produkId: number;
+  hargaLama: number;
+  hargaBaru: number;
+  alasan: string;
+  tanggal: string;
+};
+
+export type Notifikasi = {
+  id: number;
+  judul: string;
+  pesan: string;
+  sudahDibaca: boolean;
+  tanggal: string;
 };
 
 export type JenisBiaya = "tetap" | "persentase";

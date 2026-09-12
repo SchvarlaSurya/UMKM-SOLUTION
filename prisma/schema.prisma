@@ -17,6 +17,7 @@ model User {
   bahanBaku        BahanBaku[]
   biayaOperasional BiayaOperasional[]
   produk           Produk[]
+  notifikasi       Notifikasi[]
 }
 
 model Pengaturan {
@@ -62,14 +63,17 @@ model BiayaOperasional {
 }
 
 model Produk {
-  id        Int           @id @default(autoincrement())
-  nama      String
-  kategori  String        @default("Umum")
-  hargaJual Float
-  userId    Int
-  user      User          @relation(fields: [userId], references: [id])
-  resep     Resep[]
-  snapshot  HppSnapshot[]
+  id                 Int                @id @default(autoincrement())
+  nama               String
+  kategori           String             @default("Umum")
+  hargaJual          Float
+  modePenentuanHarga String             @default("manual")
+  targetMarginPersen Float?
+  userId             Int
+  user               User               @relation(fields: [userId], references: [id])
+  resep              Resep[]
+  snapshot           HppSnapshot[]
+  historiHargaJual   HistoriHargaJual[]
 
   @@index([userId])
 }
@@ -91,4 +95,28 @@ model HppSnapshot {
   hppTerhitung Float
   marginPersen Float
   dihitungPada DateTime @default(now())
+}
+
+model HistoriHargaJual {
+  id        Int      @id @default(autoincrement())
+  produkId  Int
+  produk    Produk   @relation(fields: [produkId], references: [id])
+  hargaLama Float
+  hargaBaru Float
+  alasan    String
+  tanggal   DateTime @default(now())
+
+  @@index([produkId])
+}
+
+model Notifikasi {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  judul       String
+  pesan       String
+  sudahDibaca Boolean  @default(false)
+  tanggal     DateTime @default(now())
+
+  @@index([userId, sudahDibaca])
 }
