@@ -8,15 +8,7 @@ import {
   readJsonBody,
   unauthorizedResponse,
 } from '@/lib/apiHelpers'
-
-const JENIS_USAHA_KULINER = [
-  'Warung Makan',
-  'Katering',
-  'Kedai Minuman',
-  'Toko Kue & Roti',
-  'Jajanan/Camilan',
-  'Lainnya (Kuliner)',
-] as const
+import { adalahJenisUsaha } from '@/lib/jenisUsaha'
 
 export async function GET() {
   try {
@@ -51,7 +43,7 @@ export async function PUT(req: Request) {
     }
 
     const jenisUsahaBersih = jenisUsaha.trim()
-    if (!(JENIS_USAHA_KULINER as readonly string[]).includes(jenisUsahaBersih)) {
+    if (!adalahJenisUsaha(jenisUsahaBersih)) {
       return errorResponse('Jenis usaha harus termasuk kategori usaha kuliner', 400)
     }
 
