@@ -14,10 +14,19 @@ model User {
   nama             String
   createdAt        DateTime           @default(now())
   pengaturan       Pengaturan?
+  usaha            Usaha?
   bahanBaku        BahanBaku[]
   biayaOperasional BiayaOperasional[]
   produk           Produk[]
   notifikasi       Notifikasi[]
+}
+
+model Usaha {
+  id         Int    @id @default(autoincrement())
+  userId     Int    @unique
+  user       User   @relation(fields: [userId], references: [id])
+  namaUsaha  String
+  jenisUsaha String
 }
 
 model Pengaturan {

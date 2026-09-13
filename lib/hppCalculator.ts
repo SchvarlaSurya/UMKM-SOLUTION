@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { biayaBahanProduk, hitungHpp, komponenBiaya } from '@/lib/hpp'
-import type { Prisma } from '@/app/generated/prisma/client'
+import { Prisma } from '@/app/generated/prisma/client'
 
 export type HppResult = {
   produkId: number
@@ -95,6 +95,7 @@ export type HasilHargaTarget = {
 
 type DatabaseClient = Pick<
   Prisma.TransactionClient,
+  | '$executeRaw'
   | 'pengaturan'
   | 'biayaOperasional'
   | 'bahanBaku'
@@ -277,14 +278,27 @@ async function recalculateProduk(
   const hargaBerubah = hasil.filter(
     (item) => item.hargaJualBaru !== item.produk.hargaJual
   )
-  for (const item of hargaBerubah) {
-    await db.produk.update({
-      where: { id: item.produk.id, userId },
-      data: { hargaJual: item.hargaJualBaru },
-    })
-  }
 
   if (hargaBerubah.length > 0) {
+    // Setiap produk mempunyai harga baru yang berbeda, jadi updateMany() tidak
+    // cukup. UPDATE ... FROM VALUES mempertahankan satu nilai per produk tetapi
+    // mengirim seluruh perubahan dalam satu round-trip yang tetap terparameter.
+    const pasanganHarga = hargaBerubah.map((item) =>
+      Prisma.sql`(${item.produk.id}::integer, ${item.hargaJualBaru}::double precision)`
+    )
+    const jumlahDiperbarui = await db.$executeRaw(
+      Prisma.sql`
+        UPDATE "Produk" AS produk
+        SET "hargaJual" = perubahan."hargaJual"
+        FROM (VALUES ${Prisma.join(pasanganHarga)}) AS perubahan("id", "hargaJual")
+        WHERE produk."id" = perubahan."id"
+          AND produk."userId" = ${userId}
+      `
+    )
+    if (jumlahDiperbarui !== hargaBerubah.length) {
+      throw new Error('Sebagian harga jual produk gagal diperbarui')
+    }
+
     await db.historiHargaJual.createMany({
       data: hargaBerubah.map((item) => ({
         produkId: item.produk.id,
@@ -306,12 +320,14 @@ async function recalculateProduk(
   }
 
   if (hargaBerubah.length > 0) {
-    await db.notifikasi.create({
-      data: {
-        userId,
-        judul: 'Harga jual diperbarui otomatis',
-        pesan: `${hargaBerubah.length} produk mengalami perubahan harga jual karena ${alasan}.`,
-      },
+    await db.notifikasi.createMany({
+      data: [
+        {
+          userId,
+          judul: 'Harga jual diperbarui otomatis',
+          pesan: `${hargaBerubah.length} produk mengalami perubahan harga jual karena ${alasan}.`,
+        },
+      ],
     })
   }
 
