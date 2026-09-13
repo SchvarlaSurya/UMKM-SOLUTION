@@ -5,13 +5,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { IconCentang, IconLonceng, IconProduk } from "@/components/ui/icons";
+import {
+  useNotifikasi,
+  type NotifikasiDenganProduk,
+} from "@/components/notifikasi/NotifikasiProvider";
 import { formatTanggal } from "@/lib/format";
-import type { Notifikasi } from "@/lib/types";
-
-type ProdukTerdampak = { id?: number; nama: string };
-type NotifikasiDenganProduk = Notifikasi & {
-  produkTerdampak?: ProdukTerdampak[];
-};
 
 type Ringkasan = {
   jumlahProduk: number | null;
@@ -44,45 +42,20 @@ function bacaRingkasan(pesan: string): Ringkasan {
 
 export function PusatNotifikasi() {
   const wadahRef = useRef<HTMLDivElement>(null);
-  const [belumDibaca, setBelumDibaca] = useState<NotifikasiDenganProduk[]>([]);
+  const {
+    belumDibaca,
+    modalAwal,
+    galatSinkronisasi,
+    segarkan,
+    hapusBelumDibaca,
+    kosongkanBelumDibaca,
+    konfirmasiModalAwal,
+  } = useNotifikasi();
   const [daftar, setDaftar] = useState<NotifikasiDenganProduk[] | null>(null);
-  const [modalNotifikasi, setModalNotifikasi] =
-    useState<NotifikasiDenganProduk | null>(null);
   const [dropdownTerbuka, setDropdownTerbuka] = useState(false);
   const [memuatDaftar, setMemuatDaftar] = useState(false);
   const [menandai, setMenandai] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
-
-  const ambilBelumDibaca = useCallback(async (tampilkanModal: boolean) => {
-    try {
-      const respons = await fetch("/api/notifikasi?belumDibaca=true", {
-        cache: "no-store",
-      });
-      const isi: unknown = await respons.json().catch(() => null);
-      if (!respons.ok) {
-        throw new Error(pesanGalat(isi, "Gagal memuat notifikasi."));
-      }
-
-      const notifikasi = Array.isArray(isi)
-        ? (isi as NotifikasiDenganProduk[])
-        : [];
-      setBelumDibaca(notifikasi);
-      setDaftar((saatIni) =>
-        saatIni
-          ? saatIni.map((item) =>
-              notifikasi.some((baru) => baru.id === item.id)
-                ? { ...item, sudahDibaca: false }
-                : item,
-            )
-          : saatIni,
-      );
-      if (tampilkanModal && notifikasi.length > 0) {
-        setModalNotifikasi(notifikasi[0]);
-      }
-    } catch (error) {
-      setGalat(error instanceof Error ? error.message : "Gagal memuat notifikasi.");
-    }
-  }, []);
 
   const ambilSemua = useCallback(async () => {
     setMemuatDaftar(true);
@@ -100,24 +73,6 @@ export function PusatNotifikasi() {
       setMemuatDaftar(false);
     }
   }, []);
-
-  useEffect(() => {
-    const timerAwal = window.setTimeout(() => {
-      void ambilBelumDibaca(true);
-    }, 0);
-
-    function segarkan() {
-      void ambilBelumDibaca(false);
-    }
-
-    window.addEventListener("notifikasi:segarkan", segarkan);
-    window.addEventListener("focus", segarkan);
-    return () => {
-      window.clearTimeout(timerAwal);
-      window.removeEventListener("notifikasi:segarkan", segarkan);
-      window.removeEventListener("focus", segarkan);
-    };
-  }, [ambilBelumDibaca]);
 
   useEffect(() => {
     if (!dropdownTerbuka) return;
@@ -153,13 +108,13 @@ export function PusatNotifikasi() {
         throw new Error(pesanGalat(isi, "Gagal menandai notifikasi."));
       }
 
-      setBelumDibaca((saatIni) => saatIni.filter((item) => item.id !== id));
+      hapusBelumDibaca(id);
       setDaftar((saatIni) =>
         saatIni?.map((item) =>
           item.id === id ? { ...item, sudahDibaca: true } : item,
         ) ?? null,
       );
-      if (tutupModal) setModalNotifikasi(null);
+      if (tutupModal) konfirmasiModalAwal();
     } catch (error) {
       setGalat(error instanceof Error ? error.message : "Gagal menandai notifikasi.");
     } finally {
@@ -180,11 +135,11 @@ export function PusatNotifikasi() {
         throw new Error(pesanGalat(isi, "Gagal menandai semua notifikasi."));
       }
 
-      setBelumDibaca([]);
+      kosongkanBelumDibaca();
       setDaftar((saatIni) =>
         saatIni?.map((item) => ({ ...item, sudahDibaca: true })) ?? null,
       );
-      setModalNotifikasi(null);
+      konfirmasiModalAwal();
     } catch (error) {
       setGalat(error instanceof Error ? error.message : "Gagal menandai semua notifikasi.");
     } finally {
@@ -198,9 +153,10 @@ export function PusatNotifikasi() {
     if (akanTerbuka) void ambilSemua();
   }
 
-  const ringkasan = modalNotifikasi
-    ? bacaRingkasan(modalNotifikasi.pesan)
+  const ringkasan = modalAwal
+    ? bacaRingkasan(modalAwal.pesan)
     : null;
+  const galatAktif = galat ?? galatSinkronisasi;
 
   return (
     <>
@@ -259,14 +215,14 @@ export function PusatNotifikasi() {
                     </div>
                   ))}
                 </div>
-              ) : galat ? (
+              ) : galatAktif ? (
                 <div className="p-4 text-sm">
-                  <p className="text-destructive">{galat}</p>
+                  <p className="text-destructive">{galatAktif}</p>
                   <Button
                     varian="link"
                     ukuran="sm"
                     className="mt-2"
-                    onClick={() => void ambilSemua()}
+                    onClick={() => void Promise.all([ambilSemua(), segarkan()])}
                   >
                     Coba lagi
                   </Button>
@@ -338,16 +294,16 @@ export function PusatNotifikasi() {
         )}
       </div>
 
-      {modalNotifikasi && (
+      {modalAwal && (
         <Modal
           terbuka
-          onTutup={() => setModalNotifikasi(null)}
-          judul={modalNotifikasi.judul}
+          onTutup={konfirmasiModalAwal}
+          judul={modalAwal.judul}
           subjudul="Harga jual disesuaikan agar target margin tetap terjaga."
           aksiSekunder={
             <Link
               href="/produk"
-              onClick={() => setModalNotifikasi(null)}
+              onClick={konfirmasiModalAwal}
               className="text-sm font-medium text-primary hover:underline underline-offset-4"
             >
               Lihat produk
@@ -358,7 +314,7 @@ export function PusatNotifikasi() {
               varian="primary"
               ukuran="sm"
               disabled={menandai}
-              onClick={() => void tandaiSatu(modalNotifikasi.id, true)}
+              onClick={() => void tandaiSatu(modalAwal.id, true)}
             >
               {menandai ? "Menyimpan..." : "Mengerti"}
             </Button>
@@ -379,18 +335,18 @@ export function PusatNotifikasi() {
               </div>
             ) : (
               <p className="text-sm leading-relaxed text-foreground">
-                {modalNotifikasi.pesan}
+                {modalAwal.pesan}
               </p>
             )}
 
-            {modalNotifikasi.produkTerdampak &&
-              modalNotifikasi.produkTerdampak.length > 0 && (
+            {modalAwal.produkTerdampak &&
+              modalAwal.produkTerdampak.length > 0 && (
                 <div>
                   <h3 className="text-sm font-semibold text-foreground">
                     Produk terdampak
                   </h3>
                   <ul className="mt-2 space-y-2">
-                    {modalNotifikasi.produkTerdampak.map((produk, index) => (
+                    {modalAwal.produkTerdampak.map((produk, index) => (
                       <li
                         key={produk.id ?? `${produk.nama}-${index}`}
                         className="rounded-card border border-border px-3 py-2 text-sm text-foreground"
@@ -402,7 +358,7 @@ export function PusatNotifikasi() {
                 </div>
               )}
 
-            {galat && <p className="text-sm text-destructive">{galat}</p>}
+            {galatAktif && <p className="text-sm text-destructive">{galatAktif}</p>}
           </div>
         </Modal>
       )}

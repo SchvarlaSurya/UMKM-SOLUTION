@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { AppShell } from "@/components/layout/AppShell";
+import { NotifikasiProvider } from "@/components/notifikasi/NotifikasiProvider";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -25,16 +26,18 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       : null;
 
   return (
-    <AppShell
-      profil={{
-        namaUsaha: usaha?.namaUsaha ?? namaPemilik,
-        kategoriUsaha: usaha?.jenisUsaha ?? "Usaha kuliner",
-        namaPemilik,
-        peran: "Pemilik usaha",
-        email: session?.user?.email ?? undefined,
-      }}
-    >
-      {children}
-    </AppShell>
+    <NotifikasiProvider>
+      <AppShell
+        profil={{
+          namaUsaha: usaha?.namaUsaha ?? namaPemilik,
+          kategoriUsaha: usaha?.jenisUsaha ?? "Usaha kuliner",
+          namaPemilik,
+          peran: "Pemilik usaha",
+          email: session?.user?.email ?? undefined,
+        }}
+      >
+        {children}
+      </AppShell>
+    </NotifikasiProvider>
   );
 }

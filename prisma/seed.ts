@@ -1,6 +1,5 @@
 import "dotenv/config";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "../app/generated/prisma/client";
+import { prisma } from "../lib/prisma";
 
 /**
  * Mengisi database dengan data demo usaha kuliner: 10 bahan baku, 8 produk
@@ -16,10 +15,6 @@ import { PrismaClient } from "../app/generated/prisma/client";
  *
  * Tabel User tidak pernah disentuh, jadi akun yang sudah terdaftar aman.
  */
-
-const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
-});
 
 const BAHAN = [
   { nama: "Ayam fillet", satuan: "kg", hargaPerSatuan: 42000 },
