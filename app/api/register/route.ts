@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { NextResponse } from 'next/server'
 import { errorResponse, handleError, isTeksTerisi, readJsonBody } from '@/lib/apiHelpers'
+import { adalahJenisUsaha } from '@/lib/jenisUsaha'
 
 const PANJANG_PASSWORD_MINIMAL = 8
 
@@ -9,7 +10,7 @@ export async function POST(req: Request) {
   try {
     const parsed = await readJsonBody(req)
     if (!parsed.ok) return errorResponse('Body request harus JSON yang valid', 400)
-    const { email, password, nama } = parsed.body
+    const { email, password, nama, namaUsaha, jenisUsaha } = parsed.body
 
     if (!isTeksTerisi(email) || !email.includes('@')) {
       return errorResponse('Email tidak valid', 400)
@@ -18,14 +19,31 @@ export async function POST(req: Request) {
     if (typeof password !== 'string' || password.length < PANJANG_PASSWORD_MINIMAL) {
       return errorResponse(`Password minimal ${PANJANG_PASSWORD_MINIMAL} karakter`, 400)
     }
+    if (!isTeksTerisi(namaUsaha)) return errorResponse('Nama usaha wajib diisi', 400)
+    if (!isTeksTerisi(jenisUsaha) || !adalahJenisUsaha(jenisUsaha.trim())) {
+      return errorResponse('Jenis usaha harus termasuk kategori usaha kuliner', 400)
+    }
 
     const emailBersih = email.trim().toLowerCase()
     const existing = await prisma.user.findUnique({ where: { email: emailBersih } })
     if (existing) return errorResponse('Email sudah terdaftar', 409)
 
     const hashed = await bcrypt.hash(password, 10)
-    const user = await prisma.user.create({
-      data: { email: emailBersih, password: hashed, nama: nama.trim() },
+
+    // Akun tanpa profil usaha akan tampil tanpa nama toko di sidebar, jadi
+    // keduanya dibuat sekaligus; kalau salah satu gagal, tidak ada yang tersimpan.
+    const user = await prisma.$transaction(async (tx) => {
+      const dibuat = await tx.user.create({
+        data: { email: emailBersih, password: hashed, nama: nama.trim() },
+      })
+      await tx.usaha.create({
+        data: {
+          userId: dibuat.id,
+          namaUsaha: namaUsaha.trim(),
+          jenisUsaha: jenisUsaha.trim(),
+        },
+      })
+      return dibuat
     })
 
     return NextResponse.json({ id: user.id, email: user.email, nama: user.nama }, { status: 201 })

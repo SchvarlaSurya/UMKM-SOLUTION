@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { Input, Select } from "@/components/ui/Input";
+import { JENIS_USAHA_KULINER } from "@/lib/jenisUsaha";
 
 const PANJANG_SANDI_MINIMUM = 8;
 
@@ -16,12 +17,18 @@ export function FormRegister() {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
     const nama = String(data.get("nama") ?? "").trim();
+    const namaUsaha = String(data.get("namaUsaha") ?? "").trim();
+    const jenisUsaha = String(data.get("jenisUsaha") ?? "");
     const email = String(data.get("email") ?? "").trim();
     const password = String(data.get("password") ?? "");
     const konfirmasi = String(data.get("konfirmasi") ?? "");
 
     if (nama === "" || email === "" || password === "") {
       setError("Nama, email, dan kata sandi wajib diisi.");
+      return;
+    }
+    if (namaUsaha === "") {
+      setError("Nama usaha wajib diisi.");
       return;
     }
     if (password.length < PANJANG_SANDI_MINIMUM) {
@@ -40,7 +47,7 @@ export function FormRegister() {
       const respons = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nama, email, password }),
+        body: JSON.stringify({ nama, email, password, namaUsaha, jenisUsaha }),
       });
 
       if (!respons.ok) {
@@ -66,6 +73,23 @@ export function FormRegister() {
         autoComplete="name"
         placeholder="Contoh: Bu Sari"
       />
+
+      <Input
+        id="nama-usaha"
+        name="namaUsaha"
+        label="Nama usaha"
+        autoComplete="organization"
+        placeholder="Contoh: Dapur Bu Sari"
+        helper="Nama ini yang tampil di aplikasi sebagai identitas usahamu."
+      />
+
+      <Select id="jenis-usaha" name="jenisUsaha" label="Jenis usaha" defaultValue={JENIS_USAHA_KULINER[0]}>
+        {JENIS_USAHA_KULINER.map((jenis) => (
+          <option key={jenis} value={jenis}>
+            {jenis}
+          </option>
+        ))}
+      </Select>
 
       <Input
         id="email"
