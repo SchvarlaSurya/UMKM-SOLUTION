@@ -22,9 +22,22 @@ export const navItems: NavItem[] = [
   { href: "/tren-harga", label: "Tren harga bahan", ikon: IconTren },
 ];
 
+/**
+ * Halaman yang punya breadcrumb tapi tidak muncul di daftar menu, karena
+ * jalan masuknya lewat tempat lain.
+ */
+const LABEL_TAMBAHAN: Record<string, string> = {
+  "/profil-usaha": "Profil usaha",
+};
+
 export function labelDariPath(pathname: string): string {
   const cocok = navItems.find(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
   );
-  return cocok?.label ?? "Dashboard";
+  if (cocok) return cocok.label;
+
+  const tambahan = Object.entries(LABEL_TAMBAHAN).find(
+    ([href]) => pathname === href || pathname.startsWith(`${href}/`),
+  );
+  return tambahan?.[1] ?? "Dashboard";
 }
