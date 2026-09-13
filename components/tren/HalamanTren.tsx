@@ -14,7 +14,7 @@ import {
   IconPanahTurun,
   IconTren,
 } from "@/components/ui/icons";
-import { formatPersen, formatRupiah, formatTanggal, formatTanggalPendek } from "@/lib/format";
+import { formatPersen, formatRupiah, formatTanggal } from "@/lib/format";
 import type { BahanBaku, HistoriHarga } from "@/lib/types";
 import type { TrendResult } from "@/lib/trendAnalyzer";
 
@@ -38,7 +38,7 @@ export function HalamanTren({
   const dataGrafik = useMemo(
     () =>
       catatan.map((h) => ({
-        label: formatTanggalPendek(h.tanggal),
+        waktu: new Date(h.tanggal).getTime(),
         harga: h.hargaBaru,
       })),
     [catatan],
@@ -60,6 +60,17 @@ export function HalamanTren({
       </>
     );
   }
+
+  // Beberapa perubahan pada hari yang sama hanya bisa dibedakan lewat jamnya.
+  const adaHariKembar =
+    new Set(catatan.map((h) => h.tanggal.slice(0, 10))).size !== catatan.length;
+  const tampilkanWaktu = (iso: string) =>
+    adaHariKembar
+      ? `${formatTanggal(iso)}, ${new Date(iso).toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}`
+      : formatTanggal(iso);
 
   const hargaAwal = catatan[0]?.hargaBaru ?? 0;
   const hargaAkhir = catatan.at(-1)?.hargaBaru ?? 0;
@@ -177,7 +188,7 @@ export function HalamanTren({
                 const delta = h.hargaBaru - h.hargaLama;
                 return (
                   <TR key={h.id}>
-                    <TD className="whitespace-nowrap">{formatTanggal(h.tanggal)}</TD>
+                    <TD className="whitespace-nowrap">{tampilkanWaktu(h.tanggal)}</TD>
                     <TD className="text-right font-medium whitespace-nowrap">
                       {formatRupiah(h.hargaBaru)}
                     </TD>
