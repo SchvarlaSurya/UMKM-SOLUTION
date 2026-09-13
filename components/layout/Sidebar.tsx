@@ -12,6 +12,7 @@ import {
   IconKeluar,
   IconLogo,
   IconPanahKanan,
+  IconPensil,
   IconToko,
   IconTutup,
 } from "@/components/ui/icons";
@@ -66,17 +67,31 @@ export function Sidebar({
         )}
       </div>
 
-      <div className="mx-3 flex items-center gap-3 rounded-card border border-sidebar-border bg-background px-3 py-2.5">
+      {/* Kartu identitas sekaligus jalan masuk ke halaman profil usaha, supaya
+          daftar menu tidak perlu bertambah panjang. */}
+      <Link
+        href="/profil-usaha"
+        onClick={onTutup}
+        aria-current={pathname === "/profil-usaha" ? "page" : undefined}
+        className={cn(
+          "mx-3 flex items-center gap-3 rounded-card border px-3 py-2.5 transition-colors",
+          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+          pathname === "/profil-usaha"
+            ? "border-primary/40 bg-sidebar-accent"
+            : "border-sidebar-border bg-background hover:border-primary/40",
+        )}
+      >
         <span className="flex size-9 shrink-0 items-center justify-center rounded-card bg-accent text-accent-foreground">
           <IconToko width={18} height={18} />
         </span>
-        <span className="min-w-0">
+        <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-sidebar-foreground">
             {namaUsaha}
           </span>
           <span className="block truncate text-xs text-muted-foreground">{kategoriUsaha}</span>
         </span>
-      </div>
+        <IconPensil width={14} height={14} className="shrink-0 text-muted-foreground" />
+      </Link>
 
       <nav aria-label="Navigasi utama" className="mt-5 flex-1 px-3">
         <p className="px-2 pb-2 text-[0.6875rem] font-medium tracking-[0.14em] text-muted-foreground uppercase">

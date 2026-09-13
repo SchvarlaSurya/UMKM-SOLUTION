@@ -19,6 +19,7 @@ const RUTE_TERLINDUNGI = [
   "/biaya-operasional",
   "/produk",
   "/tren-harga",
+  "/profil-usaha",
 ];
 
 /** Halaman yang tidak masuk akal dibuka saat sudah punya sesi. */
@@ -59,6 +60,7 @@ export const config = {
     "/biaya-operasional/:path*",
     "/produk/:path*",
     "/tren-harga/:path*",
+    "/profil-usaha/:path*",
     "/login",
     "/register",
   ],
