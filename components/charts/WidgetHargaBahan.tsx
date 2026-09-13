@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { IconPanahKanan, IconPanahNaik, IconPanahTurun, IconTren } from "@/components/ui/icons";
-import { formatPersen, formatRupiah, formatTanggalPendek } from "@/lib/format";
+import { formatPersen, formatRupiah } from "@/lib/format";
 import type { TitikHarga } from "@/lib/data";
 import type { BahanBaku } from "@/lib/types";
 import { GrafikHarga } from "./GrafikHarga";
@@ -23,7 +23,7 @@ export function WidgetHargaBahan({
   const data = useMemo(
     () =>
       (deret[bahanId] ?? []).map((titik) => ({
-        label: formatTanggalPendek(titik.tanggal),
+        waktu: new Date(titik.tanggal).getTime(),
         harga: titik.harga,
       })),
     [deret, bahanId],
