@@ -23,6 +23,14 @@ const prismaClientSingleton = () => {
     min: produksi ? 1 : 2,
     idleTimeoutMillis: 300_000,
     connectionTimeoutMillis: 10_000,
+    // Tanpa keepalive, koneksi yang menganggur diputus pihak lain (pooler
+    // Supabase/NAT) dalam kurang dari 7 menit. Pool tetap menganggapnya sehat,
+    // jadi query berikutnya menggantung 12-25 detik lalu gagal "Connection
+    // terminated unexpectedly", dan halaman tertahan di "Rendering...".
+    // Terukur ke database ini: koneksi idle 7 dan 15 menit tanpa keepalive
+    // gagal ECONNRESET; dengan keepalive keduanya tetap bisa dipakai.
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000,
   })
   return new PrismaClient({ adapter })
 }
