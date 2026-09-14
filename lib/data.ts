@@ -62,8 +62,30 @@ function serialisasiHistori(histori: BarisHistori): HistoriHarga {
   };
 }
 
-async function ambilBahanBaku(userId: number): Promise<BahanBaku[]> {
-  const bahan = await prisma.bahanBaku.findMany({
+/** Kelompokkan baris per kunci; urutan di dalam tiap kelompok dipertahankan. */
+function kelompokkanPer<T>(baris: readonly T[], kunci: (item: T) => number): Map<number, T[]> {
+  const hasil = new Map<number, T[]>();
+  for (const item of baris) {
+    const k = kunci(item);
+    const kelompok = hasil.get(k);
+    if (kelompok) kelompok.push(item);
+    else hasil.set(k, [item]);
+  }
+  return hasil;
+}
+
+/*
+ * Kenapa query datar, bukan relasi bersarang:
+ *
+ * Tanpa preview feature `relationJoins`, Prisma mengirim satu query SQL per
+ * tingkat relasi, berurutan. Dengan database yang round trip-nya ratusan
+ * milidetik, `produk -> resep -> bahanBaku` jadi tiga kali lebih lambat dari
+ * satu query. Query datar di bawah jalan paralel, jadi waktu tunggunya kurang
+ * lebih sama dengan satu query, lalu digabung di JS.
+ */
+
+async function ambilBarisBahan(userId: number): Promise<BarisBahan[]> {
+  return prisma.bahanBaku.findMany({
     where: { userId },
     orderBy: { nama: "asc" },
     select: {
@@ -74,51 +96,69 @@ async function ambilBahanBaku(userId: number): Promise<BahanBaku[]> {
       updatedAt: true,
     },
   });
-
-  return bahan.map(serialisasiBahan);
 }
 
-async function ambilProduk(userId: number): Promise<Produk[]> {
-  const produk = await prisma.produk.findMany({
-    where: { userId },
-    orderBy: { nama: "asc" },
+async function ambilBarisHistori(userId: number): Promise<BarisHistori[]> {
+  return prisma.historiHarga.findMany({
+    where: { bahanBaku: { userId } },
+    orderBy: [{ tanggal: "asc" }, { id: "asc" }],
     select: {
       id: true,
-      nama: true,
-      kategori: true,
-      hargaJual: true,
-      modePenentuanHarga: true,
-      targetMarginPersen: true,
-      resep: {
-        where: {
-          produk: { userId },
-          bahanBaku: { userId },
-        },
-        select: {
-          produkId: true,
-          bahanBakuId: true,
-          jumlahDipakai: true,
-          bahanBaku: {
-            select: {
-              id: true,
-              nama: true,
-              satuan: true,
-              hargaPerSatuan: true,
-              updatedAt: true,
-            },
-          },
-        },
-      },
+      bahanBakuId: true,
+      hargaLama: true,
+      hargaBaru: true,
+      tanggal: true,
     },
   });
+}
+
+/**
+ * Produk beserta resepnya. Pemanggil yang sudah mengambil bahan untuk
+ * keperluan lain mengoper promise-nya lewat `barisBahanSiap`, supaya tidak ada
+ * query bahan kedua.
+ */
+async function ambilProduk(
+  userId: number,
+  barisBahanSiap?: Promise<BarisBahan[]>,
+): Promise<Produk[]> {
+  const [produk, resep, barisBahan] = await Promise.all([
+    prisma.produk.findMany({
+      where: { userId },
+      orderBy: { nama: "asc" },
+      select: {
+        id: true,
+        nama: true,
+        kategori: true,
+        hargaJual: true,
+        modePenentuanHarga: true,
+        targetMarginPersen: true,
+      },
+    }),
+    // Sengaja tanpa orderBy, sama seperti relasi bersarang sebelumnya: urutan
+    // resep yang tampil di UI mengikuti urutan baris tersimpan. Tabel Resep
+    // tidak punya kolom id/createdAt untuk mengurutkan secara eksplisit.
+    prisma.resep.findMany({
+      where: {
+        produk: { userId },
+        bahanBaku: { userId },
+      },
+      select: { produkId: true, bahanBakuId: true, jumlahDipakai: true },
+    }),
+    barisBahanSiap ?? ambilBarisBahan(userId),
+  ]);
+
+  const bahanPerId = new Map(barisBahan.map((b) => [b.id, serialisasiBahan(b)]));
+  const resepPerProduk = kelompokkanPer(resep, (r) => r.produkId);
 
   return produk.map((item) => ({
     ...item,
     modePenentuanHarga: item.modePenentuanHarga as Produk["modePenentuanHarga"],
-    resep: item.resep.map((baris) => ({
-      ...baris,
-      bahanBaku: serialisasiBahan(baris.bahanBaku),
-    })),
+    resep: (resepPerProduk.get(item.id) ?? []).flatMap((baris) => {
+      // Query resep sudah memfilter `bahanBaku: { userId }`, jadi bahannya
+      // selalu ada di daftar bahan user. Pemeriksaan ini hanya penjaga.
+      const bahanBaku = bahanPerId.get(baris.bahanBakuId);
+      return bahanBaku ? [{ ...baris, bahanBaku }] : [];
+    }),
   }));
 }
 
@@ -135,13 +175,24 @@ async function ambilBiayaOperasional(userId: number): Promise<BiayaOperasional[]
   }));
 }
 
-/** Pertahankan perilaku lama: baris default dibuat saat pertama kali dibaca. */
+/**
+ * Pertahankan perilaku lama: baris default dibuat saat pertama kali dibaca.
+ *
+ * Sengaja bukan `upsert`. Upsert Prisma butuh beberapa round trip (transaksi,
+ * baca, tulis) dan terukur ~1.4 detik ke database ini, padahal barisnya hampir
+ * selalu sudah ada. Jalur normal cukup satu `findUnique`; `create` hanya untuk
+ * akun yang belum pernah punya baris.
+ */
 async function ambilPengaturan(userId: number): Promise<Pengaturan> {
+  const ada = await prisma.pengaturan.findUnique({
+    where: { userId },
+    omit: { userId: true },
+  });
+  if (ada) return ada;
+
   try {
-    return await prisma.pengaturan.upsert({
-      where: { userId },
-      update: {},
-      create: { userId },
+    return await prisma.pengaturan.create({
+      data: { userId },
       omit: { userId: true },
     });
   } catch (error) {
@@ -203,29 +254,13 @@ export type TitikHarga = { tanggal: string; harga: number };
 
 /** Satu loader untuk seluruh data dashboard agar dataset per render konsisten. */
 export async function getDataDashboard(userId: number) {
-  const [barisBahan, produk, biaya, pengaturan] = await Promise.all([
-    prisma.bahanBaku.findMany({
-      where: { userId },
-      orderBy: { nama: "asc" },
-      select: {
-        id: true,
-        nama: true,
-        satuan: true,
-        hargaPerSatuan: true,
-        updatedAt: true,
-        histori: {
-          orderBy: [{ tanggal: "asc" }, { id: "asc" }],
-          select: {
-            id: true,
-            bahanBakuId: true,
-            hargaLama: true,
-            hargaBaru: true,
-            tanggal: true,
-          },
-        },
-      },
-    }),
-    ambilProduk(userId),
+  // Satu lapis paralel. Promise bahan dipakai dua kali (output `bahan` dan
+  // penggabungan resep), jadi bahan hanya diambil sekali.
+  const barisBahanSiap = ambilBarisBahan(userId);
+  const [barisBahan, barisHistori, produk, biaya, pengaturan] = await Promise.all([
+    barisBahanSiap,
+    ambilBarisHistori(userId),
+    ambilProduk(userId, barisBahanSiap),
     ambilBiayaOperasional(userId),
     ambilPengaturan(userId),
   ]);
@@ -250,14 +285,16 @@ export async function getDataDashboard(userId: number) {
     biayaTetapPerPorsi: biayaTetapPerPorsi(biaya, pengaturan),
   };
 
+  const historiPerBahan = kelompokkanPer(barisHistori, (h) => h.bahanBakuId);
   const bahanBerhistori: BahanBaku[] = [];
   const deret: Record<number, TitikHarga[]> = {};
   for (const item of barisBahan) {
-    if (item.histori.length === 0) continue;
+    const histori = historiPerBahan.get(item.id);
+    if (!histori) continue;
     bahanBerhistori.push(serialisasiBahan(item));
-    deret[item.id] = item.histori.map((histori) => ({
-      tanggal: histori.tanggal.toISOString(),
-      harga: histori.hargaBaru,
+    deret[item.id] = histori.map((baris) => ({
+      tanggal: baris.tanggal.toISOString(),
+      harga: baris.hargaBaru,
     }));
   }
 
@@ -265,12 +302,12 @@ export async function getDataDashboard(userId: number) {
 }
 
 export async function getDataHalamanBahanBaku(userId: number) {
-  const [bahan, pemakaian] = await Promise.all([
-    ambilBahanBaku(userId),
+  const [barisBahan, pemakaian] = await Promise.all([
+    ambilBarisBahan(userId),
     ambilPemakaianBahan(userId),
   ]);
 
-  return { bahan, pemakaian: Object.fromEntries(pemakaian) };
+  return { bahan: barisBahan.map(serialisasiBahan), pemakaian: Object.fromEntries(pemakaian) };
 }
 
 export async function getDataHalamanBiayaOperasional(userId: number) {
@@ -283,49 +320,39 @@ export async function getDataHalamanBiayaOperasional(userId: number) {
 }
 
 export async function getDataHalamanProduk(userId: number) {
-  const [produk, bahan, biaya, pengaturan] = await Promise.all([
-    ambilProduk(userId),
-    ambilBahanBaku(userId),
+  const barisBahanSiap = ambilBarisBahan(userId);
+  const [produk, barisBahan, biaya, pengaturan] = await Promise.all([
+    ambilProduk(userId, barisBahanSiap),
+    barisBahanSiap,
     ambilBiayaOperasional(userId),
     ambilPengaturan(userId),
   ]);
 
-  return { produk: turunkanHpp(produk, biaya, pengaturan), bahan };
+  return {
+    produk: turunkanHpp(produk, biaya, pengaturan),
+    bahan: barisBahan.map(serialisasiBahan),
+  };
 }
 
 export async function getDataHalamanTren(userId: number) {
-  const [barisBahan, pemakaian] = await Promise.all([
-    prisma.bahanBaku.findMany({
-      where: { userId, histori: { some: {} } },
-      orderBy: { nama: "asc" },
-      select: {
-        id: true,
-        nama: true,
-        satuan: true,
-        hargaPerSatuan: true,
-        updatedAt: true,
-        histori: {
-          orderBy: [{ tanggal: "asc" }, { id: "asc" }],
-          select: {
-            id: true,
-            bahanBakuId: true,
-            hargaLama: true,
-            hargaBaru: true,
-            tanggal: true,
-          },
-        },
-      },
-    }),
+  const [barisBahan, barisHistori, pemakaian] = await Promise.all([
+    ambilBarisBahan(userId),
+    ambilBarisHistori(userId),
     ambilPemakaianBahan(userId),
   ]);
 
-  const bahan = barisBahan.map(serialisasiBahan);
+  const historiPerBahan = kelompokkanPer(barisHistori, (h) => h.bahanBakuId);
+  const bahan: BahanBaku[] = [];
   const histori: Record<number, HistoriHarga[]> = {};
   const tren: Record<number, TrendResult> = {};
 
+  // Hanya bahan yang punya histori, setara filter lama `histori: { some: {} }`.
   for (const item of barisBahan) {
-    histori[item.id] = item.histori.map(serialisasiHistori);
-    tren[item.id] = analisaTrenAman(item.id, item.histori);
+    const baris = historiPerBahan.get(item.id);
+    if (!baris) continue;
+    bahan.push(serialisasiBahan(item));
+    histori[item.id] = baris.map(serialisasiHistori);
+    tren[item.id] = analisaTrenAman(item.id, baris);
   }
 
   return {
