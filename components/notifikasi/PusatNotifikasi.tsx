@@ -182,9 +182,16 @@ export function PusatNotifikasi() {
         </Button>
 
         {dropdownTerbuka && (
+          // Mobile: panel direntang ke kedua tepi lewat `fixed inset-x-4`.
+          // Kalau tetap `absolute right-0` terhadap lonceng, avatar di kanan
+          // lonceng menggeser panel keluar layar ke kiri (di 390px tepi kirinya
+          // jatuh di -28px). Catatan: header Topbar memakai backdrop-blur, jadi
+          // `fixed` di sini relatif terhadap header, bukan viewport; di mobile
+          // header selebar layar dan sticky di atas, sehingga hasilnya sama.
+          // sm ke atas: perilaku lama, menempel kanan lonceng dengan lebar tetap.
           <section
             aria-label="Daftar notifikasi"
-            className="absolute top-11 right-0 z-30 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-card border border-border bg-card shadow-[0_14px_36px_rgba(32,46,40,0.14)]"
+            className="fixed inset-x-4 top-16 z-30 overflow-hidden rounded-card border border-border bg-card shadow-[0_14px_36px_rgba(32,46,40,0.14)] sm:absolute sm:inset-x-auto sm:top-11 sm:right-0 sm:w-[min(24rem,calc(100vw-2rem))]"
           >
             <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
               <div>
