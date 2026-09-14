@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Input, Select } from "@/components/ui/Input";
+import { cegahScrollUbahAngka, Input, Select } from "@/components/ui/Input";
 import { InputAngka } from "@/components/ui/InputAngka";
 import { Modal } from "@/components/ui/Modal";
 import { IconKalkulator, IconTambah, IconTutup } from "@/components/ui/icons";
@@ -53,6 +53,19 @@ export function ModalProduk({
   onTutup: () => void;
   onSimpan: (nilai: NilaiFormProduk) => void;
 }) {
+  // Modal (<dialog>) tetap merender isinya saat tertutup, jadi FormProduk
+  // dengan key yang sama mempertahankan state antar buka-tutup: mode harga,
+  // target margin, dan resep dari sesi yang dibatalkan ikut terbawa ke sesi
+  // berikutnya. Penghitung sesi naik setiap kali modal dibuka dan masuk ke key,
+  // sehingga setiap sesi mulai dari form baru. Disesuaikan saat render, bukan
+  // di useEffect, supaya form lama tidak sempat tampil satu frame.
+  const [sesi, setSesi] = useState(0);
+  const [terbukaSebelumnya, setTerbukaSebelumnya] = useState(terbuka);
+  if (terbuka !== terbukaSebelumnya) {
+    setTerbukaSebelumnya(terbuka);
+    if (terbuka) setSesi((n) => n + 1);
+  }
+
   return (
     <Modal
       terbuka={terbuka}
@@ -72,7 +85,7 @@ export function ModalProduk({
       }
     >
       <FormProduk
-        key={`${mode}-${produk?.id ?? "baru"}`}
+        key={`${mode}-${produk?.id ?? "baru"}-${sesi}`}
         produk={produk}
         bahan={bahan}
         galatServer={galatServer}
@@ -661,6 +674,7 @@ function FormProduk({
                       value={b.jumlah}
                       placeholder="0"
                       onChange={(e) => ubahBaris(b.key, { jumlah: e.target.value })}
+                      onWheel={cegahScrollUbahAngka}
                       className="h-10 w-full rounded-card border border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
                     />
                   </label>

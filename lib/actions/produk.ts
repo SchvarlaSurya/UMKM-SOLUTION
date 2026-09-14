@@ -3,6 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import {
+  calculateHargaJualTargetMarginDariResep,
+  isModePenentuanHarga,
+  isTargetMarginPersen,
+  PerhitunganHargaTargetError,
+  type ModePenentuanHarga,
+} from "@/lib/hppCalculator";
 
 /**
  * Server Action untuk halaman Produk & Resep.
@@ -24,6 +31,12 @@ export type MasukanProduk = {
   resep: BarisResep[];
 };
 
+/** Masukan tambah produk: sama dengan form, termasuk cara menentukan harga. */
+export type MasukanTambahProduk = MasukanProduk & {
+  modePenentuanHarga?: ModePenentuanHarga;
+  targetMarginPersen?: number | null;
+};
+
 const HALAMAN_DATA_PRODUK = ["/produk", "/dashboard"] as const;
 const HALAMAN_RELASI_RESEP = [...HALAMAN_DATA_PRODUK, "/bahan-baku"] as const;
 
@@ -32,10 +45,15 @@ function segarkan(halamanTerdampak: readonly string[]) {
   for (const halaman of halamanTerdampak) revalidatePath(halaman);
 }
 
-async function periksaMasukan(masukan: MasukanProduk, userId: number): Promise<string | null> {
+async function periksaMasukan(
+  masukan: MasukanProduk,
+  userId: number,
+  // Di mode target margin harga dihitung server, jadi angka dari klien diabaikan.
+  hargaWajib = true,
+): Promise<string | null> {
   const nama = masukan.nama?.trim() ?? "";
   if (nama === "") return "Nama produk wajib diisi.";
-  if (!Number.isFinite(masukan.hargaJual) || masukan.hargaJual <= 0) {
+  if (hargaWajib && (!Number.isFinite(masukan.hargaJual) || masukan.hargaJual <= 0)) {
     return "Harga jual harus lebih dari 0.";
   }
   if (!Array.isArray(masukan.resep) || masukan.resep.length === 0) {
@@ -60,29 +78,67 @@ async function periksaMasukan(masukan: MasukanProduk, userId: number): Promise<s
   return null;
 }
 
-export async function tambahProduk(masukan: MasukanProduk): Promise<HasilAksi> {
+/**
+ * Dipakai tombol "Tambah produk" di dashboard. Aturan harganya sama dengan
+ * POST /api/produk: mode manual menyimpan `hargaJual` persis seperti yang
+ * dikirim; mode target margin menghitung harga di server dari resep dan
+ * menyimpan target yang diisi. Sebelumnya mode dan target diabaikan, sehingga
+ * produk target margin dari dashboard tersimpan sebagai manual.
+ */
+export async function tambahProduk(masukan: MasukanTambahProduk): Promise<HasilAksi> {
   const auth = await requireAuth();
   if (!auth.authorized) {
     return { ok: false, error: "Sesi berakhir. Masuk lagi untuk menyimpan." };
   }
 
-  const galat = await periksaMasukan(masukan, auth.userId);
+  const modeHarga = masukan.modePenentuanHarga ?? "manual";
+  if (!isModePenentuanHarga(modeHarga)) {
+    return { ok: false, error: "Mode penentuan harga tidak dikenal." };
+  }
+  if (modeHarga === "targetMargin" && !isTargetMarginPersen(masukan.targetMarginPersen)) {
+    return { ok: false, error: "Target margin harus antara 0 sampai 80 persen." };
+  }
+
+  const galat = await periksaMasukan(masukan, auth.userId, modeHarga === "manual");
   if (galat) return { ok: false, error: galat };
 
-  await prisma.produk.create({
-    data: {
-      nama: masukan.nama.trim(),
-      kategori: masukan.kategori?.trim() || "Umum",
-      hargaJual: masukan.hargaJual,
-      userId: auth.userId,
-      resep: {
-        create: masukan.resep.map((r) => ({
-          bahanBakuId: r.bahanBakuId,
-          jumlahDipakai: r.jumlahDipakai,
-        })),
-      },
-    },
-  });
+  const resep = masukan.resep.map((r) => ({
+    bahanBakuId: r.bahanBakuId,
+    jumlahDipakai: r.jumlahDipakai,
+  }));
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const targetMarginPersen =
+        modeHarga === "targetMargin" ? (masukan.targetMarginPersen as number) : null;
+      const hargaSistem =
+        targetMarginPersen !== null
+          ? await calculateHargaJualTargetMarginDariResep(
+              resep,
+              auth.userId,
+              targetMarginPersen,
+              tx,
+            )
+          : null;
+
+      await tx.produk.create({
+        data: {
+          nama: masukan.nama.trim(),
+          kategori: masukan.kategori?.trim() || "Umum",
+          hargaJual: hargaSistem?.hargaJual ?? masukan.hargaJual,
+          modePenentuanHarga: modeHarga,
+          targetMarginPersen,
+          userId: auth.userId,
+          resep: { create: resep },
+        },
+      });
+    });
+  } catch (error) {
+    if (error instanceof PerhitunganHargaTargetError) {
+      return { ok: false, error: error.message };
+    }
+    throw error;
+  }
 
   segarkan(HALAMAN_RELASI_RESEP);
   return { ok: true };
