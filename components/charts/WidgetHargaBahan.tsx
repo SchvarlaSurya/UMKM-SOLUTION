@@ -20,13 +20,26 @@ export function WidgetHargaBahan({
   const [bahanId, setBahanId] = useState(bahan[0]?.id ?? 0);
   const bahanTerpilih = bahan.find((b) => b.id === bahanId);
 
+  const catatan = useMemo(() => deret[bahanId] ?? [], [deret, bahanId]);
+
+  // Sama dengan halaman Tren harga: titik pertama grafik adalah harga sebelum
+  // perubahan pertama, supaya satu perubahan tergambar sebagai garis naik/turun.
   const data = useMemo(
     () =>
-      (deret[bahanId] ?? []).map((titik) => ({
-        waktu: new Date(titik.tanggal).getTime(),
-        harga: titik.harga,
-      })),
-    [deret, bahanId],
+      catatan.length === 0
+        ? []
+        : [
+            {
+              waktu: new Date(catatan[0].tanggal).getTime(),
+              harga: catatan[0].hargaLama,
+              label: { sumbu: "Awal", tooltip: "Sebelum perubahan pertama" },
+            },
+            ...catatan.map((titik) => ({
+              waktu: new Date(titik.tanggal).getTime(),
+              harga: titik.harga,
+            })),
+          ],
+    [catatan],
   );
 
   // Tanpa satu pun catatan harga, kartu ini hanya akan memperlihatkan "Rp 0"
@@ -52,11 +65,12 @@ export function WidgetHargaBahan({
     );
   }
 
-  const hargaAwal = data[0]?.harga ?? 0;
-  const hargaAkhir = data.at(-1)?.harga ?? 0;
+  // Baseline = harga sebelum perubahan pertama, sama dengan HalamanTren.
+  const hargaAwal = catatan[0]?.hargaLama ?? 0;
+  const hargaAkhir = catatan.at(-1)?.harga ?? 0;
+  const stabil = hargaAkhir === hargaAwal;
+  const naik = hargaAkhir > hargaAwal;
   const perubahan = hargaAwal === 0 ? 0 : ((hargaAkhir - hargaAwal) / hargaAwal) * 100;
-  const naik = perubahan > 0;
-  const turun = perubahan < 0;
 
   return (
     <Card className="flex h-full flex-col">
@@ -88,7 +102,7 @@ export function WidgetHargaBahan({
           <span className="text-2xl font-semibold tracking-tight text-foreground">
             {formatRupiah(hargaAkhir)}
           </span>
-          {perubahan !== 0 && (
+          {!stabil && (
             <span
               className={`inline-flex items-center gap-1 text-sm font-medium ${
                 naik ? "text-warning" : "text-success"
@@ -102,7 +116,7 @@ export function WidgetHargaBahan({
               {formatPersen(Math.abs(perubahan))}
             </span>
           )}
-          {!naik && !turun && <span className="text-sm text-muted-foreground">Stabil</span>}
+          {stabil && <span className="text-sm text-muted-foreground">Stabil</span>}
         </div>
       </div>
 
