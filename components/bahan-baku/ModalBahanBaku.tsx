@@ -8,7 +8,9 @@ import { Modal } from "@/components/ui/Modal";
 import { Banner } from "@/components/ui/Banner";
 import type { BahanBaku } from "@/lib/types";
 
-export const SATUAN = ["kg", "liter", "gram", "ml", "butir", "buah"] as const;
+// pack, box, dan bal adalah satuan hitung tanpa konversi, sama seperti butir
+// dan buah; lib/satuan.ts memperlakukannya sebagai satu opsi di form resep.
+export const SATUAN = ["kg", "liter", "gram", "ml", "butir", "buah", "pack", "box", "bal"] as const;
 
 export type NilaiFormBahan = {
   nama: string;
