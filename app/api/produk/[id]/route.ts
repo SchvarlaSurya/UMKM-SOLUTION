@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
+import { bacaCaraTakaran } from '@/lib/takaran'
 import { validasiResep } from '@/lib/validasiResep'
 import {
   calculateHargaJualTargetMarginDariResep,
@@ -56,8 +57,20 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
     const parsed = await readJsonBody(req)
     if (!parsed.ok) return errorResponse('Body request harus JSON yang valid', 400)
-    const { nama, kategori, hargaJual, resep, modePenentuanHarga, targetMarginPersen } =
-      parsed.body
+    const {
+      nama,
+      kategori,
+      hargaJual,
+      resep,
+      modePenentuanHarga,
+      targetMarginPersen,
+      modeTakaran,
+      jumlahPorsiProduksi,
+    } = parsed.body
+
+    // Resep dikirim dalam takaran per porsi; ini merekam cara pemiliknya
+    // mengetik supaya form edit bisa dibuka kembali dengan angka yang sama.
+    const caraTakaran = bacaCaraTakaran(modeTakaran, jumlahPorsiProduksi)
 
     if (!isTeksTerisi(nama)) return errorResponse('Nama produk wajib diisi', 400)
     if (kategori !== undefined && kategori !== null && !isTeksTerisi(kategori)) {
@@ -149,6 +162,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           modePenentuanHarga: modeHarga,
           targetMarginPersen:
             modeHarga === 'targetMargin' ? targetMarginTersimpan : null,
+          ...caraTakaran,
         },
         omit: { userId: true },
         include: {

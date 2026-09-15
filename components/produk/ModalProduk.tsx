@@ -28,6 +28,9 @@ export type NilaiFormProduk = {
   modePenentuanHarga: ModePenentuanHarga;
   targetMarginPersen: number | null;
   resep: BarisResep[];
+  /** Cara takaran diketik; resep di atas tetap dikirim dalam takaran per porsi. */
+  modeTakaran: ModeTakaran;
+  jumlahPorsiProduksi: number | null;
 };
 
 const ID_FORM = "form-produk";
@@ -208,10 +211,16 @@ function FormProduk({
     produk && produk.resep.length > 0
       ? produk.resep.map((r, i) => {
           const satuanDasar = bahan.find((item) => item.id === r.bahanBakuId)?.satuan ?? "";
+          // Kembalikan ke angka yang dulu diketik: takaran sekali produksi
+          // adalah takaran per porsi dikali jumlah porsinya.
+          const pengali =
+            produk.modeTakaran === "sekali-produksi" && produk.jumlahPorsiProduksi
+              ? produk.jumlahPorsiProduksi
+              : 1;
           return {
             key: i,
             bahanBakuId: r.bahanBakuId,
-            jumlah: String(r.jumlahDipakai),
+            jumlah: formatJumlah(r.jumlahDipakai * pengali),
             satuanDipilih: pilihanSatuanUntuk(satuanDasar)[0].nilai,
           };
         })
@@ -224,9 +233,15 @@ function FormProduk({
           },
         ],
   );
-  const [modeTakaran, setModeTakaran] =
-    useState<ModeTakaran>("per-porsi");
-  const [jumlahPorsi, setJumlahPorsi] = useState("");
+  // Resep tersimpan per porsi, tapi produk merekam cara pemiliknya mengetik.
+  // Tanpa dua baris ini, membuka "Edit resep" selalu jatuh ke per-porsi dan
+  // angkanya tampil sebagai hasil bagi — 5 kg untuk 50 porsi jadi 0,1 kg.
+  const [modeTakaran, setModeTakaran] = useState<ModeTakaran>(
+    produk?.modeTakaran ?? "per-porsi",
+  );
+  const [jumlahPorsi, setJumlahPorsi] = useState(
+    produk?.jumlahPorsiProduksi != null ? String(produk.jumlahPorsiProduksi) : "",
+  );
   const [modeHarga, setModeHarga] = useState<ModePenentuanHarga>(
     produk?.modePenentuanHarga ?? "manual",
   );
@@ -317,6 +332,34 @@ function FormProduk({
     };
   }, [hasilResep, kunciSimulasi, targetMarginAngka]);
 
+  /**
+   * Pindah mode tanpa membuang angka yang sudah diketik.
+   *
+   * Dua mode itu cuma dua cara menulis takaran yang sama, jadi angkanya
+   * dikonversi: 5 kg untuk 50 porsi setara 0,1 kg per porsi. Jumlah porsinya
+   * sendiri tetap disimpan supaya tidak perlu diketik ulang kalau pemiliknya
+   * berpindah bolak-balik.
+   */
+  function gantiModeTakaran(tujuan: ModeTakaran) {
+    if (tujuan === modeTakaran) return;
+
+    const porsi = Number(jumlahPorsi);
+    const bisaKonversi = Number.isFinite(porsi) && porsi > 0;
+
+    if (bisaKonversi) {
+      setBaris((sebelumnya) =>
+        sebelumnya.map((item) => {
+          const angka = Number(item.jumlah);
+          if (item.jumlah.trim() === "" || !Number.isFinite(angka)) return item;
+          const hasil = tujuan === "sekali-produksi" ? angka * porsi : angka / porsi;
+          return { ...item, jumlah: formatJumlah(hasil) };
+        }),
+      );
+    }
+
+    setModeTakaran(tujuan);
+  }
+
   function tambahBaris() {
     setBaris((sebelumnya) => {
       const keyBaru = Math.max(-1, ...sebelumnya.map((b) => b.key)) + 1;
@@ -388,6 +431,9 @@ function FormProduk({
       modePenentuanHarga: modeHarga,
       targetMarginPersen: modeHarga === "targetMargin" ? targetMarginAngka : null,
       resep: hasilResep.data,
+      modeTakaran,
+      jumlahPorsiProduksi:
+        modeTakaran === "sekali-produksi" && jumlahPorsiValid ? jumlahPorsiAngka : null,
     });
   }
 
@@ -579,7 +625,7 @@ function FormProduk({
                 type="button"
                 aria-pressed={modeTakaran === nilai}
                 onClick={() => {
-                  setModeTakaran(nilai);
+                  gantiModeTakaran(nilai);
                   setError(null);
                 }}
                 className={`rounded-card px-3 py-1.5 text-xs font-medium transition-colors ${

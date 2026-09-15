@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { bacaCaraTakaran, type ModeTakaran } from "@/lib/takaran";
 import {
   calculateHargaJualTargetMarginDariResep,
   isModePenentuanHarga,
@@ -29,7 +30,15 @@ export type MasukanProduk = {
   kategori: string;
   hargaJual: number;
   resep: BarisResep[];
+  /**
+   * Cara pemilik memasukkan takaran. Resep tetap dikirim dalam takaran per
+   * porsi; dua field ini hanya direkam supaya form edit bisa dibuka kembali
+   * dengan angka yang sama seperti yang diketik.
+   */
+  modeTakaran?: ModeTakaran;
+  jumlahPorsiProduksi?: number | null;
 };
+
 
 /** Masukan tambah produk: sama dengan form, termasuk cara menentukan harga. */
 export type MasukanTambahProduk = MasukanProduk & {
@@ -128,6 +137,7 @@ export async function tambahProduk(masukan: MasukanTambahProduk): Promise<HasilA
           hargaJual: hargaSistem?.hargaJual ?? masukan.hargaJual,
           modePenentuanHarga: modeHarga,
           targetMarginPersen,
+          ...bacaCaraTakaran(masukan.modeTakaran, masukan.jumlahPorsiProduksi),
           userId: auth.userId,
           resep: { create: resep },
         },
@@ -185,6 +195,7 @@ export async function perbaruiProduk(
         nama: masukan.nama.trim(),
         kategori: masukan.kategori?.trim() || ada.kategori,
         hargaJual: masukan.hargaJual,
+        ...bacaCaraTakaran(masukan.modeTakaran, masukan.jumlahPorsiProduksi),
       },
     }),
   ]);
