@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { recalculateAllAffectedByBahan } from '@/lib/hppCalculator'
 import { requireAuth } from '@/lib/auth'
+import { rencanaHistoriHarga } from '@/lib/histori'
 import {
   errorResponse,
   handleError,
@@ -37,9 +38,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
  * Terima perubahan nama, satuan, dan/atau harga. Semua field opsional supaya
  * form edit bisa mengirim sebagian saja.
  *
- * HistoriHarga HANYA ditulis kalau `hargaPerSatuan` benar-benar berbeda dari
- * nilai sekarang. Edit nama atau satuan saja tidak mengotori grafik tren harga,
- * dan tidak memicu perhitungan ulang HPP.
+ * Setiap permintaan yang menyertakan `hargaPerSatuan` menulis satu baris
+ * HistoriHarga, termasuk ketika nominalnya sama dengan harga sekarang:
+ * menyimpan ulang harga yang sama berarti harganya sudah dicek dan ternyata
+ * tetap, dan itu informasi yang layak ada di grafik tren.
+ *
+ * Edit nama atau satuan saja tidak menulis histori dan tidak memicu
+ * perhitungan ulang HPP.
  */
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -87,15 +92,17 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       }
     }
 
-    const hargaBerubah =
-      hargaPerSatuan !== undefined && (hargaPerSatuan as number) !== bahan.hargaPerSatuan
+    const rencana = rencanaHistoriHarga(
+      bahan.hargaPerSatuan,
+      hargaPerSatuan as number | undefined
+    )
 
-    if (hargaBerubah) {
+    if (rencana.catatHistori) {
       await prisma.historiHarga.create({
         data: {
           bahanBakuId: id,
-          hargaLama: bahan.hargaPerSatuan,
-          hargaBaru: hargaPerSatuan as number,
+          hargaLama: rencana.hargaLama,
+          hargaBaru: rencana.hargaBaru,
         },
       })
     }
@@ -105,17 +112,22 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       data: {
         ...(namaBersih !== undefined ? { nama: namaBersih } : {}),
         ...(satuan !== undefined ? { satuan: (satuan as string).trim() } : {}),
-        ...(hargaBerubah ? { hargaPerSatuan: hargaPerSatuan as number } : {}),
+        ...(rencana.hargaBerubah ? { hargaPerSatuan: rencana.hargaBaru } : {}),
       },
       omit: { userId: true },
     })
 
-    // HPP hanya perlu dihitung ulang kalau harga yang berubah.
-    if (hargaBerubah) {
+    // Nominal yang sama menghasilkan HPP yang sama, jadi tidak perlu dihitung
+    // ulang meski historinya tetap dicatat.
+    if (rencana.hargaBerubah) {
       await recalculateAllAffectedByBahan(id, auth.userId)
     }
 
-    return NextResponse.json({ ...updated, hargaBerubah })
+    return NextResponse.json({
+      ...updated,
+      hargaBerubah: rencana.hargaBerubah,
+      historiDicatat: rencana.catatHistori,
+    })
   } catch (error) {
     return handleError(error, 'Gagal mengubah bahan baku')
   }
