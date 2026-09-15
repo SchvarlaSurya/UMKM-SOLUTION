@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { useAnimasiDrawer } from "./useAnimasiDrawer";
 
 export type ProfilUsaha = {
   namaUsaha: string;
@@ -19,7 +20,7 @@ export function AppShell({
   profil: ProfilUsaha;
   children: ReactNode;
 }) {
-  const [menuTerbuka, setMenuTerbuka] = useState(false);
+  const { tampil, buka, tutup, refPembungkus, refPanel, refLatar } = useAnimasiDrawer();
 
   return (
     <div className="flex min-h-full flex-1">
@@ -30,23 +31,34 @@ export function AppShell({
         </div>
       </aside>
 
-      {/* Drawer di layar kecil */}
-      {menuTerbuka && (
-        <div className="fixed inset-0 z-40 lg:hidden">
+      {/* Drawer di layar kecil. `tampil` bertahan sampai animasi keluar
+          selesai, jadi ini bukan penanda "menu sedang terbuka". */}
+      {tampil && (
+        <div ref={refPembungkus} className="fixed inset-0 z-40 lg:hidden">
           <button
+            ref={refLatar}
             type="button"
             aria-label="Tutup menu"
-            onClick={() => setMenuTerbuka(false)}
+            onClick={tutup}
+            style={{ opacity: 0 }}
             className="absolute inset-0 bg-foreground/40"
           />
-          <div className="absolute inset-y-0 left-0 h-full">
-            <Sidebar {...profil} onTutup={() => setMenuTerbuka(false)} />
+          <div
+            ref={refPanel}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu navigasi"
+            tabIndex={-1}
+            style={{ transform: "translateX(-100%)" }}
+            className="absolute inset-y-0 left-0 h-full focus:outline-none"
+          >
+            <Sidebar {...profil} onTutup={tutup} />
           </div>
         </div>
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar namaPemilik={profil.namaPemilik} onBukaMenu={() => setMenuTerbuka(true)} />
+        <Topbar namaPemilik={profil.namaPemilik} onBukaMenu={buka} />
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">{children}</div>
         </main>
