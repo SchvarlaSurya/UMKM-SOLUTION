@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { bacaCaraTakaran } from "../lib/takaran";
+import { bacaCaraTakaran, nilaiIsian } from "../lib/takaran";
 
 /**
  * Dua mode takaran hanyalah dua cara menulis angka yang sama. Resep selalu
@@ -92,5 +92,41 @@ describe("bacaCaraTakaran", () => {
       modeTakaran: "per-porsi",
       jumlahPorsiProduksi: null,
     });
+  });
+});
+
+/**
+ * Regresi: takaran hasil konversi dulu diisikan ke <input type="number">
+ * memakai format lokal Indonesia. Koma desimalnya dianggap tidak sah oleh
+ * peramban, isiannya dikosongkan, dan semua takaran terbaca 0 setelah
+ * pemiliknya berpindah mode.
+ */
+describe("nilaiIsian", () => {
+  it("memakai titik desimal, bukan koma", () => {
+    assert.equal(nilaiIsian(0.1), "0.1");
+    assert.equal(nilaiIsian(12.75), "12.75");
+    assert.ok(!nilaiIsian(0.1).includes(","));
+  });
+
+  it("tidak memberi pemisah ribuan yang membuat isian jadi tidak sah", () => {
+    assert.equal(nilaiIsian(1500), "1500");
+    assert.equal(nilaiIsian(1000000), "1000000");
+  });
+
+  it("membuang sisa pembagian biner", () => {
+    // 0.1 + 0.2 pada bilangan pecahan biner menghasilkan 0.30000000000000004.
+    assert.equal(nilaiIsian(0.1 + 0.2), "0.3");
+    assert.equal(nilaiIsian(5 / 50), "0.1");
+  });
+
+  it("mengembalikan teks kosong untuk angka yang tidak terhingga", () => {
+    assert.equal(nilaiIsian(Number.NaN), "");
+    assert.equal(nilaiIsian(Number.POSITIVE_INFINITY), "");
+  });
+
+  it("hasil konversinya bisa dibaca kembali jadi angka semula", () => {
+    // Inilah perjalanan yang gagal: ketik 5, pindah mode, kembali lagi.
+    const perPorsi = Number(nilaiIsian(5 / 50));
+    assert.equal(Number(nilaiIsian(perPorsi * 50)), 5);
   });
 });
