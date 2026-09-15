@@ -250,7 +250,12 @@ export type RingkasanDashboard = {
   biayaTetapPerPorsi: number;
 };
 
-export type TitikHarga = { tanggal: string; harga: number };
+/**
+ * Satu catatan perubahan harga untuk widget dashboard. `harga` adalah harga
+ * sesudah perubahan; `hargaLama` harga sebelumnya, dibutuhkan sebagai baseline
+ * supaya bahan yang baru berubah sekali tidak terbaca "Stabil".
+ */
+export type TitikHarga = { tanggal: string; harga: number; hargaLama: number };
 
 /** Satu loader untuk seluruh data dashboard agar dataset per render konsisten. */
 export async function getDataDashboard(userId: number) {
@@ -295,6 +300,7 @@ export async function getDataDashboard(userId: number) {
     deret[item.id] = histori.map((baris) => ({
       tanggal: baris.tanggal.toISOString(),
       harga: baris.hargaBaru,
+      hargaLama: baris.hargaLama,
     }));
   }
 

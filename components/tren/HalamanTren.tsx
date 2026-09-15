@@ -35,12 +35,24 @@ export function HalamanTren({
   // Histori sudah urut naik dari lapisan data; salin sebelum dibalik.
   const catatan = useMemo(() => [...(histori[bahanId] ?? [])], [histori, bahanId]);
 
+  // Setiap catatan menyimpan harga sebelum dan sesudah perubahan. Titik pertama
+  // grafik adalah hargaLama catatan paling awal, supaya bahan yang baru punya
+  // satu perubahan tetap tergambar sebagai garis naik/turun, bukan satu titik.
   const dataGrafik = useMemo(
     () =>
-      catatan.map((h) => ({
-        waktu: new Date(h.tanggal).getTime(),
-        harga: h.hargaBaru,
-      })),
+      catatan.length === 0
+        ? []
+        : [
+            {
+              waktu: new Date(catatan[0].tanggal).getTime(),
+              harga: catatan[0].hargaLama,
+              label: { sumbu: "Awal", tooltip: "Sebelum perubahan pertama" },
+            },
+            ...catatan.map((h) => ({
+              waktu: new Date(h.tanggal).getTime(),
+              harga: h.hargaBaru,
+            })),
+          ],
     [catatan],
   );
 
@@ -72,10 +84,14 @@ export function HalamanTren({
         })}`
       : formatTanggal(iso);
 
-  const hargaAwal = catatan[0]?.hargaBaru ?? 0;
+  // Baseline adalah harga SEBELUM perubahan pertama. Memakai hargaBaru catatan
+  // pertama membuat bahan dengan satu perubahan (40000 -> 44000) terbaca
+  // "Stabil", karena awal dan akhirnya catatan yang sama.
+  const hargaAwal = catatan[0]?.hargaLama ?? 0;
   const hargaAkhir = catatan.at(-1)?.hargaBaru ?? 0;
+  const stabil = hargaAkhir === hargaAwal;
+  const naik = hargaAkhir > hargaAwal;
   const perubahan = hargaAwal === 0 ? 0 : ((hargaAkhir - hargaAwal) / hargaAwal) * 100;
-  const naik = perubahan > 0;
   const statusTren = tren[bahanId];
 
   return (
@@ -126,16 +142,16 @@ export function HalamanTren({
             <p className="text-xs text-muted-foreground">Perubahan sejak awal histori</p>
             <p
               className={`mt-1 flex items-center gap-1 text-xl font-semibold ${
-                perubahan === 0 ? "text-foreground" : naik ? "text-warning" : "text-success"
+                stabil ? "text-foreground" : naik ? "text-warning" : "text-success"
               }`}
             >
-              {perubahan !== 0 &&
+              {!stabil &&
                 (naik ? (
                   <IconPanahNaik width={16} height={16} />
                 ) : (
                   <IconPanahTurun width={16} height={16} />
                 ))}
-              {perubahan === 0 ? "Stabil" : formatPersen(Math.abs(perubahan))}
+              {stabil ? "Stabil" : formatPersen(Math.abs(perubahan))}
             </p>
           </div>
 
@@ -182,9 +198,9 @@ export function HalamanTren({
               </TR>
             </THead>
             <TBody>
-              {[...catatan].reverse().map((h, i, urutBaru) => {
-                // Entri paling awal tidak punya pembanding.
-                const pertama = i === urutBaru.length - 1;
+              {[...catatan].reverse().map((h) => {
+                // Setiap catatan membawa pembandingnya sendiri (hargaLama),
+                // termasuk catatan paling awal.
                 const delta = h.hargaBaru - h.hargaLama;
                 return (
                   <TR key={h.id}>
@@ -194,18 +210,16 @@ export function HalamanTren({
                     </TD>
                     <TD
                       className={`text-right whitespace-nowrap ${
-                        pertama || delta === 0
+                        delta === 0
                           ? "text-muted-foreground"
                           : delta > 0
                             ? "text-warning"
                             : "text-success"
                       }`}
                     >
-                      {pertama
-                        ? "—"
-                        : delta === 0
-                          ? "Tetap"
-                          : `${delta > 0 ? "+" : "−"}${formatRupiah(Math.abs(delta))}`}
+                      {delta === 0
+                        ? "Tetap"
+                        : `${delta > 0 ? "+" : "−"}${formatRupiah(Math.abs(delta))}`}
                     </TD>
                   </TR>
                 );

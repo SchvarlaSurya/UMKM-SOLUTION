@@ -16,6 +16,12 @@ export type TitikGrafik = {
   /** Waktu perubahan dalam milidetik. */
   waktu: number;
   harga: number;
+  /**
+   * Label pengganti tanggal, untuk titik yang tidak mewakili satu waktu
+   * perubahan, misalnya harga sebelum perubahan pertama. Titik berlabel tidak
+   * ikut menentukan apakah ada dua perubahan di hari yang sama.
+   */
+  label?: { sumbu: string; tooltip: string };
 };
 
 /**
@@ -96,19 +102,22 @@ export function GrafikHarga({
   const titik = useMemo(() => hitungPosisi(data), [data]);
 
   // Beberapa perubahan di hari yang sama hanya bisa dibedakan lewat jamnya.
+  const titikBertanggal = data.filter((t) => !t.label);
   const adaHariKembar =
-    new Set(data.map((t) => tanggalPendek(t.waktu))).size !== data.length;
+    new Set(titikBertanggal.map((t) => tanggalPendek(t.waktu))).size !==
+    titikBertanggal.length;
 
-  const waktuDariPosisi = useMemo(() => {
-    const peta = new Map<number, number>();
-    for (const t of titik) peta.set(t.posisi, t.waktu);
+  const titikDariPosisi = useMemo(() => {
+    const peta = new Map<number, TitikTerplot>();
+    for (const t of titik) peta.set(t.posisi, t);
     return peta;
   }, [titik]);
 
   function labelWaktu(posisi: number, panjang: boolean): string {
-    const waktu = waktuDariPosisi.get(posisi);
-    if (waktu === undefined) return "";
-    return panjang && adaHariKembar ? tanggalDanJam(waktu) : tanggalPendek(waktu);
+    const t = titikDariPosisi.get(posisi);
+    if (t === undefined) return "";
+    if (t.label) return panjang ? t.label.tooltip : t.label.sumbu;
+    return panjang && adaHariKembar ? tanggalDanJam(t.waktu) : tanggalPendek(t.waktu);
   }
 
   return (
