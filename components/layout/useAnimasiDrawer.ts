@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { animate, utils } from "animejs";
+import { durasiGerak } from "@/lib/gerak";
 
 /** Masuk sedikit lebih lambat dari keluar: menutup harus terasa langsung. */
 const DURASI_BUKA = 320;
@@ -18,10 +19,6 @@ const PEMILIH_FOKUS = [
   "textarea:not([disabled])",
   '[tabindex]:not([tabindex="-1"])',
 ].join(", ");
-
-function durasi(penuh: number) {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : penuh;
-}
 
 /** Elemen yang benar-benar bisa difokus: yang tersembunyi tidak punya kotak. */
 function elemenBisaFokus(akar: HTMLElement) {
@@ -70,7 +67,7 @@ export function useAnimasiDrawer() {
 
     // Tanpa nilai awal: panel bergerak dari posisinya saat ini, jadi membuka
     // kembali di tengah animasi keluar tidak melompat ke -100% dulu.
-    const ms = durasi(DURASI_BUKA);
+    const ms = durasiGerak(DURASI_BUKA);
     animate(latar, { opacity: 1, duration: ms, ease: "outQuad" });
     animate(panel, { translateX: "0%", duration: ms, ease: "outQuint" });
   }
@@ -180,7 +177,7 @@ export function useAnimasiDrawer() {
     sedangMenutup.current = true;
     utils.set(pembungkus, { pointerEvents: "none" });
 
-    const ms = durasi(DURASI_TUTUP);
+    const ms = durasiGerak(DURASI_TUTUP);
     animate(latar, { opacity: 0, duration: ms, ease: "inQuad" });
     animate(panel, {
       translateX: "-100%",

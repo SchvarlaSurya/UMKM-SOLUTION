@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { animate, stagger, utils } from "animejs";
 import { cn } from "@/lib/cn";
+import { durasiGerak } from "@/lib/gerak";
 import { inisial } from "@/lib/format";
 import { navItems } from "./nav-items";
 import {
@@ -40,6 +42,39 @@ export function Sidebar({
   const pathname = usePathname();
   const [konfirmasiKeluar, setKonfirmasiKeluar] = useState(false);
   const [keluar, mulaiKeluar] = useTransition();
+  const refDaftarMenu = useRef<HTMLUListElement>(null);
+
+  // Sidebar yang sama dipakai dua kali: menetap di layar besar, dan sebagai
+  // drawer di layar kecil. Hanya versi drawer yang dianimasikan — versi tetap
+  // sudah ada sejak halaman dimuat, tidak ada momen "masuk" untuk dianimasikan.
+  const modeDrawer = Boolean(onTutup);
+
+  useEffect(() => {
+    if (!modeDrawer) return;
+    const daftar = refDaftarMenu.current;
+    if (!daftar) return;
+
+    const item = Array.from(daftar.children) as HTMLElement[];
+    if (item.length === 0) return;
+
+    // Menyusul sedikit di belakang panel yang sedang menggeser masuk, supaya
+    // isinya terbaca sebagai satu gerakan, bukan dua animasi yang berlomba.
+    //
+    // Angkanya dipilih agar ekornya pendek: item terakhir mulai pada 90 + 4×30
+    // = 210ms dan selesai pada 430ms, jadi hanya ~110ms setelah panel mendarat
+    // di 320ms. Jeda yang lebih panjang membuat menu terasa lamban dibuka.
+    animate(item, {
+      opacity: [0, 1],
+      translateX: [-10, 0],
+      duration: durasiGerak(220),
+      delay: stagger(30, { start: durasiGerak(90) }),
+      ease: "outQuad",
+    });
+
+    return () => {
+      utils.remove(item);
+    };
+  }, [modeDrawer]);
 
   function keluarSekarang() {
     // Halaman berpindah ke /login setelah sesi dihapus, jadi modal tidak perlu
@@ -97,13 +132,19 @@ export function Sidebar({
         <p className="px-2 pb-2 text-[0.6875rem] font-medium tracking-[0.14em] text-muted-foreground uppercase">
           Ruang usaha
         </p>
-        <ul className="flex flex-col gap-0.5">
+        <ul ref={refDaftarMenu} className="flex flex-col gap-0.5">
           {navItems.map((item) => {
             const aktif =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Ikon = item.ikon;
             return (
-              <li key={item.href}>
+              <li
+                key={item.href}
+                // Nilai awal ditulis di sini, bukan menunggu efeknya jalan:
+                // tanpa ini item sempat tergambar penuh satu frame lalu
+                // berkedip kembali ke nol saat animasi dimulai.
+                style={modeDrawer ? { opacity: 0 } : undefined}
+              >
                 <Link
                   href={item.href}
                   aria-current={aktif ? "page" : undefined}
