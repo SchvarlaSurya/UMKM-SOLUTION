@@ -24,6 +24,8 @@ export type Resep = {
   bahanBaku: BahanBaku;
 };
 
+export type ModeTakaran = "per-porsi" | "sekali-produksi";
+
 export type ModePenentuanHarga = "manual" | "targetMargin";
 
 export type Produk = {
@@ -33,6 +35,10 @@ export type Produk = {
   hargaJual: number;
   modePenentuanHarga: ModePenentuanHarga;
   targetMarginPersen: number | null;
+  /** Cara takaran diketik pemiliknya; resep tetap tersimpan per porsi. */
+  modeTakaran: ModeTakaran;
+  /** Jumlah porsi sekali produksi, hanya terisi pada mode sekali-produksi. */
+  jumlahPorsiProduksi: number | null;
   resep: Resep[];
 };
 

@@ -78,6 +78,12 @@ model Produk {
   hargaJual          Float
   modePenentuanHarga String             @default("manual")
   targetMarginPersen Float?
+  /// Cara pemilik memasukkan takaran resep: "per-porsi" atau "sekali-produksi".
+  /// Resep tetap disimpan per porsi; ini hanya supaya form edit bisa dibuka
+  /// kembali dengan angka yang sama seperti yang diketik pemiliknya.
+  modeTakaran        String             @default("per-porsi")
+  /// Jumlah porsi sekali produksi, hanya terisi kalau modeTakaran memakainya.
+  jumlahPorsiProduksi Float?
   userId             Int
   user               User               @relation(fields: [userId], references: [id])
   resep              Resep[]

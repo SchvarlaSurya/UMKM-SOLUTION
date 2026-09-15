@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import type { ModeTakaran } from "@/lib/types";
 import {
   calculateHargaJualTargetMarginDariResep,
   isModePenentuanHarga,
@@ -29,7 +30,28 @@ export type MasukanProduk = {
   kategori: string;
   hargaJual: number;
   resep: BarisResep[];
+  /**
+   * Cara pemilik memasukkan takaran. Resep tetap dikirim dalam takaran per
+   * porsi; dua field ini hanya direkam supaya form edit bisa dibuka kembali
+   * dengan angka yang sama seperti yang diketik.
+   */
+  modeTakaran?: ModeTakaran;
+  jumlahPorsiProduksi?: number | null;
 };
+
+/** Bersihkan dua field itu jadi bentuk yang aman disimpan. */
+function bacaCaraTakaran(masukan: MasukanProduk) {
+  const mode: ModeTakaran =
+    masukan.modeTakaran === "sekali-produksi" ? "sekali-produksi" : "per-porsi";
+  const jumlah = masukan.jumlahPorsiProduksi;
+  const jumlahValid =
+    mode === "sekali-produksi" && typeof jumlah === "number" && Number.isFinite(jumlah) && jumlah > 0;
+
+  return {
+    modeTakaran: mode,
+    jumlahPorsiProduksi: jumlahValid ? (jumlah as number) : null,
+  };
+}
 
 /** Masukan tambah produk: sama dengan form, termasuk cara menentukan harga. */
 export type MasukanTambahProduk = MasukanProduk & {
@@ -128,6 +150,7 @@ export async function tambahProduk(masukan: MasukanTambahProduk): Promise<HasilA
           hargaJual: hargaSistem?.hargaJual ?? masukan.hargaJual,
           modePenentuanHarga: modeHarga,
           targetMarginPersen,
+          ...bacaCaraTakaran(masukan),
           userId: auth.userId,
           resep: { create: resep },
         },
@@ -185,6 +208,7 @@ export async function perbaruiProduk(
         nama: masukan.nama.trim(),
         kategori: masukan.kategori?.trim() || ada.kategori,
         hargaJual: masukan.hargaJual,
+        ...bacaCaraTakaran(masukan),
       },
     }),
   ]);

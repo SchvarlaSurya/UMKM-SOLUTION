@@ -132,6 +132,8 @@ async function ambilProduk(
         hargaJual: true,
         modePenentuanHarga: true,
         targetMarginPersen: true,
+        modeTakaran: true,
+        jumlahPorsiProduksi: true,
       },
     }),
     // Sengaja tanpa orderBy, sama seperti relasi bersarang sebelumnya: urutan
@@ -153,6 +155,7 @@ async function ambilProduk(
   return produk.map((item) => ({
     ...item,
     modePenentuanHarga: item.modePenentuanHarga as Produk["modePenentuanHarga"],
+    modeTakaran: item.modeTakaran as Produk["modeTakaran"],
     resep: (resepPerProduk.get(item.id) ?? []).flatMap((baris) => {
       // Query resep sudah memfilter `bahanBaku: { userId }`, jadi bahannya
       // selalu ada di daftar bahan user. Pemeriksaan ini hanya penjaga.
