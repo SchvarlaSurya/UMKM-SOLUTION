@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { recalculateAllAffectedByBahan } from "@/lib/hppCalculator";
+import { rencanaHistoriHarga } from "@/lib/histori";
 
 /**
  * Server Action untuk halaman Bahan Baku.
@@ -85,18 +86,27 @@ export async function perbaruiHargaBahan(
   const bahan = await prisma.bahanBaku.findFirst({ where: { id, userId: auth.userId } });
   if (!bahan) return { ok: false, error: "Bahan tidak ditemukan." };
 
-  if (bahan.hargaPerSatuan === hargaPerSatuan) {
-    return { ok: false, error: "Harga belum berubah dari nilai sebelumnya." };
-  }
+  // Harga yang sama dulu ditolak di sini. Padahal menyimpan ulang nilai yang
+  // sama berarti pemilik usaha sudah mengecek ke pemasok dan harganya memang
+  // tetap — itu catatan yang layak masuk histori, bukan galat.
+  const rencana = rencanaHistoriHarga(bahan.hargaPerSatuan, hargaPerSatuan);
 
   await prisma.historiHarga.create({
-    data: { bahanBakuId: id, hargaLama: bahan.hargaPerSatuan, hargaBaru: hargaPerSatuan },
+    data: {
+      bahanBakuId: id,
+      hargaLama: rencana.hargaLama,
+      hargaBaru: rencana.hargaBaru,
+    },
   });
-  await prisma.bahanBaku.update({
-    where: { id, userId: auth.userId },
-    data: { hargaPerSatuan },
-  });
-  await recalculateAllAffectedByBahan(id, auth.userId);
+
+  if (rencana.hargaBerubah) {
+    await prisma.bahanBaku.update({
+      where: { id, userId: auth.userId },
+      data: { hargaPerSatuan: rencana.hargaBaru },
+    });
+    // HPP hanya bergeser kalau nominalnya bergeser.
+    await recalculateAllAffectedByBahan(id, auth.userId);
+  }
 
   segarkan(HALAMAN_HARGA_BAHAN);
   return { ok: true };
