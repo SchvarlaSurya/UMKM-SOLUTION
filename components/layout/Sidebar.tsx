@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { animate, stagger, utils } from "animejs";
 import { cn } from "@/lib/cn";
 import { durasiGerak } from "@/lib/gerak";
@@ -43,6 +43,9 @@ export function Sidebar({
   const [konfirmasiKeluar, setKonfirmasiKeluar] = useState(false);
   const [keluar, mulaiKeluar] = useTransition();
   const refDaftarMenu = useRef<HTMLUListElement>(null);
+  const refPenanda = useRef<HTMLSpanElement>(null);
+  /** Penanda sudah punya posisi yang sah, jadi boleh meluncur dari sana. */
+  const penandaTerpasang = useRef(false);
 
   // Sidebar yang sama dipakai dua kali: menetap di layar besar, dan sebagai
   // drawer di layar kecil. Hanya versi drawer yang dianimasikan — versi tetap
@@ -75,6 +78,61 @@ export function Sidebar({
       utils.remove(item);
     };
   }, [modeDrawer]);
+
+  /**
+   * Penanda menu aktif: satu kotak yang meluncur ke item terpilih, bukan latar
+   * yang mati-hidup di dua tempat sekaligus. Diukur setelah tata letak selesai
+   * (useLayoutEffect) supaya posisinya tidak diambil dari ukuran yang basi.
+   */
+  useLayoutEffect(() => {
+    const daftar = refDaftarMenu.current;
+    const penanda = refPenanda.current;
+    if (!daftar || !penanda) return;
+
+    const indeksAktif = navItems.findIndex(
+      (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+    );
+
+    // Halaman di luar daftar menu (misal profil usaha) tidak punya item aktif.
+    if (indeksAktif < 0) {
+      if (penandaTerpasang.current) {
+        penandaTerpasang.current = false;
+        animate(penanda, {
+          opacity: 0,
+          duration: durasiGerak(140),
+          ease: "outQuad",
+        });
+      } else {
+        utils.set(penanda, { opacity: 0 });
+      }
+      return;
+    }
+
+    const target = daftar.children[indeksAktif] as HTMLElement | undefined;
+    if (!target) return;
+
+    const posisi = { translateY: target.offsetTop, height: target.offsetHeight };
+
+    // Belum punya posisi sah — saat pertama dipasang, atau sesudah sempat
+    // disembunyikan. Meluncur dari posisi lama yang tidak ada hubungannya
+    // dengan menu sekarang justru membingungkan, jadi muncul di tempat saja.
+    if (!penandaTerpasang.current) {
+      penandaTerpasang.current = true;
+      utils.set(penanda, posisi);
+      animate(penanda, {
+        opacity: 1,
+        duration: durasiGerak(160),
+        ease: "outQuad",
+      });
+      return;
+    }
+
+    animate(penanda, {
+      ...posisi,
+      duration: durasiGerak(260),
+      ease: "outQuint",
+    });
+  }, [pathname]);
 
   function keluarSekarang() {
     // Halaman berpindah ke /login setelah sesi dihapus, jadi modal tidak perlu
@@ -132,38 +190,54 @@ export function Sidebar({
         <p className="px-2 pb-2 text-[0.6875rem] font-medium tracking-[0.14em] text-muted-foreground uppercase">
           Ruang usaha
         </p>
-        <ul ref={refDaftarMenu} className="flex flex-col gap-0.5">
-          {navItems.map((item) => {
-            const aktif =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
-            const Ikon = item.ikon;
-            return (
-              <li
-                key={item.href}
-                // Nilai awal ditulis di sini, bukan menunggu efeknya jalan:
-                // tanpa ini item sempat tergambar penuh satu frame lalu
-                // berkedip kembali ke nol saat animasi dimulai.
-                style={modeDrawer ? { opacity: 0 } : undefined}
-              >
-                <Link
-                  href={item.href}
-                  aria-current={aktif ? "page" : undefined}
-                  onClick={onTutup}
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-card px-2.5 py-2 text-sm transition-colors",
-                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                    aktif
-                      ? "bg-sidebar-accent font-medium text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                  )}
+        {/* Penanda dipisah dari <ul> supaya daftar menu tetap hanya berisi
+            <li>, dan supaya offsetTop tiap item terukur terhadap kotak ini. */}
+        <div className="relative">
+          <span
+            ref={refPenanda}
+            aria-hidden="true"
+            style={{ opacity: 0 }}
+            className="pointer-events-none absolute inset-x-0 top-0 rounded-card bg-sidebar-accent"
+          />
+          <ul ref={refDaftarMenu} className="flex flex-col gap-0.5">
+            {navItems.map((item) => {
+              const aktif =
+                pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const Ikon = item.ikon;
+              return (
+                <li
+                  key={item.href}
+                  // `relative` menaikkan item di atas penanda: elemen
+                  // berposisi tergambar setelah yang statis, jadi tanpa ini
+                  // penandanya justru menutupi tulisan menu.
+                  className="relative"
+                  // Nilai awal ditulis di sini, bukan menunggu efeknya jalan:
+                  // tanpa ini item sempat tergambar penuh satu frame lalu
+                  // berkedip kembali ke nol saat animasi dimulai.
+                  style={modeDrawer ? { opacity: 0 } : undefined}
                 >
-                  <Ikon width={18} height={18} />
-                  {item.label}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                  <Link
+                    href={item.href}
+                    aria-current={aktif ? "page" : undefined}
+                    onClick={onTutup}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-card px-2.5 py-2 text-sm transition-colors",
+                      "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                      // Latar item aktif sekarang dipegang penanda yang
+                      // meluncur, jadi di sini tinggal warna dan tebal huruf.
+                      aktif
+                        ? "font-medium text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
+                  >
+                    <Ikon width={18} height={18} />
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       </nav>
 
       <div className="mx-3 mb-3 rounded-card bg-accent px-3 py-3.5">
