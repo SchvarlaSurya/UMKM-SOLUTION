@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { cegahScrollUbahAngka, Input, Select } from "@/components/ui/Input";
@@ -245,6 +245,8 @@ function FormProduk({
   );
   const [simulasi, setSimulasi] = useState<StatusSimulasi | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Baris yang baru ditambahkan dan menunggu fokus. */
+  const fokusKeBaris = useRef<number | null>(null);
 
   const jumlahPorsiAngka = Number(jumlahPorsi);
   const jumlahPorsiValid =
@@ -316,15 +318,21 @@ function FormProduk({
   }, [hasilResep, kunciSimulasi, targetMarginAngka]);
 
   function tambahBaris() {
-    setBaris((sebelumnya) => [
-      ...sebelumnya,
-      {
-        key: Math.max(-1, ...sebelumnya.map((b) => b.key)) + 1,
-        bahanBakuId: bahan[0]?.id ?? 0,
-        jumlah: "",
-        satuanDipilih: pilihanSatuanUntuk(bahan[0]?.satuan ?? "")[0].nilai,
-      },
-    ]);
+    setBaris((sebelumnya) => {
+      const keyBaru = Math.max(-1, ...sebelumnya.map((b) => b.key)) + 1;
+      // Ditandai supaya barisnya langsung mendapat fokus begitu muncul;
+      // tanpa ini pengguna harus mengklik dropdownnya sendiri.
+      fokusKeBaris.current = keyBaru;
+      return [
+        ...sebelumnya,
+        {
+          key: keyBaru,
+          bahanBakuId: bahan[0]?.id ?? 0,
+          jumlah: "",
+          satuanDipilih: pilihanSatuanUntuk(bahan[0]?.satuan ?? "")[0].nilai,
+        },
+      ];
+    });
   }
 
   function hapusBaris(key: number) {
@@ -549,16 +557,6 @@ function FormProduk({
             </h3>
             <Badge varian="count">{baris.length}</Badge>
           </div>
-          <Button
-            varian="secondary"
-            ukuran="sm"
-            type="button"
-            onClick={tambahBaris}
-            className="whitespace-nowrap"
-          >
-            <IconTambah width={14} height={14} />
-            Tambah bahan
-          </Button>
         </div>
 
         <div className="mt-3 rounded-card border border-border bg-muted/30 p-3">
@@ -640,6 +638,13 @@ function FormProduk({
                 <label className="min-w-48 flex-1">
                   <span className="sr-only">Bahan baku</span>
                   <select
+                    ref={(el) => {
+                      // Fokus diberikan sekali saat baris barunya muncul.
+                      if (el && fokusKeBaris.current === b.key) {
+                        el.focus();
+                        fokusKeBaris.current = null;
+                      }
+                    }}
                     value={b.bahanBakuId}
                     onChange={(e) => {
                       const bahanBakuId = Number(e.target.value);
@@ -735,6 +740,23 @@ function FormProduk({
             );
           })}
         </ul>
+
+        {/*
+          Tombolnya menempel di bawah baris terakhir, bukan di judul section.
+          Pengisian selalu bergerak ke bawah, jadi menaruhnya di atas memaksa
+          kursor naik lagi setiap kali menambah bahan — dan makin jauh setiap
+          resepnya bertambah panjang.
+        */}
+        <Button
+          varian="secondary"
+          ukuran="sm"
+          type="button"
+          onClick={tambahBaris}
+          className="mt-2 w-full border-dashed"
+        >
+          <IconTambah width={14} height={14} />
+          Tambah bahan
+        </Button>
 
         {/* Galat server menimpa galat lokal karena datangnya belakangan. */}
         {(galatServer ?? error) && (
