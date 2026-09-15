@@ -24,7 +24,9 @@ export type Resep = {
   bahanBaku: BahanBaku;
 };
 
-export type ModeTakaran = "per-porsi" | "sekali-produksi";
+import type { ModeTakaran } from "@/lib/takaran";
+
+export type { ModeTakaran };
 
 export type ModePenentuanHarga = "manual" | "targetMargin";
 
