@@ -45,19 +45,3 @@ export function bacaCaraTakaran(mode: unknown, jumlahPorsi: unknown): CaraTakara
     ? { modeTakaran: "sekali-produksi", jumlahPorsiProduksi: jumlah }
     : { modeTakaran: "per-porsi", jumlahPorsiProduksi: null };
 }
-
-/**
- * Ubah angka jadi teks untuk `<input type="number">`.
- *
- * Isian itu hanya menerima titik sebagai pemisah desimal. Format lokal
- * Indonesia memakai koma ("0,1"), yang dianggap tidak sah oleh peramban lalu
- * diam-diam dikosongkan — itu yang dulu membuat seluruh takaran berubah jadi 0
- * setelah pemiliknya berpindah mode.
- *
- * Pembulatan delapan angka di belakang koma membuang sisa pembagian biner
- * seperti 0.30000000000000004 tanpa menyentuh takaran yang wajar.
- */
-export function nilaiIsian(nilai: number): string {
-  if (!Number.isFinite(nilai)) return "";
-  return String(Number(nilai.toFixed(8)));
-}

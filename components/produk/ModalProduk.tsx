@@ -9,7 +9,6 @@ import { Modal } from "@/components/ui/Modal";
 import { IconKalkulator, IconTambah, IconTutup } from "@/components/ui/icons";
 import { formatRupiah } from "@/lib/format";
 import { konversiKeSatuanDasar, pilihanSatuanUntuk } from "@/lib/satuan";
-import { nilaiIsian } from "@/lib/takaran";
 import type { BahanBaku, ModePenentuanHarga, Produk } from "@/lib/types";
 
 export const KATEGORI = [
@@ -126,11 +125,9 @@ type HasilResep =
   | { ok: true; data: BarisResep[] }
   | { ok: false; error: string };
 
-/** Untuk teks yang dibaca pengguna: 0.1 jadi "0,1". */
 function formatJumlah(nilai: number): string {
   return nilai.toLocaleString("id-ID", { maximumFractionDigits: 8 });
 }
-
 
 function susunResep({
   baris,
@@ -223,7 +220,7 @@ function FormProduk({
           return {
             key: i,
             bahanBakuId: r.bahanBakuId,
-            jumlah: nilaiIsian(r.jumlahDipakai * pengali),
+            jumlah: formatJumlah(r.jumlahDipakai * pengali),
             satuanDipilih: pilihanSatuanUntuk(satuanDasar)[0].nilai,
           };
         })
@@ -265,10 +262,6 @@ function FormProduk({
   const [error, setError] = useState<string | null>(null);
   /** Baris yang baru ditambahkan dan menunggu fokus. */
   const fokusKeBaris = useRef<number | null>(null);
-  /** Isian milik tiap mode takaran, supaya berpindah mode tidak menimpanya. */
-  const isianPerMode = useRef<
-    Partial<Record<ModeTakaran, { baris: BarisForm[]; jumlahPorsi: string }>>
-  >({});
 
   const jumlahPorsiAngka = Number(jumlahPorsi);
   const jumlahPorsiValid =
@@ -347,38 +340,19 @@ function FormProduk({
    * sendiri tetap disimpan supaya tidak perlu diketik ulang kalau pemiliknya
    * berpindah bolak-balik.
    */
-  /**
-   * Pindah mode tanpa mengubah angka yang sudah diketik.
-   *
-   * Tiap mode memegang isiannya sendiri: angka yang diketik di "sekali
-   * produksi" tetap utuh saat pemiliknya menengok "per porsi" lalu kembali.
-   * Berpindah bolak-balik lewat konversi terus-menerus akan menggeser angka
-   * karena pembulatan, dan itu yang membuat takaran tampak berubah sendiri.
-   *
-   * Mode yang belum pernah diisi diturunkan sekali dari mode saat ini, supaya
-   * pemiliknya tidak disambut kolom kosong.
-   */
   function gantiModeTakaran(tujuan: ModeTakaran) {
     if (tujuan === modeTakaran) return;
 
-    isianPerMode.current[modeTakaran] = { baris, jumlahPorsi };
-
-    const tersimpan = isianPerMode.current[tujuan];
-    if (tersimpan) {
-      setBaris(tersimpan.baris);
-      setJumlahPorsi(tersimpan.jumlahPorsi);
-      setModeTakaran(tujuan);
-      return;
-    }
-
     const porsi = Number(jumlahPorsi);
-    if (Number.isFinite(porsi) && porsi > 0) {
+    const bisaKonversi = Number.isFinite(porsi) && porsi > 0;
+
+    if (bisaKonversi) {
       setBaris((sebelumnya) =>
         sebelumnya.map((item) => {
           const angka = Number(item.jumlah);
           if (item.jumlah.trim() === "" || !Number.isFinite(angka)) return item;
           const hasil = tujuan === "sekali-produksi" ? angka * porsi : angka / porsi;
-          return { ...item, jumlah: nilaiIsian(hasil) };
+          return { ...item, jumlah: formatJumlah(hasil) };
         }),
       );
     }
