@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { animate, utils } from "animejs";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { useEfekTataLetak } from "@/components/ui/useEfekTataLetak";
+import { durasiGerak } from "@/lib/gerak";
 import { IconCentang, IconLonceng, IconProduk } from "@/components/ui/icons";
 import {
   useNotifikasi,
@@ -52,10 +55,19 @@ export function PusatNotifikasi() {
     konfirmasiModalAwal,
   } = useNotifikasi();
   const [daftar, setDaftar] = useState<NotifikasiDenganProduk[] | null>(null);
+  // `dropdownTerbuka` berarti panelnya ada di DOM, bukan "sedang terbuka":
+  // saat menutup, panel harus bertahan sampai animasi keluarnya selesai.
   const [dropdownTerbuka, setDropdownTerbuka] = useState(false);
+  const [sesiBuka, setSesiBuka] = useState(0);
   const [memuatDaftar, setMemuatDaftar] = useState(false);
   const [menandai, setMenandai] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
+  const refPanel = useRef<HTMLElement>(null);
+  const refLencana = useRef<HTMLSpanElement>(null);
+  const refDaftarIsi = useRef<HTMLDivElement>(null);
+  const sedangMenutup = useRef(false);
+  const jumlahSebelumnya = useRef(belumDibaca.length);
+  const daftarSebelumnya = useRef(daftar);
 
   const ambilSemua = useCallback(async () => {
     setMemuatDaftar(true);
@@ -74,17 +86,91 @@ export function PusatNotifikasi() {
     }
   }, []);
 
+  /** Panel meluncur turun sedikit saat dibuka; lihat `tutupDropdown` untuk keluarnya. */
+  useEfekTataLetak(() => {
+    const panel = refPanel.current;
+    if (!dropdownTerbuka || !panel) return;
+
+    utils.remove(panel);
+    sedangMenutup.current = false;
+
+    const ms = durasiGerak(180);
+    if (ms === 0) {
+      utils.set(panel, { opacity: 1, translateY: 0 });
+      return;
+    }
+
+    // Tanpa nilai awal saat panel sudah terpasang: membuka kembali di tengah
+    // animasi keluar membalikkan arahnya dari posisi saat itu.
+    animate(panel, { opacity: 1, translateY: 0, duration: ms, ease: "outQuint" });
+
+    return () => {
+      utils.remove(panel);
+    };
+  }, [dropdownTerbuka, sesiBuka]);
+
+  /**
+   * Lencana jumlah belum dibaca berdenyut saat angkanya naik.
+   *
+   * Ini satu-satunya tempat di aplikasi yang datanya berubah tanpa pengguna
+   * melakukan apa-apa: NotifikasiProvider menariknya ulang tiap menit. Kalau
+   * angkanya berganti diam-diam, kedatangannya terlewat begitu saja.
+   */
+  useEfekTataLetak(() => {
+    const jumlah = belumDibaca.length;
+    const sebelumnya = jumlahSebelumnya.current;
+    jumlahSebelumnya.current = jumlah;
+
+    const lencana = refLencana.current;
+    if (!lencana || jumlah <= sebelumnya) return;
+
+    const ms = durasiGerak(420);
+    if (ms === 0) return;
+
+    utils.remove(lencana);
+    animate(lencana, {
+      scale: sebelumnya === 0 ? [0.4, 1.18, 1] : [1, 1.18, 1],
+      duration: ms,
+      ease: "outQuad",
+    });
+
+    return () => {
+      utils.remove(lencana);
+    };
+  }, [belumDibaca.length]);
+
+  /** Isi panel muncul begitu permintaannya selesai, bukan berkedip berganti. */
+  useEfekTataLetak(() => {
+    const sebelumnya = daftarSebelumnya.current;
+    daftarSebelumnya.current = daftar;
+
+    const isi = refDaftarIsi.current;
+    if (!isi || daftar === null || sebelumnya === daftar) return;
+
+    const ms = durasiGerak(200);
+    if (ms === 0) return;
+
+    // Sebagai satu bagian, bukan stagger per baris: jumlah notifikasi tidak
+    // dibatasi, dan ekor stagger ikut memanjang mengikutinya.
+    utils.set(isi, { opacity: 0, translateY: -4 });
+    animate(isi, { opacity: 1, translateY: 0, duration: ms, ease: "outQuad" });
+
+    return () => {
+      utils.remove(isi);
+    };
+  }, [daftar]);
+
   useEffect(() => {
     if (!dropdownTerbuka) return;
 
     function tutupSaatKlikDiLuar(event: MouseEvent) {
       if (!wadahRef.current?.contains(event.target as Node)) {
-        setDropdownTerbuka(false);
+        tutupDropdown();
       }
     }
 
     function tutupSaatEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setDropdownTerbuka(false);
+      if (event.key === "Escape") tutupDropdown();
     }
 
     document.addEventListener("mousedown", tutupSaatKlikDiLuar);
@@ -148,9 +234,50 @@ export function PusatNotifikasi() {
   }
 
   function bukaDropdown() {
-    const akanTerbuka = !dropdownTerbuka;
-    setDropdownTerbuka(akanTerbuka);
-    if (akanTerbuka) void ambilSemua();
+    sedangMenutup.current = false;
+    setDropdownTerbuka(true);
+    // Penghitung yang selalu naik: menekan lonceng tepat ketika animasi keluar
+    // selesai membuat React menggabungkan `setDropdownTerbuka(false)` dari
+    // `onComplete` dengan `setDropdownTerbuka(true)` di sini menjadi satu
+    // render tanpa perubahan nilai, dan panelnya nyangkut tak terlihat.
+    setSesiBuka((n) => n + 1);
+    void ambilSemua();
+  }
+
+  function tutupDropdown() {
+    const panel = refPanel.current;
+    if (!panel) {
+      setDropdownTerbuka(false);
+      return;
+    }
+    if (sedangMenutup.current) return;
+
+    const ms = durasiGerak(140);
+    if (ms === 0) {
+      setDropdownTerbuka(false);
+      return;
+    }
+
+    sedangMenutup.current = true;
+    utils.remove(panel);
+    animate(panel, {
+      opacity: 0,
+      translateY: -6,
+      duration: ms,
+      ease: "inQuad",
+      onComplete: () => {
+        sedangMenutup.current = false;
+        setDropdownTerbuka(false);
+      },
+    });
+  }
+
+  function alihkanDropdown() {
+    if (dropdownTerbuka && !sedangMenutup.current) {
+      tutupDropdown();
+      return;
+    }
+    bukaDropdown();
   }
 
   const ringkasan = modalAwal
@@ -164,7 +291,7 @@ export function PusatNotifikasi() {
         <Button
           varian="ghost"
           ukuran="sm"
-          onClick={bukaDropdown}
+          onClick={alihkanDropdown}
           aria-label={
             belumDibaca.length > 0
               ? `Notifikasi, ${belumDibaca.length} belum dibaca`
@@ -175,7 +302,10 @@ export function PusatNotifikasi() {
         >
           <IconLonceng width={18} height={18} />
           {belumDibaca.length > 0 && (
-            <span className="absolute -top-1 -right-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[0.625rem] font-semibold leading-none text-white">
+            <span
+              ref={refLencana}
+              className="absolute -top-1 -right-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[0.625rem] font-semibold leading-none text-white"
+            >
               {belumDibaca.length > 99 ? "99+" : belumDibaca.length}
             </span>
           )}
@@ -190,7 +320,12 @@ export function PusatNotifikasi() {
           // header selebar layar dan sticky di atas, sehingga hasilnya sama.
           // sm ke atas: perilaku lama, menempel kanan lonceng dengan lebar tetap.
           <section
+            ref={refPanel}
             aria-label="Daftar notifikasi"
+            // Keadaan awal ditulis di JSX: panelnya dipasang ulang tiap kali
+            // dibuka, jadi node barunya selalu lahir dalam posisi tertutup dan
+            // tidak sempat berkedip sebelum animasi masuk mulai.
+            style={{ opacity: 0, transform: "translateY(-6px)" }}
             className="fixed inset-x-4 top-16 z-30 overflow-hidden rounded-card border border-border bg-card shadow-[0_14px_36px_rgba(32,46,40,0.14)] sm:absolute sm:inset-x-auto sm:top-11 sm:right-0 sm:w-[min(24rem,calc(100vw-2rem))]"
           >
             <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
@@ -212,7 +347,7 @@ export function PusatNotifikasi() {
               )}
             </header>
 
-            <div className="max-h-96 overflow-y-auto">
+            <div ref={refDaftarIsi} className="max-h-96 overflow-y-auto">
               {memuatDaftar ? (
                 <div className="space-y-3 p-4" aria-label="Memuat notifikasi">
                   {[0, 1, 2].map((item) => (
@@ -291,7 +426,7 @@ export function PusatNotifikasi() {
             <footer className="border-t border-border px-4 py-3 text-right">
               <Link
                 href="/produk"
-                onClick={() => setDropdownTerbuka(false)}
+                onClick={tutupDropdown}
                 className="text-xs font-medium text-primary hover:underline underline-offset-4"
               >
                 Buka halaman produk
