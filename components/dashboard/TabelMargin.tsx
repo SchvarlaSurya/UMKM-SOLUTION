@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { AngkaBergerak } from "@/components/ui/AngkaBergerak";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -8,7 +9,6 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/ui/Table";
 import { Tabs } from "@/components/ui/Tabs";
 import { IconCari, IconCentang, IconPanahKeluar, IconPeringatan } from "@/components/ui/icons";
-import { formatPersen, formatRupiah } from "@/lib/format";
 import type { RincianHpp } from "@/lib/hpp";
 import type { ProdukDenganHpp } from "@/lib/types";
 import { ModalRincianHpp } from "./ModalRincianHpp";
@@ -105,18 +105,20 @@ export function TabelMargin({
                   <span className="block font-medium">{p.nama}</span>
                   <span className="block text-xs text-muted-foreground">{p.kategori}</span>
                 </TD>
-                <TD className="text-right whitespace-nowrap">{formatRupiah(p.hppTerhitung)}</TD>
+                <TD className="text-right whitespace-nowrap">
+                  <AngkaBergerak nilai={p.hppTerhitung} format="rupiah" />
+                </TD>
                 <TD className="text-right font-medium whitespace-nowrap">
-                  {formatRupiah(p.hargaJual)}
+                  <AngkaBergerak nilai={p.hargaJual} format="rupiah" />
                 </TD>
                 <TD>
-                  <span
+                  <AngkaBergerak
+                    nilai={p.marginPersen}
+                    format="persen"
                     className={`block text-sm font-medium ${
                       p.statusAman ? "text-success" : "text-warning"
                     }`}
-                  >
-                    {formatPersen(p.marginPersen)}
-                  </span>
+                  />
                   <ProgressBar
                     nilai={Math.max(p.marginPersen, 0)}
                     aman={p.statusAman}
