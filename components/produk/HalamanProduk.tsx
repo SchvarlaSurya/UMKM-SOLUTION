@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ModalKonfirmasiHapus } from "@/components/ui/ModalKonfirmasiHapus";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Tabs } from "@/components/ui/Tabs";
+import { useToast } from "@/components/ui/Toast";
 import { IconCari, IconPanahKanan, IconProduk, IconTambah } from "@/components/ui/icons";
 import type { BahanBaku, ProdukDenganHpp } from "@/lib/types";
 import { KartuProduk } from "./KartuProduk";
@@ -28,6 +29,7 @@ export function HalamanProduk({
   bahan: BahanBaku[];
 }) {
   const router = useRouter();
+  const tampilkanToast = useToast();
   const [menyimpan, mulaiSimpan] = useTransition();
   const [filter, setFilter] = useState<Filter>("semua");
   const [cari, setCari] = useState("");
@@ -73,6 +75,7 @@ export function HalamanProduk({
 
   function hapus() {
     if (!akanDihapus) return;
+    const namaProduk = akanDihapus.nama;
     setGalatHapus(null);
     mulaiSimpan(async () => {
       const hasil = await hapusProduk(akanDihapus.id);
@@ -83,10 +86,15 @@ export function HalamanProduk({
       }
 
       setAkanDihapus(null);
+      tampilkanToast({
+        varian: "sukses",
+        pesan: `${namaProduk} berhasil dihapus.`,
+      });
     });
   }
 
   function simpan(nilai: NilaiFormProduk) {
+    const sedangEdit = mode === "edit" && terpilih !== null;
     setGalat(null);
     mulaiSimpan(async () => {
       try {
@@ -115,6 +123,12 @@ export function HalamanProduk({
         }
 
         setModalTerbuka(false);
+        tampilkanToast({
+          varian: "sukses",
+          pesan: sedangEdit
+            ? `Perubahan ${nilai.nama} berhasil disimpan.`
+            : `${nilai.nama} berhasil ditambahkan.`,
+        });
         window.dispatchEvent(new Event("notifikasi:segarkan"));
         router.refresh();
       } catch {
@@ -235,7 +249,6 @@ export function HalamanProduk({
         onTutup={() => setAkanDihapus(null)}
         onHapus={hapus}
       />
-
     </>
   );
 }

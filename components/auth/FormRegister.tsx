@@ -2,9 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Banner } from "@/components/ui/Banner";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
+import { useToast } from "@/components/ui/Toast";
 import { JENIS_USAHA_KULINER } from "@/lib/jenisUsaha";
 
 const PANJANG_SANDI_MINIMUM = 8;
@@ -20,13 +20,15 @@ type GalatKolom = {
 
 export function FormRegister() {
   const router = useRouter();
-  // Dipisah dari pesan tingkat formulir karena tempat tampilnya berbeda.
-  // Sebelumnya semuanya memakai satu state dan selalu dirender di kolom
-  // terakhir, jadi "Nama usaha wajib diisi" muncul di bawah "Ulangi kata
-  // sandi" — menunjuk kolom yang sama sekali tidak bermasalah.
+  // Dipisah dari pesan tingkat formulir karena tempat tampilnya berbeda: yang
+  // menunjuk kolom tampil inline, yang menyangkut seluruh formulir tampil
+  // sebagai toast melayang supaya tidak memanjangkan formulirnya. Sebelumnya
+  // semuanya memakai satu state dan selalu dirender di kolom terakhir, jadi
+  // "Nama usaha wajib diisi" muncul di bawah "Ulangi kata sandi" — menunjuk
+  // kolom yang sama sekali tidak bermasalah.
   const [galatKolom, setGalatKolom] = useState<GalatKolom>({});
-  const [galatFormulir, setGalatFormulir] = useState<string | null>(null);
   const [memproses, setMemproses] = useState(false);
+  const tampilkanToast = useToast();
   const refFormulir = useRef<HTMLFormElement>(null);
 
   // Fokus dipindahkan ke kolom bermasalah yang pertama. Formulir ini punya
@@ -64,13 +66,11 @@ export function FormRegister() {
     }
 
     if (Object.keys(kolom).length > 0) {
-      setGalatFormulir(null);
       setGalatKolom(kolom);
       return;
     }
 
     setGalatKolom({});
-    setGalatFormulir(null);
     setMemproses(true);
 
     try {
@@ -83,25 +83,25 @@ export function FormRegister() {
       if (!respons.ok) {
         const isi = await respons.json().catch(() => null);
         setMemproses(false);
-        setGalatFormulir(isi?.error ?? "Gagal membuat akun. Coba lagi sebentar lagi.");
+        tampilkanToast({
+          varian: "galat",
+          pesan: isi?.error ?? "Gagal membuat akun. Coba lagi sebentar lagi.",
+        });
         return;
       }
 
       router.push("/login?terdaftar=1");
     } catch {
       setMemproses(false);
-      setGalatFormulir("Tidak bisa menghubungi server. Periksa koneksimu.");
+      tampilkanToast({
+        varian: "galat",
+        pesan: "Tidak bisa menghubungi server. Periksa koneksimu.",
+      });
     }
   }
 
   return (
     <form ref={refFormulir} onSubmit={kirim} className="flex flex-col gap-4" noValidate>
-      {galatFormulir && (
-        <Banner varian="warning" peran="alert">
-          {galatFormulir}
-        </Banner>
-      )}
-
       <Input
         id="nama"
         name="nama"

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Banner } from "@/components/ui/Banner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useToast } from "@/components/ui/Toast";
 
 /** Pesan yang menunjuk satu kolom tertentu. */
 type GalatKolom = {
@@ -21,12 +22,13 @@ export function FormLogin() {
 
   // Dua jenis pesan, dipisah karena tempat tampilnya berbeda: yang menyangkut
   // satu kolom tampil di bawah kolomnya, yang menyangkut seluruh formulir
-  // tampil sebagai banner di atas. Sebelumnya keduanya memakai satu state dan
-  // selalu dirender di kolom terakhir, jadi "Email dan kata sandi wajib diisi"
-  // muncul seolah hanya kata sandinya yang bermasalah.
+  // tampil sebagai toast melayang supaya tidak memanjangkan formulirnya.
+  // Sebelumnya keduanya memakai satu state dan selalu dirender di kolom
+  // terakhir, jadi "Email dan kata sandi wajib diisi" muncul seolah hanya
+  // kata sandinya yang bermasalah.
   const [galatKolom, setGalatKolom] = useState<GalatKolom>({});
-  const [galatFormulir, setGalatFormulir] = useState<string | null>(null);
   const [memproses, setMemproses] = useState(false);
+  const tampilkanToast = useToast();
   const refFormulir = useRef<HTMLFormElement>(null);
 
   // Fokus dipindahkan ke kolom bermasalah yang pertama. Tanpa ini pengguna
@@ -49,43 +51,48 @@ export function FormLogin() {
     if (password === "") kolom.password = "Kata sandi wajib diisi.";
 
     if (kolom.email || kolom.password) {
-      setGalatFormulir(null);
       setGalatKolom(kolom);
       return;
     }
 
     setGalatKolom({});
-    setGalatFormulir(null);
     setMemproses(true);
 
-    const hasil = await signIn("credentials", { email, password, redirect: false });
+    try {
+      const hasil = await signIn("credentials", { email, password, redirect: false });
 
-    if (hasil?.ok) {
-      router.push(callbackUrl);
-      router.refresh();
-      return;
+      if (hasil?.ok) {
+        router.push(callbackUrl);
+        router.refresh();
+        return;
+      }
+
+      // Sengaja tidak menyebut mana yang salah: menyebutkannya membocorkan email
+      // mana yang terdaftar kepada siapa pun yang mencoba menebak.
+      tampilkanToast({
+        varian: "galat",
+        pesan:
+          hasil?.error === "CredentialsSignin"
+            ? "Email atau kata sandi salah."
+            : "Gagal masuk. Coba lagi sebentar lagi.",
+      });
+    } catch {
+      tampilkanToast({
+        varian: "galat",
+        pesan: "Tidak bisa menghubungi server. Periksa koneksimu.",
+      });
+    } finally {
+      setMemproses(false);
     }
-
-    setMemproses(false);
-    // Sengaja tidak menyebut mana yang salah: menyebutkannya membocorkan email
-    // mana yang terdaftar kepada siapa pun yang mencoba menebak.
-    setGalatFormulir(
-      hasil?.error === "CredentialsSignin"
-        ? "Email atau kata sandi salah."
-        : "Gagal masuk. Coba lagi sebentar lagi.",
-    );
   }
 
   return (
     <form ref={refFormulir} onSubmit={kirim} className="flex flex-col gap-4" noValidate>
-      {baruTerdaftar && !galatFormulir && (
+      {/* Tetap inline, bukan toast: ini bukan tanggapan atas tindakan di
+          halaman ini, melainkan keterangan yang sudah ada sejak halaman
+          digambar — jadi tidak ada yang bergeser karenanya. */}
+      {baruTerdaftar && (
         <Banner varian="info">Akun berhasil dibuat. Masuk dengan email dan kata sandimu.</Banner>
-      )}
-
-      {galatFormulir && (
-        <Banner varian="warning" peran="alert">
-          {galatFormulir}
-        </Banner>
       )}
 
       <Input

@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { ModalKonfirmasiHapus } from "@/components/ui/ModalKonfirmasiHapus";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/ui/Table";
+import { useToast } from "@/components/ui/Toast";
 import { IconCari, IconHapus, IconPensil, IconTambah } from "@/components/ui/icons";
 import { formatRupiah, formatTanggal } from "@/lib/format";
 import type { BahanBaku } from "@/lib/types";
@@ -26,6 +27,7 @@ export function HalamanBahanBaku({
   bahan: BahanBaku[];
   pemakaian: Record<number, number>;
 }) {
+  const tampilkanToast = useToast();
   const [menyimpan, mulaiSimpan] = useTransition();
   const [cari, setCari] = useState("");
   const [mode, setMode] = useState<"tambah" | "edit">("tambah");
@@ -61,6 +63,7 @@ export function HalamanBahanBaku({
 
   function hapus() {
     if (!akanDihapus) return;
+    const namaBahan = akanDihapus.nama;
     setGalatHapus(null);
     mulaiSimpan(async () => {
       const hasil = await hapusBahanBaku(akanDihapus.id);
@@ -71,10 +74,15 @@ export function HalamanBahanBaku({
       }
 
       setAkanDihapus(null);
+      tampilkanToast({
+        varian: "sukses",
+        pesan: `${namaBahan} berhasil dihapus.`,
+      });
     });
   }
 
   function simpan(nilai: NilaiFormBahan) {
+    const sedangEdit = mode === "edit" && terpilih !== null;
     setGalat(null);
     mulaiSimpan(async () => {
       const hasil =
@@ -88,6 +96,12 @@ export function HalamanBahanBaku({
       }
 
       setModalTerbuka(false);
+      tampilkanToast({
+        varian: "sukses",
+        pesan: sedangEdit
+          ? `Harga ${nilai.nama} berhasil diperbarui.`
+          : `${nilai.nama} berhasil ditambahkan.`,
+      });
       window.dispatchEvent(new Event("notifikasi:segarkan"));
     });
   }
