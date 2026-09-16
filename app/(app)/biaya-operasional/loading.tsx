@@ -1,4 +1,5 @@
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
+import { MobileDataList, MobileDataListItem } from "@/components/ui/MobileDataList";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/ui/Table";
@@ -60,7 +61,7 @@ export default function MemuatBiayaOperasional() {
           </div>
         </CardHeader>
 
-        <div className="mt-4">
+        <div className="mt-4 hidden md:block">
           <Table>
             <THead>
               <TR className="hover:bg-transparent">
@@ -97,6 +98,25 @@ export default function MemuatBiayaOperasional() {
             </TBody>
           </Table>
         </div>
+
+        <MobileDataList className="mt-4">
+          {[0, 1, 2, 3].map((i) => (
+            <MobileDataListItem key={i}>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton bentuk="pil" className="mt-2 h-5 w-16" />
+                </div>
+                <Skeleton className="h-4 w-24" />
+              </div>
+              <Skeleton className="mt-4 h-3 w-48" />
+              <div className="mt-4 flex gap-2 border-t border-border pt-3">
+                <Skeleton bentuk="kotak" className="h-8 flex-1" />
+                <Skeleton bentuk="kotak" className="size-8" />
+              </div>
+            </MobileDataListItem>
+          ))}
+        </MobileDataList>
 
         <TableFooterNote
           kiri={<Skeleton className="inline-block h-3 w-24 align-middle" />}

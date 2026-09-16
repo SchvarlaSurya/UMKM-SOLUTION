@@ -6,6 +6,11 @@ import { GrafikHarga } from "@/components/charts/GrafikHarga";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import {
+  MobileDataEmpty,
+  MobileDataList,
+  MobileDataListItem,
+} from "@/components/ui/MobileDataList";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/ui/Table";
 import {
@@ -188,7 +193,7 @@ export function HalamanTren({
           </Link>
         </CardHeader>
 
-        <div className="mt-4">
+        <div className="mt-4 hidden md:block">
           <Table>
             <THead>
               <TR className="hover:bg-transparent">
@@ -234,6 +239,47 @@ export function HalamanTren({
             </TBody>
           </Table>
         </div>
+
+        <MobileDataList className="mt-4">
+          {[...catatan].reverse().map((h) => {
+            const delta = h.hargaBaru - h.hargaLama;
+            return (
+              <MobileDataListItem key={h.id}>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {tampilkanWaktu(h.tanggal)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Sebelumnya {formatRupiah(h.hargaLama)}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-semibold text-foreground">
+                      {formatRupiah(h.hargaBaru)}
+                    </p>
+                    <p
+                      className={`mt-1 text-xs font-medium ${
+                        delta === 0
+                          ? "text-muted-foreground"
+                          : delta > 0
+                            ? "text-warning"
+                            : "text-success"
+                      }`}
+                    >
+                      {delta === 0
+                        ? "Tetap"
+                        : `${delta > 0 ? "+" : "−"}${formatRupiah(Math.abs(delta))}`}
+                    </p>
+                  </div>
+                </div>
+              </MobileDataListItem>
+            );
+          })}
+          {catatan.length === 0 && (
+            <MobileDataEmpty>Belum ada catatan perubahan untuk bahan ini.</MobileDataEmpty>
+          )}
+        </MobileDataList>
 
         <TableFooterNote
           kiri={`${catatan.length} catatan perubahan`}
