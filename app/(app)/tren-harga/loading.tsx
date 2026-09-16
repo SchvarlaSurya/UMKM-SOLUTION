@@ -1,4 +1,5 @@
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
+import { MobileDataList, MobileDataListItem } from "@/components/ui/MobileDataList";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/ui/Table";
@@ -51,7 +52,7 @@ export default function MemuatTrenHarga() {
           <Skeleton className="my-0.5 h-4 w-28" />
         </CardHeader>
 
-        <div className="mt-4">
+        <div className="mt-4 hidden md:block">
           <Table>
             <THead>
               <TR className="hover:bg-transparent">
@@ -78,6 +79,23 @@ export default function MemuatTrenHarga() {
             </TBody>
           </Table>
         </div>
+
+        <MobileDataList className="mt-4">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <MobileDataListItem key={i}>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="mt-2 h-3 w-24" />
+                </div>
+                <div>
+                  <Skeleton className="ml-auto h-4 w-24" />
+                  <Skeleton className="mt-2 ml-auto h-3 w-16" />
+                </div>
+              </div>
+            </MobileDataListItem>
+          ))}
+        </MobileDataList>
 
         <TableFooterNote
           kiri={<Skeleton className="inline-block h-3 w-28 align-middle" />}

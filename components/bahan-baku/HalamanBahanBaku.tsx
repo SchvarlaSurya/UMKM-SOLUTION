@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/Button";
 import { Banner } from "@/components/ui/Banner";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { ModalKonfirmasiHapus } from "@/components/ui/ModalKonfirmasiHapus";
+import {
+  MobileDataEmpty,
+  MobileDataList,
+  MobileDataListItem,
+} from "@/components/ui/MobileDataList";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/ui/Table";
 import { useToast } from "@/components/ui/Toast";
@@ -130,7 +135,7 @@ export function HalamanBahanBaku({
             <CardTitle>Daftar bahan baku</CardTitle>
             <Badge varian="count">{bahan.length}</Badge>
           </div>
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <IconCari
               width={16}
               height={16}
@@ -142,12 +147,12 @@ export function HalamanBahanBaku({
               onChange={(e) => setCari(e.target.value)}
               placeholder="Cari nama bahan…"
               aria-label="Cari nama bahan"
-              className="h-9 w-56 rounded-card border border-border bg-card pr-3 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+              className="h-9 w-full rounded-card border border-border bg-card pr-3 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring sm:w-56"
             />
           </div>
         </CardHeader>
 
-        <div className="mt-4">
+        <div className="mt-4 hidden md:block">
           <Table>
             <THead>
               <TR className="hover:bg-transparent">
@@ -222,6 +227,70 @@ export function HalamanBahanBaku({
             </TBody>
           </Table>
         </div>
+
+        <MobileDataList className="mt-4">
+          {terlihat.map((b) => {
+            const dipakai = pemakaian[b.id] ?? 0;
+            return (
+              <MobileDataListItem key={b.id}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-semibold text-foreground">{b.nama}</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Diperbarui {formatTanggal(b.updatedAt)}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-semibold text-foreground">
+                      {formatRupiah(b.hargaPerSatuan)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">per {b.satuan}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3">
+                  <p className="text-xs text-muted-foreground">
+                    {dipakai > 0 ? `Dipakai di ${dipakai} produk` : "Belum dipakai di produk"}
+                  </p>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      varian="secondary"
+                      ukuran="sm"
+                      onClick={() => bukaEdit(b)}
+                    >
+                      <IconPensil width={14} height={14} />
+                      Edit harga
+                    </Button>
+                    <Button
+                      varian="ghost"
+                      ukuran="sm"
+                      className="px-2 hover:text-destructive"
+                      aria-label={`Hapus ${b.nama}`}
+                      onClick={() => bukaHapus(b)}
+                    >
+                      <IconHapus width={16} height={16} />
+                    </Button>
+                  </div>
+                </div>
+              </MobileDataListItem>
+            );
+          })}
+          {terlihat.length === 0 && (
+            <MobileDataEmpty>
+              {bahan.length === 0 ? (
+                <>
+                  <span className="block font-medium text-foreground">Belum ada bahan baku</span>
+                  <span className="mx-auto mt-1 block max-w-sm">
+                    Mulai dari bahan yang paling sering dibeli. Harganya dipakai menghitung HPP
+                    setiap resep.
+                  </span>
+                </>
+              ) : (
+                "Tidak ada bahan yang cocok dengan pencarian."
+              )}
+            </MobileDataEmpty>
+          )}
+        </MobileDataList>
 
         <TableFooterNote
           kiri={`Menampilkan ${terlihat.length} dari ${bahan.length} bahan`}
