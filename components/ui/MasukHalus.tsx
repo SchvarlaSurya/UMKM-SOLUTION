@@ -23,9 +23,18 @@ const DURASI = 260;
 export function MasukHalus({
   children,
   className,
+  geser = true,
+  durasi = DURASI,
 }: {
   children: ReactNode;
   className?: string;
+  /**
+   * Ikut bergeser naik saat masuk. Dimatikan kalau isinya menggantikan
+   * placeholder di posisi yang sama: di sana gerakan justru terbaca sebagai
+   * tata letak yang melompat, padahal tidak ada yang berpindah.
+   */
+  geser?: boolean;
+  durasi?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -33,13 +42,13 @@ export function MasukHalus({
     const elemen = ref.current;
     if (!elemen) return;
 
-    const ms = durasiGerak(DURASI);
+    const ms = durasiGerak(durasi);
     if (ms === 0) return;
 
-    utils.set(elemen, { opacity: 0, translateY: -6 });
+    utils.set(elemen, geser ? { opacity: 0, translateY: -6 } : { opacity: 0 });
     animate(elemen, {
+      ...(geser ? { translateY: 0 } : {}),
       opacity: 1,
-      translateY: 0,
       duration: ms,
       ease: "outQuad",
     });

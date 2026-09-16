@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Banner } from "@/components/ui/Banner";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
+import { MasukHalus } from "@/components/ui/MasukHalus";
 import { ModalKonfirmasiHapus } from "@/components/ui/ModalKonfirmasiHapus";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/ui/Table";
@@ -106,114 +107,119 @@ export function HalamanBahanBaku({
         }
       />
 
-      <Banner varian="info">
-        Perubahan harga akan menghitung ulang HPP seluruh produk yang memakai bahan ini.
-      </Banner>
+      {/* PageHeader di luar pembungkus: teksnya sudah dirender apa adanya di
+          loading.tsx, jadi ikut memudar hanya membuatnya berkedip. Kelas flex
+          menyalin jarak antar-anak dari AppShell supaya tata letak tetap. */}
+      <MasukHalus geser={false} durasi={140} className="flex flex-col gap-6">
+        <Banner varian="info">
+          Perubahan harga akan menghitung ulang HPP seluruh produk yang memakai bahan ini.
+        </Banner>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <CardTitle>Daftar bahan baku</CardTitle>
-            <Badge varian="count">{bahan.length}</Badge>
-          </div>
-          <div className="relative">
-            <IconCari
-              width={16}
-              height={16}
-              className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
-            />
-            <input
-              type="search"
-              value={cari}
-              onChange={(e) => setCari(e.target.value)}
-              placeholder="Cari nama bahan…"
-              aria-label="Cari nama bahan"
-              className="h-9 w-56 rounded-card border border-border bg-card pr-3 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-            />
-          </div>
-        </CardHeader>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CardTitle>Daftar bahan baku</CardTitle>
+              <Badge varian="count">{bahan.length}</Badge>
+            </div>
+            <div className="relative">
+              <IconCari
+                width={16}
+                height={16}
+                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
+              />
+              <input
+                type="search"
+                value={cari}
+                onChange={(e) => setCari(e.target.value)}
+                placeholder="Cari nama bahan…"
+                aria-label="Cari nama bahan"
+                className="h-9 w-56 rounded-card border border-border bg-card pr-3 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+              />
+            </div>
+          </CardHeader>
 
-        <div className="mt-4">
-          <Table>
-            <THead>
-              <TR className="hover:bg-transparent">
-                <TH>Nama bahan</TH>
-                <TH>Satuan</TH>
-                <TH className="text-right">Harga / satuan</TH>
-                <TH>Dipakai di</TH>
-                <TH className="text-right">Aksi</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {terlihat.map((b) => {
-                const dipakai = pemakaian[b.id] ?? 0;
-                return (
-                  <TR key={b.id}>
-                    <TD>
-                      <span className="block font-medium">{b.nama}</span>
-                      <span className="block text-xs text-muted-foreground">
-                        Diperbarui {formatTanggal(b.updatedAt)}
-                      </span>
-                    </TD>
-                    <TD className="text-muted-foreground">{b.satuan}</TD>
-                    <TD className="text-right font-medium whitespace-nowrap">
-                      {formatRupiah(b.hargaPerSatuan)}
-                    </TD>
-                    <TD className="whitespace-nowrap">
-                      {dipakai > 0 ? (
-                        <span className="text-sm">{dipakai} produk</span>
+          <div className="mt-4">
+            <Table>
+              <THead>
+                <TR className="hover:bg-transparent">
+                  <TH>Nama bahan</TH>
+                  <TH>Satuan</TH>
+                  <TH className="text-right">Harga / satuan</TH>
+                  <TH>Dipakai di</TH>
+                  <TH className="text-right">Aksi</TH>
+                </TR>
+              </THead>
+              <TBody>
+                {terlihat.map((b) => {
+                  const dipakai = pemakaian[b.id] ?? 0;
+                  return (
+                    <TR key={b.id}>
+                      <TD>
+                        <span className="block font-medium">{b.nama}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          Diperbarui {formatTanggal(b.updatedAt)}
+                        </span>
+                      </TD>
+                      <TD className="text-muted-foreground">{b.satuan}</TD>
+                      <TD className="text-right font-medium whitespace-nowrap">
+                        {formatRupiah(b.hargaPerSatuan)}
+                      </TD>
+                      <TD className="whitespace-nowrap">
+                        {dipakai > 0 ? (
+                          <span className="text-sm">{dipakai} produk</span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Belum dipakai</span>
+                        )}
+                      </TD>
+                      <TD className="text-right">
+                        <span className="inline-flex items-center gap-1">
+                          <Button varian="link" ukuran="sm" onClick={() => bukaEdit(b)}>
+                            <IconPensil width={14} height={14} />
+                            Edit harga
+                          </Button>
+                          <Button
+                            varian="ghost"
+                            ukuran="sm"
+                            className="px-2 hover:text-destructive"
+                            aria-label={`Hapus ${b.nama}`}
+                            onClick={() => bukaHapus(b)}
+                          >
+                            <IconHapus width={16} height={16} />
+                          </Button>
+                        </span>
+                      </TD>
+                    </TR>
+                  );
+                })}
+                {terlihat.length === 0 && (
+                  <TR className="hover:bg-transparent">
+                    <TD colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                      {bahan.length === 0 ? (
+                        <>
+                          <span className="block font-medium text-foreground">
+                            Belum ada bahan baku
+                          </span>
+                          <span className="mx-auto mt-1 block max-w-sm">
+                            Mulai dari bahan yang paling sering dibeli. Harganya dipakai
+                            menghitung HPP setiap resep.
+                          </span>
+                        </>
                       ) : (
-                        <span className="text-sm text-muted-foreground">Belum dipakai</span>
+                        "Tidak ada bahan yang cocok dengan pencarian."
                       )}
                     </TD>
-                    <TD className="text-right">
-                      <span className="inline-flex items-center gap-1">
-                        <Button varian="link" ukuran="sm" onClick={() => bukaEdit(b)}>
-                          <IconPensil width={14} height={14} />
-                          Edit harga
-                        </Button>
-                        <Button
-                          varian="ghost"
-                          ukuran="sm"
-                          className="px-2 hover:text-destructive"
-                          aria-label={`Hapus ${b.nama}`}
-                          onClick={() => bukaHapus(b)}
-                        >
-                          <IconHapus width={16} height={16} />
-                        </Button>
-                      </span>
-                    </TD>
                   </TR>
-                );
-              })}
-              {terlihat.length === 0 && (
-                <TR className="hover:bg-transparent">
-                  <TD colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
-                    {bahan.length === 0 ? (
-                      <>
-                        <span className="block font-medium text-foreground">
-                          Belum ada bahan baku
-                        </span>
-                        <span className="mx-auto mt-1 block max-w-sm">
-                          Mulai dari bahan yang paling sering dibeli. Harganya dipakai
-                          menghitung HPP setiap resep.
-                        </span>
-                      </>
-                    ) : (
-                      "Tidak ada bahan yang cocok dengan pencarian."
-                    )}
-                  </TD>
-                </TR>
-              )}
-            </TBody>
-          </Table>
-        </div>
+                )}
+              </TBody>
+            </Table>
+          </div>
 
-        <TableFooterNote
-          kiri={`Menampilkan ${terlihat.length} dari ${bahan.length} bahan`}
-          kanan="Harga dipakai untuk menghitung HPP setiap resep terkait"
-        />
-      </Card>
+          <TableFooterNote
+            kiri={`Menampilkan ${terlihat.length} dari ${bahan.length} bahan`}
+            kanan="Harga dipakai untuk menghitung HPP setiap resep terkait"
+          />
+        </Card>
+      </MasukHalus>
 
       <ModalBahanBaku
         terbuka={modalTerbuka}

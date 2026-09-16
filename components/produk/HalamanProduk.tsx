@@ -6,6 +6,7 @@ import { hapusProduk } from "@/lib/actions/produk";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ModalKonfirmasiHapus } from "@/components/ui/ModalKonfirmasiHapus";
+import { MasukHalus } from "@/components/ui/MasukHalus";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Tabs } from "@/components/ui/Tabs";
 import { IconCari, IconPanahKanan, IconProduk, IconTambah } from "@/components/ui/icons";
@@ -137,78 +138,83 @@ export function HalamanProduk({
         }
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Tabs
-          nilai={filter}
-          onChange={(id) => setFilter(id as Filter)}
-          items={[
-            { id: "semua", label: "Semua produk", jumlah: denganHpp.length },
-            { id: "perhatian", label: "Perlu perhatian", jumlah: jumlahPerhatian },
-            { id: "aman", label: "Aman" },
-          ]}
-        />
-        <div className="relative">
-          <IconCari
-            width={16}
-            height={16}
-            className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
+      {/* PageHeader di luar pembungkus: teksnya sudah dirender apa adanya di
+          loading.tsx, jadi ikut memudar hanya membuatnya berkedip. Kelas flex
+          menyalin jarak antar-anak dari AppShell supaya tata letak tetap. */}
+      <MasukHalus geser={false} durasi={140} className="flex flex-col gap-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Tabs
+            nilai={filter}
+            onChange={(id) => setFilter(id as Filter)}
+            items={[
+              { id: "semua", label: "Semua produk", jumlah: denganHpp.length },
+              { id: "perhatian", label: "Perlu perhatian", jumlah: jumlahPerhatian },
+              { id: "aman", label: "Aman" },
+            ]}
           />
-          <input
-            type="search"
-            value={cari}
-            onChange={(e) => setCari(e.target.value)}
-            placeholder="Cari produk atau kategori…"
-            aria-label="Cari produk atau kategori"
-            className="h-9 w-64 rounded-card border border-border bg-card pr-3 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-          />
-        </div>
-      </div>
-
-      {terlihat.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {terlihat.map((p) => (
-            <KartuProduk
-              key={p.id}
-              produk={p}
-              onEdit={() => bukaEdit(p)}
-              onLihatHistori={() => setProdukHistori(p)}
-              onHapus={() => {
-                setAkanDihapus(p);
-                setGalatHapus(null);
-              }}
+          <div className="relative">
+            <IconCari
+              width={16}
+              height={16}
+              className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
             />
-          ))}
+            <input
+              type="search"
+              value={cari}
+              onChange={(e) => setCari(e.target.value)}
+              placeholder="Cari produk atau kategori…"
+              aria-label="Cari produk atau kategori"
+              className="h-9 w-64 rounded-card border border-border bg-card pr-3 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+            />
+          </div>
         </div>
-      ) : produk.length === 0 ? (
-        <EmptyState
-          ikon={<IconProduk />}
-          judul="Belum ada produk"
-          deskripsi={
-            bahan.length === 0
-              ? "Catat bahan baku dulu, karena resep butuh minimal satu bahan."
-              : "Buat produk pertama beserta takaran per porsinya, lalu HPP dan marginnya terhitung otomatis."
-          }
-          aksi={
-            bahan.length === 0 ? (
-              <ButtonLink href="/bahan-baku" varian="secondary" ukuran="sm">
-                Ke bahan baku
-                <IconPanahKanan width={14} height={14} />
-              </ButtonLink>
-            ) : (
-              <Button varian="primary" ukuran="sm" onClick={bukaTambah}>
-                <IconTambah width={14} height={14} />
-                Tambah produk
-              </Button>
-            )
-          }
-        />
-      ) : (
-        <EmptyState
-          ikon={<IconProduk />}
-          judul="Tidak ada produk yang cocok"
-          deskripsi="Ubah kata kunci pencarian atau pilih filter lain."
-        />
-      )}
+
+        {terlihat.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {terlihat.map((p) => (
+              <KartuProduk
+                key={p.id}
+                produk={p}
+                onEdit={() => bukaEdit(p)}
+                onLihatHistori={() => setProdukHistori(p)}
+                onHapus={() => {
+                  setAkanDihapus(p);
+                  setGalatHapus(null);
+                }}
+              />
+            ))}
+          </div>
+        ) : produk.length === 0 ? (
+          <EmptyState
+            ikon={<IconProduk />}
+            judul="Belum ada produk"
+            deskripsi={
+              bahan.length === 0
+                ? "Catat bahan baku dulu, karena resep butuh minimal satu bahan."
+                : "Buat produk pertama beserta takaran per porsinya, lalu HPP dan marginnya terhitung otomatis."
+            }
+            aksi={
+              bahan.length === 0 ? (
+                <ButtonLink href="/bahan-baku" varian="secondary" ukuran="sm">
+                  Ke bahan baku
+                  <IconPanahKanan width={14} height={14} />
+                </ButtonLink>
+              ) : (
+                <Button varian="primary" ukuran="sm" onClick={bukaTambah}>
+                  <IconTambah width={14} height={14} />
+                  Tambah produk
+                </Button>
+              )
+            }
+          />
+        ) : (
+          <EmptyState
+            ikon={<IconProduk />}
+            judul="Tidak ada produk yang cocok"
+            deskripsi="Ubah kata kunci pencarian atau pilih filter lain."
+          />
+        )}
+      </MasukHalus>
 
       <ModalProduk
         terbuka={modalTerbuka}

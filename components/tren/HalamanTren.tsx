@@ -6,6 +6,7 @@ import { GrafikHarga } from "@/components/charts/GrafikHarga";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { MasukHalus } from "@/components/ui/MasukHalus";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/ui/Table";
 import {
@@ -102,144 +103,149 @@ export function HalamanTren({
         subjudul="Lihat perubahan harga sebelum margin ikut berubah."
       />
 
-      <Card>
-        <CardHeader>
-          <div>
-            <CardTitle>Histori harga bahan baku</CardTitle>
-            <CardDescription className="mt-1">
-              {catatan.length > 0
-                ? `${formatTanggal(catatan[0].tanggal)} – ${formatTanggal(catatan.at(-1)!.tanggal)}`
-                : "Belum ada data"}
-            </CardDescription>
-          </div>
-          <label>
-            <span className="sr-only">Pilih bahan baku</span>
-            <select
-              value={bahanId}
-              onChange={(e) => setBahanId(Number(e.target.value))}
-              className="h-9 rounded-card border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-            >
-              {bahan.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.nama}
-                </option>
-              ))}
-            </select>
-          </label>
-        </CardHeader>
-
-        <div className="grid gap-4 px-5 pt-5 sm:grid-cols-3">
-          <div className="rounded-card border border-border px-4 py-3">
-            <p className="text-xs text-muted-foreground">
-              Harga saat ini / {bahanTerpilih.satuan}
-            </p>
-            <p className="mt-1 text-xl font-semibold text-foreground">
-              {formatRupiah(hargaAkhir)}
-            </p>
-          </div>
-
-          <div className="rounded-card border border-border px-4 py-3">
-            <p className="text-xs text-muted-foreground">Perubahan sejak awal histori</p>
-            <p
-              className={`mt-1 flex items-center gap-1 text-xl font-semibold ${
-                stabil ? "text-foreground" : naik ? "text-warning" : "text-success"
-              }`}
-            >
-              {!stabil &&
-                (naik ? (
-                  <IconPanahNaik width={16} height={16} />
-                ) : (
-                  <IconPanahTurun width={16} height={16} />
+      {/* PageHeader di luar pembungkus: teksnya sudah dirender apa adanya di
+          loading.tsx, jadi ikut memudar hanya membuatnya berkedip. Kelas flex
+          menyalin jarak antar-anak dari AppShell supaya tata letak tetap. */}
+      <MasukHalus geser={false} durasi={140} className="flex flex-col gap-6">
+        <Card>
+          <CardHeader>
+            <div>
+              <CardTitle>Histori harga bahan baku</CardTitle>
+              <CardDescription className="mt-1">
+                {catatan.length > 0
+                  ? `${formatTanggal(catatan[0].tanggal)} – ${formatTanggal(catatan.at(-1)!.tanggal)}`
+                  : "Belum ada data"}
+              </CardDescription>
+            </div>
+            <label>
+              <span className="sr-only">Pilih bahan baku</span>
+              <select
+                value={bahanId}
+                onChange={(e) => setBahanId(Number(e.target.value))}
+                className="h-9 rounded-card border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+              >
+                {bahan.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.nama}
+                  </option>
                 ))}
-              {stabil ? "Stabil" : formatPersen(Math.abs(perubahan))}
-            </p>
+              </select>
+            </label>
+          </CardHeader>
+
+          <div className="grid gap-4 px-5 pt-5 sm:grid-cols-3">
+            <div className="rounded-card border border-border px-4 py-3">
+              <p className="text-xs text-muted-foreground">
+                Harga saat ini / {bahanTerpilih.satuan}
+              </p>
+              <p className="mt-1 text-xl font-semibold text-foreground">
+                {formatRupiah(hargaAkhir)}
+              </p>
+            </div>
+
+            <div className="rounded-card border border-border px-4 py-3">
+              <p className="text-xs text-muted-foreground">Perubahan sejak awal histori</p>
+              <p
+                className={`mt-1 flex items-center gap-1 text-xl font-semibold ${
+                  stabil ? "text-foreground" : naik ? "text-warning" : "text-success"
+                }`}
+              >
+                {!stabil &&
+                  (naik ? (
+                    <IconPanahNaik width={16} height={16} />
+                  ) : (
+                    <IconPanahTurun width={16} height={16} />
+                  ))}
+                {stabil ? "Stabil" : formatPersen(Math.abs(perubahan))}
+              </p>
+            </div>
+
+            <div className="rounded-card border border-border px-4 py-3">
+              <p className="text-xs text-muted-foreground">Produk terkait</p>
+              <p className="mt-1 text-xl font-semibold text-foreground">
+                {pemakaian[bahanId] ?? 0} produk
+              </p>
+            </div>
           </div>
 
-          <div className="rounded-card border border-border px-4 py-3">
-            <p className="text-xs text-muted-foreground">Produk terkait</p>
-            <p className="mt-1 text-xl font-semibold text-foreground">
-              {pemakaian[bahanId] ?? 0} produk
-            </p>
+          {statusTren?.status === "tren_naik" && (
+            <div className="px-5 pt-4">
+              <Badge varian="warning" ikon={<IconPanahNaik width={13} height={13} />}>
+                Tiga perubahan terakhir naik berturut-turut
+              </Badge>
+            </div>
+          )}
+
+          <div className="mt-2 h-64 w-full px-3 pb-4">
+            <GrafikHarga data={dataGrafik} gradientId="gradienTrenHarga" />
           </div>
-        </div>
+        </Card>
 
-        {statusTren?.status === "tren_naik" && (
-          <div className="px-5 pt-4">
-            <Badge varian="warning" ikon={<IconPanahNaik width={13} height={13} />}>
-              Tiga perubahan terakhir naik berturut-turut
-            </Badge>
-          </div>
-        )}
+        <Card>
+          <CardHeader>
+            <CardTitle>Catatan perubahan · {bahanTerpilih.nama}</CardTitle>
+            <Link
+              href="/bahan-baku"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline underline-offset-4"
+            >
+              Perbarui harga
+              <IconPanahKanan width={14} height={14} />
+            </Link>
+          </CardHeader>
 
-        <div className="mt-2 h-64 w-full px-3 pb-4">
-          <GrafikHarga data={dataGrafik} gradientId="gradienTrenHarga" />
-        </div>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Catatan perubahan · {bahanTerpilih.nama}</CardTitle>
-          <Link
-            href="/bahan-baku"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline underline-offset-4"
-          >
-            Perbarui harga
-            <IconPanahKanan width={14} height={14} />
-          </Link>
-        </CardHeader>
-
-        <div className="mt-4">
-          <Table>
-            <THead>
-              <TR className="hover:bg-transparent">
-                <TH>Tanggal</TH>
-                <TH className="text-right">Harga / {bahanTerpilih.satuan}</TH>
-                <TH className="text-right">Perubahan</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {[...catatan].reverse().map((h) => {
-                // Setiap catatan membawa pembandingnya sendiri (hargaLama),
-                // termasuk catatan paling awal.
-                const delta = h.hargaBaru - h.hargaLama;
-                return (
-                  <TR key={h.id}>
-                    <TD className="whitespace-nowrap">{tampilkanWaktu(h.tanggal)}</TD>
-                    <TD className="text-right font-medium whitespace-nowrap">
-                      {formatRupiah(h.hargaBaru)}
-                    </TD>
-                    <TD
-                      className={`text-right whitespace-nowrap ${
-                        delta === 0
-                          ? "text-muted-foreground"
-                          : delta > 0
-                            ? "text-warning"
-                            : "text-success"
-                      }`}
-                    >
-                      {delta === 0
-                        ? "Tetap"
-                        : `${delta > 0 ? "+" : "−"}${formatRupiah(Math.abs(delta))}`}
+          <div className="mt-4">
+            <Table>
+              <THead>
+                <TR className="hover:bg-transparent">
+                  <TH>Tanggal</TH>
+                  <TH className="text-right">Harga / {bahanTerpilih.satuan}</TH>
+                  <TH className="text-right">Perubahan</TH>
+                </TR>
+              </THead>
+              <TBody>
+                {[...catatan].reverse().map((h) => {
+                  // Setiap catatan membawa pembandingnya sendiri (hargaLama),
+                  // termasuk catatan paling awal.
+                  const delta = h.hargaBaru - h.hargaLama;
+                  return (
+                    <TR key={h.id}>
+                      <TD className="whitespace-nowrap">{tampilkanWaktu(h.tanggal)}</TD>
+                      <TD className="text-right font-medium whitespace-nowrap">
+                        {formatRupiah(h.hargaBaru)}
+                      </TD>
+                      <TD
+                        className={`text-right whitespace-nowrap ${
+                          delta === 0
+                            ? "text-muted-foreground"
+                            : delta > 0
+                              ? "text-warning"
+                              : "text-success"
+                        }`}
+                      >
+                        {delta === 0
+                          ? "Tetap"
+                          : `${delta > 0 ? "+" : "−"}${formatRupiah(Math.abs(delta))}`}
+                      </TD>
+                    </TR>
+                  );
+                })}
+                {catatan.length === 0 && (
+                  <TR className="hover:bg-transparent">
+                    <TD colSpan={3} className="py-10 text-center text-sm text-muted-foreground">
+                      Belum ada catatan perubahan untuk bahan ini.
                     </TD>
                   </TR>
-                );
-              })}
-              {catatan.length === 0 && (
-                <TR className="hover:bg-transparent">
-                  <TD colSpan={3} className="py-10 text-center text-sm text-muted-foreground">
-                    Belum ada catatan perubahan untuk bahan ini.
-                  </TD>
-                </TR>
-              )}
-            </TBody>
-          </Table>
-        </div>
+                )}
+              </TBody>
+            </Table>
+          </div>
 
-        <TableFooterNote
-          kiri={`${catatan.length} catatan perubahan`}
-          kanan="Setiap pembaruan harga bahan tercatat otomatis"
-        />
-      </Card>
+          <TableFooterNote
+            kiri={`${catatan.length} catatan perubahan`}
+            kanan="Setiap pembaruan harga bahan tercatat otomatis"
+          />
+        </Card>
+      </MasukHalus>
     </>
   );
 }

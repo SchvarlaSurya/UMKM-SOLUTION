@@ -7,6 +7,7 @@ import { PanelCatatanMargin } from "@/components/dashboard/PanelCatatanMargin";
 import { RingkasanCards } from "@/components/dashboard/RingkasanCards";
 import { TabelMargin } from "@/components/dashboard/TabelMargin";
 import { TombolTambahProduk } from "@/components/produk/TombolTambahProduk";
+import { MasukHalus } from "@/components/ui/MasukHalus";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { authOptions } from "@/lib/authOptions";
 import { getDataDashboard } from "@/lib/data";
@@ -32,29 +33,35 @@ export default async function DashboardPage() {
         aksi={<TombolTambahProduk bahan={bahan} />}
       />
 
-      <RingkasanCards ringkasan={ringkasan} />
+      {/* PageHeader sengaja di luar: teksnya sudah dirender apa adanya di
+          loading.tsx, jadi ikut memudar hanya membuatnya berkedip padahal
+          tidak ada yang berubah. Kelas flex di sini menyalin jarak antar-anak
+          dari AppShell, supaya membungkus tidak mengubah tata letak. */}
+      <MasukHalus geser={false} durasi={140} className="flex flex-col gap-6">
+        <RingkasanCards ringkasan={ringkasan} />
 
-      <AlertMargin
-        namaProduk={ringkasan.namaPerluPerhatian}
-        batasMargin={ringkasan.batasMarginAman}
-      />
+        <AlertMargin
+          namaProduk={ringkasan.namaPerluPerhatian}
+          batasMargin={ringkasan.batasMarginAman}
+        />
 
-      {belumAdaData ? (
-        <LangkahAwal />
-      ) : (
-        <>
-          <TabelMargin produk={produk} rincian={rincian} />
+        {belumAdaData ? (
+          <LangkahAwal />
+        ) : (
+          <>
+            <TabelMargin produk={produk} rincian={rincian} />
 
-          <div className="grid gap-4 lg:grid-cols-5">
-            <div className="lg:col-span-3">
-              <WidgetHargaBahan bahan={bahanBerhistori} deret={deret} />
+            <div className="grid gap-4 lg:grid-cols-5">
+              <div className="lg:col-span-3">
+                <WidgetHargaBahan bahan={bahanBerhistori} deret={deret} />
+              </div>
+              <div className="lg:col-span-2">
+                <PanelCatatanMargin biayaTetapPerPorsi={ringkasan.biayaTetapPerPorsi} />
+              </div>
             </div>
-            <div className="lg:col-span-2">
-              <PanelCatatanMargin biayaTetapPerPorsi={ringkasan.biayaTetapPerPorsi} />
-            </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </MasukHalus>
     </>
   );
 }
