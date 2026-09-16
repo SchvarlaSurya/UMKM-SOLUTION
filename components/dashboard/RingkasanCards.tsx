@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AngkaBergerak } from "@/components/ui/AngkaBergerak";
 import { StatCard } from "@/components/ui/StatCard";
 import {
   IconPanahKanan,
@@ -15,20 +16,20 @@ export function RingkasanCards({ ringkasan }: { ringkasan: RingkasanDashboard })
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <StatCard
         label="Total produk"
-        nilai={ringkasan.totalProduk}
+        nilai={<AngkaBergerak nilai={ringkasan.totalProduk} />}
         satuan="produk"
         subtext="Aktif dalam perhitungan HPP"
         ikon={<IconProduk />}
       />
       <StatCard
         label="Rata-rata margin"
-        nilai={formatPersen(ringkasan.rataMargin)}
+        nilai={<AngkaBergerak nilai={ringkasan.rataMargin} format="persen" />}
         subtext="Rata-rata sederhana seluruh produk"
         ikon={<IconTren />}
       />
       <StatCard
         label="Perlu perhatian"
-        nilai={ringkasan.perluPerhatian}
+        nilai={<AngkaBergerak nilai={ringkasan.perluPerhatian} />}
         satuan="produk"
         subtext={`Margin di bawah batas ${formatPersen(ringkasan.batasMarginAman, 0)}`}
         nada={ringkasan.perluPerhatian > 0 ? "warning" : "default"}
@@ -36,7 +37,7 @@ export function RingkasanCards({ ringkasan }: { ringkasan: RingkasanDashboard })
       />
       <StatCard
         label="Batas margin aman"
-        nilai={formatPersen(ringkasan.batasMarginAman, 0)}
+        nilai={<AngkaBergerak nilai={ringkasan.batasMarginAman} format="persen" desimal={0} />}
         ikon={<IconPengaturan />}
         aksi={
           <Link
