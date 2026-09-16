@@ -25,8 +25,15 @@ export function ProgressBar({
       aria-valuemax={Math.round(maks)}
       aria-label={label}
     >
+      {/* Lebarnya ikut bergerak saat margin berubah, supaya bar tidak melompat
+          sementara angkanya di sebelahnya berjalan. Transisi CSS, bukan
+          anime.js: tidak perlu jadi komponen klien hanya untuk ini, dan bar
+          bisa sebanyak baris tabelnya. */}
       <div
-        className={cn("h-full rounded-full", aman ? "bg-success" : "bg-warning")}
+        className={cn(
+          "h-full rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none",
+          aman ? "bg-success" : "bg-warning",
+        )}
         style={{ width: `${persen}%` }}
       />
     </div>
