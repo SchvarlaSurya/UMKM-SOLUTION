@@ -6,6 +6,11 @@ import { AngkaBergerak } from "@/components/ui/AngkaBergerak";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
+import {
+  MobileDataEmpty,
+  MobileDataList,
+  MobileDataListItem,
+} from "@/components/ui/MobileDataList";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/ui/Table";
 import { Tabs } from "@/components/ui/Tabs";
@@ -29,6 +34,7 @@ export function TabelMargin({
   const [cari, setCari] = useState("");
   const [produkTerpilih, setProdukTerpilih] = useState<ProdukDenganHpp | null>(null);
   const refIsiTabel = useRef<HTMLTableSectionElement>(null);
+  const refIsiMobile = useRef<HTMLDivElement>(null);
   // Menyimpan filter terakhir, bukan bendera "sudah pernah render". Bendera
   // seperti itu jebol saat Strict Mode menjalankan efeknya dua kali: jalan
   // pertama mematikan benderanya, jalan kedua ikut menganimasikan padahal
@@ -46,17 +52,21 @@ export function TabelMargin({
     if (filterSebelumnya.current === filter) return;
     filterSebelumnya.current = filter;
 
-    const isi = refIsiTabel.current;
-    if (!isi) return;
+    const daftarIsi = [refIsiTabel.current, refIsiMobile.current].filter(
+      (elemen): elemen is HTMLTableSectionElement | HTMLDivElement => elemen !== null,
+    );
+    if (daftarIsi.length === 0) return;
 
     const ms = durasiGerak(180);
     if (ms === 0) return;
 
-    utils.set(isi, { opacity: 0, translateY: -4 });
-    animate(isi, { opacity: 1, translateY: 0, duration: ms, ease: "outQuad" });
+    daftarIsi.forEach((isi) => {
+      utils.set(isi, { opacity: 0, translateY: -4 });
+      animate(isi, { opacity: 1, translateY: 0, duration: ms, ease: "outQuad" });
+    });
 
     return () => {
-      utils.remove(isi);
+      daftarIsi.forEach((isi) => utils.remove(isi));
     };
   }, [filter]);
 
@@ -102,7 +112,7 @@ export function TabelMargin({
               { id: "aman", label: "Aman" },
             ]}
           />
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <IconCari
               width={16}
               height={16}
@@ -114,13 +124,13 @@ export function TabelMargin({
               onChange={(e) => setCari(e.target.value)}
               placeholder="Cari nama produk…"
               aria-label="Cari nama produk"
-              className="h-9 w-56 rounded-card border border-border bg-card pr-3 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+              className="h-9 w-full rounded-card border border-border bg-card pr-3 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring sm:w-56"
             />
           </div>
         </div>
       </CardHeader>
 
-      <div className="mt-4">
+      <div className="mt-4 hidden md:block">
         <Table>
           <THead>
             <TR className="hover:bg-transparent">
@@ -196,6 +206,77 @@ export function TabelMargin({
           </TBody>
         </Table>
       </div>
+
+      <MobileDataList ref={refIsiMobile}>
+        {terlihat.map((p) => (
+          <MobileDataListItem key={p.id}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="truncate text-sm font-semibold text-foreground">{p.nama}</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">{p.kategori}</p>
+              </div>
+              {p.statusAman ? (
+                <Badge varian="success" ikon={<IconCentang width={13} height={13} />}>
+                  Aman
+                </Badge>
+              ) : (
+                <Badge varian="warning" ikon={<IconPeringatan width={13} height={13} />}>
+                  Margin rendah
+                </Badge>
+              )}
+            </div>
+
+            <dl className="mt-4 grid grid-cols-3 gap-3">
+              <div>
+                <dt className="text-[11px] text-muted-foreground">HPP / porsi</dt>
+                <dd className="mt-1 text-sm font-medium text-foreground">
+                  <AngkaBergerak nilai={p.hppTerhitung} format="rupiah" />
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[11px] text-muted-foreground">Harga jual</dt>
+                <dd className="mt-1 text-sm font-semibold text-foreground">
+                  <AngkaBergerak nilai={p.hargaJual} format="rupiah" />
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[11px] text-muted-foreground">Margin</dt>
+                <dd
+                  className={`mt-1 text-sm font-semibold ${
+                    p.statusAman ? "text-success" : "text-warning"
+                  }`}
+                >
+                  <AngkaBergerak nilai={p.marginPersen} format="persen" />
+                </dd>
+              </div>
+            </dl>
+
+            <ProgressBar
+              nilai={Math.max(p.marginPersen, 0)}
+              aman={p.statusAman}
+              label={`Margin ${p.nama}`}
+              className="mt-3"
+            />
+
+            <Button
+              varian="secondary"
+              ukuran="sm"
+              className="mt-4 w-full"
+              onClick={() => setProdukTerpilih(p)}
+            >
+              Lihat rincian HPP
+              <IconPanahKeluar width={15} height={15} />
+            </Button>
+          </MobileDataListItem>
+        ))}
+        {terlihat.length === 0 && (
+          <MobileDataEmpty>
+            {produk.length === 0
+              ? "Belum ada produk yang dicatat."
+              : "Tidak ada produk yang cocok dengan pencarian."}
+          </MobileDataEmpty>
+        )}
+      </MobileDataList>
 
       <TableFooterNote
         kiri={`Menampilkan ${terlihat.length} dari ${produk.length} produk`}

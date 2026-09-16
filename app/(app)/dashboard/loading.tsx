@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
+import { MobileDataList, MobileDataListItem } from "@/components/ui/MobileDataList";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/ui/Table";
@@ -62,11 +63,11 @@ export default function MemuatDashboard() {
               <Skeleton bentuk="kotak" className="h-8 w-32" />
               <Skeleton bentuk="kotak" className="h-8 w-16" />
             </div>
-            <Skeleton bentuk="kotak" className="h-9 w-56" />
+            <Skeleton bentuk="kotak" className="h-9 w-full sm:w-56" />
           </div>
         </CardHeader>
 
-        <div className="mt-4">
+        <div className="mt-4 hidden md:block">
           <Table>
             <THead>
               <TR className="hover:bg-transparent">
@@ -106,6 +107,30 @@ export default function MemuatDashboard() {
             </TBody>
           </Table>
         </div>
+
+        <MobileDataList>
+          {[0, 1, 2, 3].map((i) => (
+            <MobileDataListItem key={i}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="mt-2 h-3 w-20" />
+                </div>
+                <Skeleton bentuk="pil" className="h-5 w-20" />
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-3">
+                {[0, 1, 2].map((j) => (
+                  <div key={j}>
+                    <Skeleton className="h-3 w-14" />
+                    <Skeleton className="mt-2 h-4 w-16" />
+                  </div>
+                ))}
+              </div>
+              <Skeleton bentuk="pil" className="mt-3 h-1.5 w-full" />
+              <Skeleton bentuk="kotak" className="mt-4 h-8 w-full" />
+            </MobileDataListItem>
+          ))}
+        </MobileDataList>
 
         <TableFooterNote
           kiri={<Skeleton className="inline-block h-3 w-40 align-middle" />}

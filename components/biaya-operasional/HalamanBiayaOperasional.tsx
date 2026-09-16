@@ -15,6 +15,11 @@ import { InputAngka } from "@/components/ui/InputAngka";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/ui/Table";
 import { ModalKonfirmasiHapus } from "@/components/ui/ModalKonfirmasiHapus";
+import {
+  MobileDataEmpty,
+  MobileDataList,
+  MobileDataListItem,
+} from "@/components/ui/MobileDataList";
 import { useToast } from "@/components/ui/Toast";
 import { IconHapus, IconPensil, IconTambah } from "@/components/ui/icons";
 import { formatPersen, formatRupiah } from "@/lib/format";
@@ -237,7 +242,7 @@ export function HalamanBiayaOperasional({
           </div>
         </CardHeader>
 
-        <div className="mt-4">
+        <div className="mt-4 hidden md:block">
           <Table>
             <THead>
               <TR className="hover:bg-transparent">
@@ -297,6 +302,59 @@ export function HalamanBiayaOperasional({
             </TBody>
           </Table>
         </div>
+
+        <MobileDataList className="mt-4">
+          {biaya.map((b) => (
+            <MobileDataListItem key={b.id}>
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <h3 className="truncate text-sm font-semibold text-foreground">{b.nama}</h3>
+                  <div className="mt-2">
+                    <Badge varian={b.jenis === "tetap" ? "neutral" : "count"}>
+                      {b.jenis === "tetap" ? "Tetap" : "Persentase"}
+                    </Badge>
+                  </div>
+                </div>
+                <p className="shrink-0 text-right text-sm font-semibold text-foreground">
+                  {b.jenis === "tetap" ? formatRupiah(b.nilai) : formatPersen(b.nilai, 0)}
+                </p>
+              </div>
+
+              <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                {b.jenis === "tetap"
+                  ? `Per bulan · ${formatRupiah(estimasiPorsi > 0 ? b.nilai / estimasiPorsi : 0)} / porsi`
+                  : "Dari harga jual setiap produk"}
+              </p>
+
+              <div className="mt-4 flex items-center gap-2 border-t border-border pt-3">
+                <Button
+                  varian="secondary"
+                  ukuran="sm"
+                  className="flex-1"
+                  onClick={() => bukaEdit(b)}
+                >
+                  <IconPensil width={14} height={14} />
+                  Edit
+                </Button>
+                <Button
+                  varian="ghost"
+                  ukuran="sm"
+                  className="px-3 hover:text-destructive"
+                  aria-label={`Hapus ${b.nama}`}
+                  onClick={() => {
+                    setAkanDihapus(b);
+                    setGalatHapus(null);
+                  }}
+                >
+                  <IconHapus width={16} height={16} />
+                </Button>
+              </div>
+            </MobileDataListItem>
+          ))}
+          {biaya.length === 0 && (
+            <MobileDataEmpty>Belum ada biaya operasional yang dicatat.</MobileDataEmpty>
+          )}
+        </MobileDataList>
 
         <TableFooterNote
           kiri={`${biaya.length} biaya tercatat`}
