@@ -24,7 +24,10 @@ export function Badge({
   return (
     <span
       className={cn(
+        // Warna ikut bertransisi supaya status yang berganti — "Aman" jadi
+        // "Margin rendah" — meluruh, bukan melompat.
         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap",
+        "transition-colors duration-300 motion-reduce:transition-none",
         varianClass[varian],
         className,
       )}

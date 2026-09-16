@@ -1,4 +1,4 @@
-import type { ReactNode, ThHTMLAttributes, TdHTMLAttributes } from "react";
+import type { Ref, ReactNode, ThHTMLAttributes, TdHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
 export function Table({ children, className }: { children: ReactNode; className?: string }) {
@@ -19,8 +19,19 @@ export function THead({ children }: { children: ReactNode }) {
   );
 }
 
-export function TBody({ children }: { children: ReactNode }) {
-  return <tbody className="divide-y divide-border">{children}</tbody>;
+export function TBody({
+  children,
+  ref,
+}: {
+  children: ReactNode;
+  /** Dipakai pemanggil yang perlu menganimasikan isi tabel sebagai satu bagian. */
+  ref?: Ref<HTMLTableSectionElement>;
+}) {
+  return (
+    <tbody ref={ref} className="divide-y divide-border">
+      {children}
+    </tbody>
+  );
 }
 
 export function TR({

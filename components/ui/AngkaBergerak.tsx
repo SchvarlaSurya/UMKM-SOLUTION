@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useRef } from "react";
 import { animate, utils } from "animejs";
 import { formatPersen, formatRupiah } from "@/lib/format";
 import { durasiGerak } from "@/lib/gerak";
+import { useEfekTataLetak } from "./useEfekTataLetak";
 
 const DURASI = 520;
 
@@ -14,13 +15,6 @@ function formatkan(nilai: number, format: FormatAngka, desimal: number): string 
   if (format === "persen") return formatPersen(nilai, desimal);
   return Math.round(nilai).toLocaleString("id-ID");
 }
-
-/**
- * useLayoutEffect memperingatkan saat dijalankan di server, padahal komponen ini
- * ikut dirender di sana. Di server tidak ada yang perlu diukur, jadi efeknya
- * turun jadi useEffect yang tidak pernah berjalan.
- */
-const useEfekTataLetak = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 /**
  * Angka yang berjalan ke nilai barunya, bukan berganti diam-diam.
