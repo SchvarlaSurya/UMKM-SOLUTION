@@ -142,12 +142,17 @@ export function Modal({
       aria-labelledby={idJudul}
       aria-describedby={subjudul ? idSubjudul : undefined}
       className={cn(
-        "m-auto max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] overflow-y-auto rounded-card border border-border bg-card p-0 text-foreground",
+        // `open:flex`, bukan `flex`: gaya penulis mengalahkan gaya bawaan
+        // peramban, jadi `display: flex` tanpa syarat akan membatalkan
+        // `dialog:not([open]) { display: none }` dan modalnya ikut tergambar
+        // saat tertutup.
+        "m-auto max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden open:flex",
+        "rounded-card border border-border bg-card p-0 text-foreground",
         "backdrop:bg-foreground/40",
         lebar === "lg" ? "max-w-2xl" : "max-w-lg",
       )}
     >
-      <div className="flex items-start justify-between gap-4 px-5 pt-5">
+      <div className="flex shrink-0 items-start justify-between gap-4 px-5 pt-5">
         <div>
           <h2 id={idJudul} className="text-base font-semibold">
             {judul}
@@ -169,10 +174,20 @@ export function Modal({
         </Button>
       </div>
 
-      <div className="px-5 py-5">{children}</div>
+      {/*
+        Yang menggulir sekarang badan modalnya, bukan seluruh dialog. Dengan
+        begitu baris aksi tetap menempel di dasar dan tidak ikut hanyut ke
+        bawah isi yang panjang: di form produk & resep, tombol Simpan tadinya
+        berada 469px di bawah lipatan pada resep dua bahan, dan 775px pada
+        empat bahan — makin rumit resepnya, makin jauh tombol simpannya.
+
+        `min-h-0` wajib: anak flex tidak boleh menyusut di bawah tinggi
+        isinya tanpa itu, dan gulirannya tidak akan pernah terbentuk.
+      */}
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">{children}</div>
 
       {(aksiPrimer || aksiSekunder) && (
-        <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-4">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border bg-card px-5 py-4">
           <div>{aksiSekunder}</div>
           <div>{aksiPrimer}</div>
         </div>
