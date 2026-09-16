@@ -736,66 +736,80 @@ function FormProduk({
                   </select>
                 </label>
 
-                <div className="flex w-48 items-end gap-1.5">
-                  <label className="min-w-0 flex-1">
-                    <span className="sr-only">
-                      {modeTakaran === "per-porsi"
-                        ? "Jumlah dipakai per porsi"
-                        : "Jumlah dipakai sekali produksi"}
-                    </span>
-                    <input
-                      type="number"
-                      min={0}
-                      step="any"
-                      inputMode="decimal"
-                      value={b.jumlah}
-                      placeholder="0"
-                      onChange={(e) => ubahBaris(b.key, { jumlah: e.target.value })}
-                      onWheel={cegahScrollUbahAngka}
-                      className="h-10 w-full rounded-card border border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-                    />
-                  </label>
+                {/* Jumlah, satuannya, dan hasil per porsi dikelompokkan jadi
+                    satu kolom. Di layar kecil hasil per porsi dulu jatuh ke
+                    barisnya sendiri dan mendorong tombol hapus ikut turun, jadi
+                    satu bahan memakan tiga baris penuh. */}
+                <div className="flex min-w-48 flex-1 flex-col gap-1 sm:w-64 sm:flex-none">
+                  <div className="flex items-end gap-1.5">
+                    <label className="min-w-0 flex-1">
+                      <span className="sr-only">
+                        {modeTakaran === "per-porsi"
+                          ? "Jumlah dipakai per porsi"
+                          : "Jumlah dipakai sekali produksi"}
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        step="any"
+                        inputMode="decimal"
+                        value={b.jumlah}
+                        placeholder="0"
+                        onChange={(e) => ubahBaris(b.key, { jumlah: e.target.value })}
+                        onWheel={cegahScrollUbahAngka}
+                        className="h-10 w-full rounded-card border border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                      />
+                    </label>
 
-                  <label className="w-20 shrink-0">
-                    <span className="sr-only">Satuan jumlah</span>
-                    <select
-                      value={b.satuanDipilih}
-                      onChange={(e) => ubahBaris(b.key, { satuanDipilih: e.target.value })}
-                      aria-label={`Satuan untuk ${bahanTerpilih?.nama ?? "bahan"}`}
-                      className="h-10 w-full rounded-card border border-border bg-card px-2 text-xs text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-                    >
-                      {pilihanSatuan.map((satuan) => (
-                        <option key={satuan.nilai} value={satuan.nilai}>
-                          {satuan.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-
-                {modeTakaran === "sekali-produksi" && (
-                  <div className="w-40 shrink-0 pb-0.5 text-xs">
-                    <span className="block text-muted-foreground">
-                      Hasil per porsi
-                    </span>
-                    <output
-                      aria-live="polite"
-                      className={
-                        b.jumlah.trim() !== "" && !jumlahPorsiValid
-                          ? "font-medium text-destructive"
-                          : "font-medium text-foreground"
-                      }
-                    >
-                      {b.jumlah.trim() === ""
-                        ? "Masukkan jumlah bahan"
-                        : !jumlahPorsiValid
-                          ? "Isi jumlah porsi dulu"
-                          : hasilPerPorsi === null
-                            ? "Jumlah harus lebih dari 0"
-                            : `${formatJumlah(hasilPerPorsi)} ${bahanTerpilih?.satuan.trim() ?? ""}`}
-                    </output>
+                    {/* Satuan hitung seperti butir atau pack tidak punya
+                        konversi, jadi pilihannya cuma satu. Dropdown yang tidak
+                        bisa diubah hanya menambah kendali palsu; tampilkan
+                        satuannya sebagai keterangan saja. */}
+                    {pilihanSatuan.length > 1 ? (
+                      <label className="w-20 shrink-0">
+                        <span className="sr-only">Satuan jumlah</span>
+                        <select
+                          value={b.satuanDipilih}
+                          onChange={(e) => ubahBaris(b.key, { satuanDipilih: e.target.value })}
+                          aria-label={`Satuan untuk ${bahanTerpilih?.nama ?? "bahan"}`}
+                          className="h-10 w-full rounded-card border border-border bg-card px-2 text-xs text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                        >
+                          {pilihanSatuan.map((satuan) => (
+                            <option key={satuan.nilai} value={satuan.nilai}>
+                              {satuan.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : (
+                      <span className="flex h-10 w-20 shrink-0 items-center text-xs text-muted-foreground">
+                        {pilihanSatuan[0]?.label}
+                      </span>
+                    )}
                   </div>
-                )}
+
+                  {modeTakaran === "sekali-produksi" && (
+                    <p className="text-xs text-muted-foreground">
+                      Per porsi:{" "}
+                      <output
+                        aria-live="polite"
+                        className={
+                          b.jumlah.trim() !== "" && !jumlahPorsiValid
+                            ? "font-medium text-destructive"
+                            : "font-medium text-foreground"
+                        }
+                      >
+                        {b.jumlah.trim() === ""
+                          ? "Masukkan jumlah bahan"
+                          : !jumlahPorsiValid
+                            ? "Isi jumlah porsi dulu"
+                            : hasilPerPorsi === null
+                              ? "Jumlah harus lebih dari 0"
+                              : `${formatJumlah(hasilPerPorsi)} ${bahanTerpilih?.satuan.trim() ?? ""}`}
+                      </output>
+                    </p>
+                  )}
+                </div>
 
                 <Button
                   varian="ghost"
