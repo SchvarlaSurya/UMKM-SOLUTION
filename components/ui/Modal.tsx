@@ -1,9 +1,34 @@
 "use client";
 
 import { useEffect, useId, useRef, type MouseEvent, type ReactNode } from "react";
+import { animate, utils } from "animejs";
 import { cn } from "@/lib/cn";
+import { durasiGerak } from "@/lib/gerak";
 import { Button } from "./Button";
 import { IconTutup } from "./icons";
+
+/** Membuka lebih lambat dari menutup: membatalkan harus terasa langsung. */
+const DURASI_BUKA = 200;
+const DURASI_TUTUP = 150;
+
+/**
+ * Keadaan modal sebelum masuk dan sesudah keluar. `--opasitas-latar` dibaca
+ * `dialog::backdrop` di globals.css — pseudo-element tidak bisa dijadikan
+ * target anime.js, jadi kegelapan latarnya dititipkan lewat custom property.
+ */
+const TERSEMBUNYI = {
+  opacity: 0,
+  scale: 0.96,
+  translateY: 8,
+  "--opasitas-latar": 0,
+};
+
+const TERLIHAT = {
+  opacity: 1,
+  scale: 1,
+  translateY: 0,
+  "--opasitas-latar": 1,
+};
 
 /**
  * Pola modal sesuai dokumentasi prototipe bagian 7:
@@ -33,23 +58,77 @@ export function Modal({
   lebar?: "md" | "lg";
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  // Animasi keluar hanya boleh berjalan sekali. Tanpa penjaga ini, efek yang
+  // dijalankan dua kali (Strict Mode di pengembangan) memutar dua animasi dan
+  // memanggil close() dua kali, sehingga `onTutup` ikut terpanggil ganda.
+  const sedangMenutup = useRef(false);
   const idJudul = useId();
   const idSubjudul = useId();
 
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
-    if (terbuka && !dialog.open) dialog.showModal();
-    if (!terbuka && dialog.open) dialog.close();
+
+    if (terbuka) {
+      utils.remove(dialog);
+      sedangMenutup.current = false;
+
+      if (!dialog.open) {
+        // Keadaan awal ditulis sebelum showModal(). Efek ini memang berjalan
+        // setelah paint, tapi saat paint itu dialognya masih tertutup dan
+        // tidak tergambar sama sekali, jadi tidak ada kedipan.
+        utils.set(dialog, TERSEMBUNYI);
+        dialog.showModal();
+      }
+
+      // Tanpa nilai awal, dan tidak berhenti lebih dulu kalau dialog sudah
+      // terbuka: membuka kembali di tengah animasi keluar harus membalikkan
+      // arahnya dari posisi saat itu, bukan membiarkannya tertinggal separuh.
+      animate(dialog, {
+        ...TERLIHAT,
+        duration: durasiGerak(DURASI_BUKA),
+        ease: "outQuint",
+      });
+      return;
+    }
+
+    if (!dialog.open || sedangMenutup.current) return;
+
+    // close() mencabut dialog dari top layer seketika, jadi animasi keluar
+    // harus selesai lebih dulu — bukan sekadar menunda pelepasan dari DOM.
+    sedangMenutup.current = true;
+    utils.remove(dialog);
+    animate(dialog, {
+      ...TERSEMBUNYI,
+      duration: durasiGerak(DURASI_TUTUP),
+      ease: "inQuad",
+      onComplete: () => {
+        sedangMenutup.current = false;
+        dialog.close();
+      },
+    });
   }, [terbuka]);
 
-  // Esc memicu event `cancel`/`close` bawaan; state induk ikut disinkronkan.
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
-    const handleClose = () => onTutup();
-    dialog.addEventListener("close", handleClose);
-    return () => dialog.removeEventListener("close", handleClose);
+
+    // Esc bawaan menutup dialog seketika dan melewati animasi keluar. Dibatalkan
+    // di sini lalu dialirkan ke onTutup, supaya jalurnya sama dengan tombol
+    // tutup dan klik latar: induk mematikan `terbuka`, efek di atas yang
+    // menganimasikan lalu memanggil close().
+    const tanganiBatal = (peristiwa: Event) => {
+      peristiwa.preventDefault();
+      onTutup();
+    };
+    const tanganiTutup = () => onTutup();
+
+    dialog.addEventListener("cancel", tanganiBatal);
+    dialog.addEventListener("close", tanganiTutup);
+    return () => {
+      dialog.removeEventListener("cancel", tanganiBatal);
+      dialog.removeEventListener("close", tanganiTutup);
+    };
   }, [onTutup]);
 
   function klikBackdrop(e: MouseEvent<HTMLDialogElement>) {
