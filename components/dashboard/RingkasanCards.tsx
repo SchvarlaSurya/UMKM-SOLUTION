@@ -16,20 +16,26 @@ export function RingkasanCards({ ringkasan }: { ringkasan: RingkasanDashboard })
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <StatCard
         label="Total produk"
-        nilai={<AngkaBergerak nilai={ringkasan.totalProduk} />}
+        nilai={<AngkaBergerak nilai={ringkasan.totalProduk} ingat="dashboard.totalProduk" />}
         satuan="produk"
         subtext="Aktif dalam perhitungan HPP"
         ikon={<IconProduk />}
       />
       <StatCard
         label="Rata-rata margin"
-        nilai={<AngkaBergerak nilai={ringkasan.rataMargin} format="persen" />}
+        nilai={
+          <AngkaBergerak
+            nilai={ringkasan.rataMargin}
+            format="persen"
+            ingat="dashboard.rataMargin"
+          />
+        }
         subtext="Rata-rata sederhana seluruh produk"
         ikon={<IconTren />}
       />
       <StatCard
         label="Perlu perhatian"
-        nilai={<AngkaBergerak nilai={ringkasan.perluPerhatian} />}
+        nilai={<AngkaBergerak nilai={ringkasan.perluPerhatian} ingat="dashboard.perluPerhatian" />}
         satuan="produk"
         subtext={`Margin di bawah batas ${formatPersen(ringkasan.batasMarginAman, 0)}`}
         nada={ringkasan.perluPerhatian > 0 ? "warning" : "default"}
@@ -37,7 +43,14 @@ export function RingkasanCards({ ringkasan }: { ringkasan: RingkasanDashboard })
       />
       <StatCard
         label="Batas margin aman"
-        nilai={<AngkaBergerak nilai={ringkasan.batasMarginAman} format="persen" desimal={0} />}
+        nilai={
+          <AngkaBergerak
+            nilai={ringkasan.batasMarginAman}
+            format="persen"
+            desimal={0}
+            ingat="dashboard.batasMarginAman"
+          />
+        }
         ikon={<IconPengaturan />}
         aksi={
           <Link

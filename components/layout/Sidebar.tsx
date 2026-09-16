@@ -7,6 +7,7 @@ import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "rea
 import { animate, stagger, utils } from "animejs";
 import { cn } from "@/lib/cn";
 import { durasiGerak } from "@/lib/gerak";
+import { lupakanAngka } from "@/lib/ingatanAngka";
 import { inisial } from "@/lib/format";
 import { navItems } from "./nav-items";
 import {
@@ -138,6 +139,10 @@ export function Sidebar({
     // Halaman berpindah ke /login setelah sesi dihapus, jadi modal tidak perlu
     // ditutup sendiri; biarkan tombolnya tetap menampilkan status berjalan.
     mulaiKeluar(async () => {
+      // Angka ringkasan yang diingat melekat pada tab, bukan pada akun. Tanpa
+      // dibersihkan, masuk dengan akun lain di tab yang sama membuat angka
+      // pertama yang tampil dianimasikan dari angka pemilik sebelumnya.
+      lupakanAngka();
       await signOut({ callbackUrl: "/login" });
     });
   }
