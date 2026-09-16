@@ -33,6 +33,18 @@ type FieldProps = {
   className?: string;
 };
 
+/**
+ * Id keterangan di bawah kolom, diturunkan dari id kolomnya sendiri supaya
+ * `aria-describedby` bisa dipasang tanpa hook — berkas ini juga ikut terpakai
+ * dari komponen server.
+ */
+function idKeterangan(id: string | undefined, error?: string, helper?: ReactNode) {
+  if (!id) return undefined;
+  if (error) return `${id}-galat`;
+  if (helper) return `${id}-bantuan`;
+  return undefined;
+}
+
 function Field({
   label,
   helper,
@@ -50,9 +62,18 @@ function Field({
       )}
       {children}
       {error ? (
-        <p className="text-xs text-destructive">{error}</p>
+        <p id={htmlFor ? `${htmlFor}-galat` : undefined} className="text-xs text-destructive">
+          {error}
+        </p>
       ) : (
-        helper && <p className="text-xs text-muted-foreground">{helper}</p>
+        helper && (
+          <p
+            id={htmlFor ? `${htmlFor}-bantuan` : undefined}
+            className="text-xs text-muted-foreground"
+          >
+            {helper}
+          </p>
+        )
       )}
     </div>
   );
@@ -72,6 +93,7 @@ export function Input({
       <input
         id={id}
         aria-invalid={error ? true : undefined}
+        aria-describedby={idKeterangan(id, error, helper)}
         className={cn(kontrolDasar, error && "border-destructive")}
         onWheel={(e) => {
           if (props.type === "number") cegahScrollUbahAngka(e);
@@ -97,6 +119,7 @@ export function Select({
       <select
         id={id}
         aria-invalid={error ? true : undefined}
+        aria-describedby={idKeterangan(id, error, helper)}
         className={cn(kontrolDasar, "pr-8", error && "border-destructive")}
         {...props}
       >

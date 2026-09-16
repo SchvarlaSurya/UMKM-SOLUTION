@@ -15,6 +15,7 @@ import { InputAngka } from "@/components/ui/InputAngka";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/ui/Table";
 import { ModalKonfirmasiHapus } from "@/components/ui/ModalKonfirmasiHapus";
+import { useToast } from "@/components/ui/Toast";
 import { IconHapus, IconPensil, IconTambah } from "@/components/ui/icons";
 import { formatPersen, formatRupiah } from "@/lib/format";
 import type { BiayaOperasional, Pengaturan } from "@/lib/types";
@@ -35,6 +36,7 @@ export function HalamanBiayaOperasional({
   biaya: BiayaOperasional[];
   pengaturan: Pengaturan;
 }) {
+  const tampilkanToast = useToast();
   const [menyimpan, mulaiSimpan] = useTransition();
   const [porsi, setPorsi] = useState(String(pengaturan.estimasiPorsiPerBulan));
   const [batasMargin, setBatasMargin] = useState(String(pengaturan.batasMarginAman));
@@ -80,6 +82,7 @@ export function HalamanBiayaOperasional({
   }
 
   function simpan(nilai: NilaiFormBiaya) {
+    const sedangEdit = mode === "edit" && terpilih !== null;
     setGalatBiaya(null);
     mulaiSimpan(async () => {
       const hasil =
@@ -93,12 +96,19 @@ export function HalamanBiayaOperasional({
       }
 
       setModalTerbuka(false);
+      tampilkanToast({
+        varian: "sukses",
+        pesan: sedangEdit
+          ? `Perubahan ${nilai.nama} berhasil disimpan.`
+          : `${nilai.nama} berhasil ditambahkan.`,
+      });
       window.dispatchEvent(new Event("notifikasi:segarkan"));
     });
   }
 
   function hapus() {
     if (!akanDihapus) return;
+    const namaBiaya = akanDihapus.nama;
     setGalatHapus(null);
     mulaiSimpan(async () => {
       const hasil = await hapusBiaya(akanDihapus.id);
@@ -109,6 +119,10 @@ export function HalamanBiayaOperasional({
       }
 
       setAkanDihapus(null);
+      tampilkanToast({
+        varian: "sukses",
+        pesan: `${namaBiaya} berhasil dihapus.`,
+      });
       window.dispatchEvent(new Event("notifikasi:segarkan"));
     });
   }
@@ -126,6 +140,10 @@ export function HalamanBiayaOperasional({
         return;
       }
 
+      tampilkanToast({
+        varian: "sukses",
+        pesan: "Pengaturan biaya berhasil disimpan.",
+      });
       window.dispatchEvent(new Event("notifikasi:segarkan"));
     });
   }

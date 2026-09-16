@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { PenyediaToast } from "@/components/ui/Toast";
 import "./globals.css";
 
 const inter = Inter({
@@ -16,7 +17,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="id" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      {/* Penyedia toast dipasang di layout akar supaya halaman masuk dan daftar
+          ikut terjangkau, bukan hanya halaman di dalam (app). */}
+      <body className="min-h-full flex flex-col">
+        <PenyediaToast>{children}</PenyediaToast>
+      </body>
     </html>
   );
 }

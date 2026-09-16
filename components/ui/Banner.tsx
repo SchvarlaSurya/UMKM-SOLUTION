@@ -24,15 +24,23 @@ export function Banner({
   children,
   aksi,
   className,
+  peran,
 }: {
   varian?: BannerVarian;
   judul?: ReactNode;
   children?: ReactNode;
   aksi?: ReactNode;
   className?: string;
+  /**
+   * Diisi "alert" kalau banner ini muncul sebagai tanggapan atas tindakan
+   * pengguna, misalnya kegagalan masuk. Tanpa itu pembaca layar tidak
+   * mengumumkan apa pun: banner yang baru muncul tidak memindahkan fokus.
+   */
+  peran?: "alert" | "status";
 }) {
   return (
     <div
+      role={peran}
       className={cn(
         "flex flex-wrap items-start gap-3 rounded-card border px-4 py-3.5",
         varianClass[varian],
