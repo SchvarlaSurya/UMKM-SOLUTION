@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { animate, utils } from "animejs";
 import { AngkaBergerak } from "@/components/ui/AngkaBergerak";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -8,6 +9,8 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Ca
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/ui/Table";
 import { Tabs } from "@/components/ui/Tabs";
+import { useEfekTataLetak } from "@/components/ui/useEfekTataLetak";
+import { durasiGerak } from "@/lib/gerak";
 import { IconCari, IconCentang, IconPanahKeluar, IconPeringatan } from "@/components/ui/icons";
 import type { RincianHpp } from "@/lib/hpp";
 import type { ProdukDenganHpp } from "@/lib/types";
@@ -25,6 +28,37 @@ export function TabelMargin({
   const [filter, setFilter] = useState<Filter>("semua");
   const [cari, setCari] = useState("");
   const [produkTerpilih, setProdukTerpilih] = useState<ProdukDenganHpp | null>(null);
+  const refIsiTabel = useRef<HTMLTableSectionElement>(null);
+  // Menyimpan filter terakhir, bukan bendera "sudah pernah render". Bendera
+  // seperti itu jebol saat Strict Mode menjalankan efeknya dua kali: jalan
+  // pertama mematikan benderanya, jalan kedua ikut menganimasikan padahal
+  // filternya belum berganti sama sekali.
+  const filterSebelumnya = useRef(filter);
+
+  // Berganti tab menukar satu daftar dengan daftar lain; tanpa jeda, isinya
+  // seperti berkedip berganti. Sengaja hanya pada pergantian tab: kolom cari
+  // menyaring tiap ketikan, dan menganimasikannya di sana malah berkedip.
+  //
+  // Seluruh isi tabel dianimasikan sebagai satu bagian, bukan per baris.
+  // Stagger per baris ikut memanjang seiring jumlah produk — pada 30 produk
+  // ekornya jadi lebih terasa lamban daripada hidup.
+  useEfekTataLetak(() => {
+    if (filterSebelumnya.current === filter) return;
+    filterSebelumnya.current = filter;
+
+    const isi = refIsiTabel.current;
+    if (!isi) return;
+
+    const ms = durasiGerak(180);
+    if (ms === 0) return;
+
+    utils.set(isi, { opacity: 0, translateY: -4 });
+    animate(isi, { opacity: 1, translateY: 0, duration: ms, ease: "outQuad" });
+
+    return () => {
+      utils.remove(isi);
+    };
+  }, [filter]);
 
   const jumlahPerhatian = produk.filter((p) => !p.statusAman).length;
 
@@ -98,7 +132,7 @@ export function TabelMargin({
               <TH className="text-right">Detail</TH>
             </TR>
           </THead>
-          <TBody>
+          <TBody ref={refIsiTabel}>
             {terlihat.map((p) => (
               <TR key={p.id}>
                 <TD>
@@ -115,7 +149,7 @@ export function TabelMargin({
                   <AngkaBergerak
                     nilai={p.marginPersen}
                     format="persen"
-                    className={`block text-sm font-medium ${
+                    className={`block text-sm font-medium transition-colors duration-300 motion-reduce:transition-none ${
                       p.statusAman ? "text-success" : "text-warning"
                     }`}
                   />

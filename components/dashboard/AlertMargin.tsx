@@ -1,5 +1,6 @@
 import { Banner } from "@/components/ui/Banner";
 import { ButtonLink } from "@/components/ui/Button";
+import { MasukHalus } from "@/components/ui/MasukHalus";
 import { IconPanahKanan } from "@/components/ui/icons";
 import { formatPersen } from "@/lib/format";
 
@@ -20,18 +21,22 @@ export function AlertMargin({
 }) {
   if (namaProduk.length === 0) return null;
 
+  // Peringatan ini muncul justru saat pemiliknya tidak sedang mencarinya, jadi
+  // kedatangannya perlu terlihat, bukan sekadar sudah ada di sana.
   return (
-    <Banner
-      varian="warning"
-      judul={`Ada ${namaProduk.length} produk yang marginnya mulai bocor.`}
-      aksi={
-        <ButtonLink href="/produk" varian="secondary" ukuran="sm">
-          Periksa produk
-          <IconPanahKanan width={14} height={14} />
-        </ButtonLink>
-      }
-    >
-      {daftarNama(namaProduk)} berada di bawah batas {formatPersen(batasMargin, 0)}.
-    </Banner>
+    <MasukHalus>
+      <Banner
+        varian="warning"
+        judul={`Ada ${namaProduk.length} produk yang marginnya mulai bocor.`}
+        aksi={
+          <ButtonLink href="/produk" varian="secondary" ukuran="sm">
+            Periksa produk
+            <IconPanahKanan width={14} height={14} />
+          </ButtonLink>
+        }
+      >
+        {daftarNama(namaProduk)} berada di bawah batas {formatPersen(batasMargin, 0)}.
+      </Banner>
+    </MasukHalus>
   );
 }
