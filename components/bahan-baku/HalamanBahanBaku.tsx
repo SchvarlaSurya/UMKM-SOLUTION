@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { hapusBahanBaku, perbaruiHargaBahan, tambahBahanBaku } from "@/lib/actions/bahan-baku";
+import { hapusBahanBaku, perbaruiBahan, tambahBahanBaku } from "@/lib/actions/bahan-baku";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Banner } from "@/components/ui/Banner";
@@ -92,7 +92,10 @@ export function HalamanBahanBaku({
     mulaiSimpan(async () => {
       const hasil =
         mode === "edit" && terpilih
-          ? await perbaruiHargaBahan(terpilih.id, nilai.hargaPerSatuan)
+          ? await perbaruiBahan(terpilih.id, {
+              nama: nilai.nama,
+              hargaPerSatuan: nilai.hargaPerSatuan,
+            })
           : await tambahBahanBaku(nilai);
 
       if (!hasil.ok) {

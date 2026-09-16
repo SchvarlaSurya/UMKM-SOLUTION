@@ -66,45 +66,80 @@ export async function tambahBahanBaku(masukan: {
 }
 
 /**
- * Mengubah harga bahan sekaligus mencatat historinya dan menghitung ulang HPP
- * seluruh produk yang memakai bahan ini. Perilakunya sengaja sama dengan
- * PUT /api/bahan-baku/[id].
+ * Mengubah nama dan harga bahan sekaligus mencatat histori harganya, lalu
+ * menghitung ulang HPP seluruh produk yang memakai bahan ini. Perilakunya
+ * sengaja sama dengan PUT /api/bahan-baku/[id].
+ *
+ * Dulu action ini hanya menerima harga, padahal route-nya sudah lama menerima
+ * nama juga. Karena form edit memakai action, bukan route, kolom namanya
+ * terkunci di UI dan pemilik usaha tidak bisa memperbaiki salah ketik.
+ *
+ * Satuan tidak ikut diterima di sini. Mengubahnya tanpa mengonversi takaran
+ * resep yang sudah tersimpan diam-diam mengubah HPP: resep "0,2 kg" yang
+ * satuannya berganti jadi gram tetap tersimpan sebagai 0,2. Itu keputusan
+ * data, bukan keputusan tampilan.
  */
-export async function perbaruiHargaBahan(
+export async function perbaruiBahan(
   id: number,
-  hargaPerSatuan: number,
+  masukan: { nama: string; hargaPerSatuan: number },
 ): Promise<HasilAksi> {
   const auth = await requireAuth();
   if (!auth.authorized) {
     return { ok: false, error: "Sesi berakhir. Masuk lagi untuk menyimpan." };
   }
 
-  if (!Number.isFinite(hargaPerSatuan) || hargaPerSatuan <= 0) {
+  const nama = masukan.nama?.trim() ?? "";
+  if (nama === "") {
+    return { ok: false, error: "Nama bahan wajib diisi." };
+  }
+  if (!Number.isFinite(masukan.hargaPerSatuan) || masukan.hargaPerSatuan <= 0) {
     return { ok: false, error: "Harga per satuan harus lebih dari 0." };
   }
 
   const bahan = await prisma.bahanBaku.findFirst({ where: { id, userId: auth.userId } });
   if (!bahan) return { ok: false, error: "Bahan tidak ditemukan." };
 
+  // Bentrok hanya diperiksa kalau namanya memang berubah; bahan ini tentu
+  // boleh disimpan ulang dengan namanya sendiri. `id: { not: id }` untuk itu.
+  if (nama.toLowerCase() !== bahan.nama.toLowerCase()) {
+    const kembar = await prisma.bahanBaku.findFirst({
+      where: {
+        userId: auth.userId,
+        nama: { equals: nama, mode: "insensitive" },
+        id: { not: id },
+      },
+    });
+    if (kembar) {
+      return { ok: false, error: `Bahan dengan nama "${kembar.nama}" sudah ada.` };
+    }
+  }
+
   // Harga yang sama dulu ditolak di sini. Padahal menyimpan ulang nilai yang
   // sama berarti pemilik usaha sudah mengecek ke pemasok dan harganya memang
   // tetap — itu catatan yang layak masuk histori, bukan galat.
-  const rencana = rencanaHistoriHarga(bahan.hargaPerSatuan, hargaPerSatuan);
+  const rencana = rencanaHistoriHarga(bahan.hargaPerSatuan, masukan.hargaPerSatuan);
 
-  await prisma.historiHarga.create({
+  if (rencana.catatHistori) {
+    await prisma.historiHarga.create({
+      data: {
+        bahanBakuId: id,
+        hargaLama: rencana.hargaLama,
+        hargaBaru: rencana.hargaBaru,
+      },
+    });
+  }
+
+  await prisma.bahanBaku.update({
+    where: { id, userId: auth.userId },
     data: {
-      bahanBakuId: id,
-      hargaLama: rencana.hargaLama,
-      hargaBaru: rencana.hargaBaru,
+      nama,
+      ...(rencana.hargaBerubah ? { hargaPerSatuan: rencana.hargaBaru } : {}),
     },
   });
 
+  // HPP hanya bergeser kalau nominalnya bergeser; ganti nama tidak mengubah
+  // angka apa pun.
   if (rencana.hargaBerubah) {
-    await prisma.bahanBaku.update({
-      where: { id, userId: auth.userId },
-      data: { hargaPerSatuan: rencana.hargaBaru },
-    });
-    // HPP hanya bergeser kalau nominalnya bergeser.
     await recalculateAllAffectedByBahan(id, auth.userId);
   }
 

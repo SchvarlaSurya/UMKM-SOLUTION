@@ -22,8 +22,11 @@ const ID_FORM = "form-bahan-baku";
 
 /**
  * Form tambah/edit bahan baku.
- * Mode edit mengunci nama & satuan karena endpoint PUT /api/bahan-baku/[id]
- * hanya menerima hargaPerSatuan.
+ *
+ * Mode edit menerima perubahan nama dan harga. Satuan tetap terkunci: takaran
+ * resep yang sudah tersimpan tidak ikut dikonversi, jadi mengubah satuan diam-
+ * diam menggeser HPP — resep "0,2 kg" yang satuannya berganti jadi gram tetap
+ * tersimpan sebagai 0,2.
  */
 export function ModalBahanBaku({
   terbuka,
@@ -53,7 +56,7 @@ export function ModalBahanBaku({
       judul={mode === "edit" ? "Edit bahan baku" : "Tambah bahan baku"}
       subjudul={
         mode === "edit"
-          ? "Perbarui harga beli terbaru untuk bahan ini."
+          ? "Perbaiki nama atau perbarui harga beli terbaru untuk bahan ini."
           : "Catat bahan beserta harga beli per satuannya."
       }
       aksiSekunder={
@@ -124,8 +127,12 @@ function FormBahan({
         name="nama"
         label="Nama bahan"
         defaultValue={bahan?.nama ?? ""}
-        readOnly={mode === "edit"}
         placeholder="Contoh: Ayam fillet"
+        helper={
+          mode === "edit"
+            ? "Mengganti nama tidak mengubah HPP produk mana pun."
+            : undefined
+        }
       />
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -135,6 +142,11 @@ function FormBahan({
           label="Satuan"
           defaultValue={bahan?.satuan ?? SATUAN[0]}
           disabled={mode === "edit"}
+          helper={
+            mode === "edit"
+              ? "Terkunci: takaran resep yang sudah tersimpan tidak ikut dikonversi."
+              : undefined
+          }
         >
           {SATUAN.map((s) => (
             <option key={s} value={s}>
