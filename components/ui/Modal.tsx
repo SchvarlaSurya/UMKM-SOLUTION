@@ -10,23 +10,54 @@ import { IconTutup } from "./icons";
 /** Membuka lebih lambat dari menutup: membatalkan harus terasa langsung. */
 const DURASI_BUKA = 200;
 const DURASI_TUTUP = 150;
+/** Lembar bawah menempuh jarak jauh lebih panjang, jadi diberi waktu lebih. */
+const DURASI_BUKA_LEMBAR = 280;
+const DURASI_TUTUP_LEMBAR = 200;
+
+/** Sama dengan breakpoint `sm` Tailwind, tempat modal berhenti jadi lembar. */
+const LAYAR_KECIL = "(max-width: 639.98px)";
+
+function berbentukLembar() {
+  return window.matchMedia(LAYAR_KECIL).matches;
+}
 
 /**
  * Keadaan modal sebelum masuk dan sesudah keluar. `--opasitas-latar` dibaca
  * `dialog::backdrop` di globals.css — pseudo-element tidak bisa dijadikan
  * target anime.js, jadi kegelapan latarnya dititipkan lewat custom property.
+ *
+ * Bentuknya berbeda menurut lebar layar. Di layar kecil modalnya menempel ke
+ * tepi bawah, jadi yang masuk akal adalah menggeser naik dari bawah layar,
+ * tanpa memudar dan tanpa mengecil: lembar yang ikut memudar terbaca seperti
+ * dialog yang kebetulan berada di bawah, bukan sesuatu yang ditarik masuk.
+ * Satuannya dijaga tetap persen di kedua ujung, karena beralih dari "100%" ke
+ * 0 tanpa satuan membuat anime.js menafsirkannya sebagai piksel.
  */
-const TERSEMBUNYI = {
+const TERSEMBUNYI_DIALOG = {
   opacity: 0,
   scale: 0.96,
   translateY: 8,
   "--opasitas-latar": 0,
 };
 
-const TERLIHAT = {
+const TERLIHAT_DIALOG = {
   opacity: 1,
   scale: 1,
   translateY: 0,
+  "--opasitas-latar": 1,
+};
+
+const TERSEMBUNYI_LEMBAR = {
+  opacity: 1,
+  scale: 1,
+  translateY: "100%",
+  "--opasitas-latar": 0,
+};
+
+const TERLIHAT_LEMBAR = {
+  opacity: 1,
+  scale: 1,
+  translateY: "0%",
   "--opasitas-latar": 1,
 };
 
@@ -69,6 +100,10 @@ export function Modal({
     const dialog = ref.current;
     if (!dialog) return;
 
+    // Bentuknya dibaca tiap kali animasi dimulai, bukan sekali saja: pengguna
+    // bisa memutar perangkatnya selagi modal terbuka.
+    const lembar = berbentukLembar();
+
     if (terbuka) {
       utils.remove(dialog);
       sedangMenutup.current = false;
@@ -77,7 +112,7 @@ export function Modal({
         // Keadaan awal ditulis sebelum showModal(). Efek ini memang berjalan
         // setelah paint, tapi saat paint itu dialognya masih tertutup dan
         // tidak tergambar sama sekali, jadi tidak ada kedipan.
-        utils.set(dialog, TERSEMBUNYI);
+        utils.set(dialog, lembar ? TERSEMBUNYI_LEMBAR : TERSEMBUNYI_DIALOG);
         dialog.showModal();
       }
 
@@ -85,8 +120,8 @@ export function Modal({
       // terbuka: membuka kembali di tengah animasi keluar harus membalikkan
       // arahnya dari posisi saat itu, bukan membiarkannya tertinggal separuh.
       animate(dialog, {
-        ...TERLIHAT,
-        duration: durasiGerak(DURASI_BUKA),
+        ...(lembar ? TERLIHAT_LEMBAR : TERLIHAT_DIALOG),
+        duration: durasiGerak(lembar ? DURASI_BUKA_LEMBAR : DURASI_BUKA),
         ease: "outQuint",
       });
       return;
@@ -99,8 +134,8 @@ export function Modal({
     sedangMenutup.current = true;
     utils.remove(dialog);
     animate(dialog, {
-      ...TERSEMBUNYI,
-      duration: durasiGerak(DURASI_TUTUP),
+      ...(lembar ? TERSEMBUNYI_LEMBAR : TERSEMBUNYI_DIALOG),
+      duration: durasiGerak(lembar ? DURASI_TUTUP_LEMBAR : DURASI_TUTUP),
       ease: "inQuad",
       onComplete: () => {
         sedangMenutup.current = false;
@@ -146,10 +181,23 @@ export function Modal({
         // peramban, jadi `display: flex` tanpa syarat akan membatalkan
         // `dialog:not([open]) { display: none }` dan modalnya ikut tergambar
         // saat tertutup.
-        "m-auto max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden open:flex",
-        "rounded-card border border-border bg-card p-0 text-foreground",
+        "flex-col overflow-hidden border border-border bg-card p-0 text-foreground open:flex",
         "backdrop:bg-foreground/40",
-        lebar === "lg" ? "max-w-2xl" : "max-w-lg",
+
+        // Layar kecil: lembar yang menempel ke tepi bawah. Sebelumnya modalnya
+        // selebar `100vw - 2rem`, menyisakan 16px latar di kiri dan kanan —
+        // terlalu sempit untuk terbaca sebagai dialog mengambang, terlalu
+        // lebar untuk terbaca sebagai lembar penuh. Sudut bawah dan garis tepi
+        // samping ikut dilepas supaya tepinya benar-benar menyatu dengan layar.
+        "mt-auto mb-0 w-full max-w-none rounded-card rounded-b-none border-x-0 border-b-0",
+        // 90dvh, bukan penuh: sisa di atasnya memberi tahu bahwa halaman masih
+        // ada di belakang, sekaligus jadi tempat menekan untuk menutup.
+        "max-h-[90dvh]",
+
+        // sm ke atas: dialog mengambang di tengah, seperti sebelumnya.
+        "sm:m-auto sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)]",
+        "sm:rounded-b-card sm:border-x sm:border-b",
+        lebar === "lg" ? "sm:max-w-2xl" : "sm:max-w-lg",
       )}
     >
       <div className="flex shrink-0 items-start justify-between gap-4 px-5 pt-5">
@@ -187,7 +235,15 @@ export function Modal({
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">{children}</div>
 
       {(aksiPrimer || aksiSekunder) && (
-        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border bg-card px-5 py-4">
+        <div
+          className={cn(
+            "flex shrink-0 items-center justify-between gap-3 border-t border-border bg-card px-5 py-4",
+            // Sebagai lembar, baris ini menempel persis di tepi bawah layar.
+            // Di perangkat dengan indikator home, tombolnya jatuh tepat di
+            // bawah garis itu; `safe-area-inset-bottom` mengembalikan ruangnya.
+            "pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-4",
+          )}
+        >
           <div>{aksiSekunder}</div>
           <div>{aksiPrimer}</div>
         </div>
