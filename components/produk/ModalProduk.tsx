@@ -388,6 +388,14 @@ function FormProduk({
 
   function tambahBaris() {
     setBaris((sebelumnya) => {
+      // Bahan pertama yang belum dipakai baris lain, bukan `bahan[0]`. Dropdown
+      // tiap baris sekarang menyembunyikan bahan yang sudah terpilih di baris
+      // lain, jadi memilih bahan[0] bisa menghasilkan baris yang nilainya tidak
+      // ada di daftar pilihannya sendiri.
+      const terpakai = new Set(sebelumnya.map((b) => b.bahanBakuId));
+      const bahanBaru = bahan.find((x) => !terpakai.has(x.id));
+      if (!bahanBaru) return sebelumnya;
+
       const keyBaru = Math.max(-1, ...sebelumnya.map((b) => b.key)) + 1;
       // Ditandai supaya barisnya langsung mendapat fokus begitu muncul;
       // tanpa ini pengguna harus mengklik dropdownnya sendiri.
@@ -396,13 +404,17 @@ function FormProduk({
         ...sebelumnya,
         {
           key: keyBaru,
-          bahanBakuId: bahan[0]?.id ?? 0,
+          bahanBakuId: bahanBaru.id,
           jumlah: "",
-          satuanDipilih: pilihanSatuanUntuk(bahan[0]?.satuan ?? "")[0].nilai,
+          satuanDipilih: pilihanSatuanUntuk(bahanBaru.satuan)[0].nilai,
         },
       ];
     });
   }
+
+  /** Dihitung sekali per render, bukan sekali per baris. */
+  const idBahanTerpakai = new Set(baris.map((b) => b.bahanBakuId));
+  const semuaBahanTerpakai = idBahanTerpakai.size >= bahan.length;
 
   function hapusBaris(key: number) {
     setBaris((sebelumnya) => sebelumnya.filter((b) => b.key !== key));
@@ -690,6 +702,12 @@ function FormProduk({
         <ul className="mt-3 flex flex-col gap-2">
           {baris.map((b) => {
             const bahanTerpilih = bahan.find((x) => x.id === b.bahanBakuId);
+            // Bahan yang sudah dipakai baris lain dikeluarkan dari pilihan.
+            // Pilihan baris ini sendiri tetap ikut, kalau tidak nilainya akan
+            // menunjuk opsi yang tidak ada dan dropdownnya tampil kosong.
+            const pilihanBahan = bahan.filter(
+              (x) => x.id === b.bahanBakuId || !idBahanTerpakai.has(x.id),
+            );
             const pilihanSatuan = pilihanSatuanUntuk(bahanTerpilih?.satuan ?? "");
             const jumlahInput = Number(b.jumlah);
             const jumlahDalamSatuanDasar = konversiKeSatuanDasar(
@@ -728,7 +746,7 @@ function FormProduk({
                     }}
                     className="h-10 w-full rounded-card border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
                   >
-                    {bahan.map((x) => (
+                    {pilihanBahan.map((x) => (
                       <option key={x.id} value={x.id}>
                         {x.nama}
                       </option>
@@ -838,6 +856,12 @@ function FormProduk({
           ukuran="sm"
           type="button"
           onClick={tambahBaris}
+          disabled={semuaBahanTerpakai}
+          title={
+            semuaBahanTerpakai
+              ? "Semua bahan baku sudah dipakai di resep ini."
+              : undefined
+          }
           className="mt-2 w-full border-dashed"
         >
           <IconTambah width={14} height={14} />
