@@ -45,7 +45,7 @@ export function Sidebar({
   const [keluar, mulaiKeluar] = useTransition();
   const refDaftarMenu = useRef<HTMLUListElement>(null);
   const refPenanda = useRef<HTMLSpanElement>(null);
-  /** Penanda sudah punya posisi yang sah, jadi boleh meluncur dari sana. */
+  /** Penanda sudah pernah dipasang di posisi yang sah. */
   const penandaTerpasang = useRef(false);
 
   // Sidebar yang sama dipakai dua kali: menetap di layar besar, dan sebagai
@@ -81,9 +81,15 @@ export function Sidebar({
   }, [modeDrawer]);
 
   /**
-   * Penanda menu aktif: satu kotak yang meluncur ke item terpilih, bukan latar
-   * yang mati-hidup di dua tempat sekaligus. Diukur setelah tata letak selesai
-   * (useLayoutEffect) supaya posisinya tidak diambil dari ukuran yang basi.
+   * Penanda menu aktif: sorotan yang timbul di belakang item terpilih.
+   *
+   * Sengaja tidak meluncur antar item. Luncuran menarik mata mengikuti
+   * kotaknya berpindah, padahal yang perlu diperhatikan adalah tujuannya —
+   * dan pada daftar sependek ini perjalanannya tidak menjelaskan apa pun.
+   * Masukan QA dari Person C.
+   *
+   * Diukur setelah tata letak selesai (useLayoutEffect) supaya posisinya tidak
+   * diambil dari ukuran yang basi.
    */
   useLayoutEffect(() => {
     const daftar = refDaftarMenu.current;
@@ -114,24 +120,46 @@ export function Sidebar({
 
     const posisi = { translateY: target.offsetTop, height: target.offsetHeight };
 
-    // Belum punya posisi sah — saat pertama dipasang, atau sesudah sempat
-    // disembunyikan. Meluncur dari posisi lama yang tidak ada hubungannya
-    // dengan menu sekarang justru membingungkan, jadi muncul di tempat saja.
-    if (!penandaTerpasang.current) {
-      penandaTerpasang.current = true;
-      utils.set(penanda, posisi);
+    // Arrow function, bukan deklarasi: TypeScript hanya mempertahankan
+    // penyempitan tipe `penanda` di dalam closure yang tidak terangkat.
+    /** Sorotan dipasang di tempatnya lalu timbul dari belakang item. */
+    const timbul = () => {
+      utils.set(penanda, { ...posisi, opacity: 0, scale: 0.96 });
       animate(penanda, {
         opacity: 1,
-        duration: durasiGerak(160),
-        ease: "outQuad",
+        scale: 1,
+        duration: durasiGerak(200),
+        ease: "outQuint",
       });
+    };
+
+    // Sisa animasi sebelumnya dibuang lebih dulu. Berpindah menu dua kali
+    // dengan cepat kalau tidak begini membuat `onComplete` yang lama ikut
+    // menjalankan `timbul` ke posisi yang sudah tidak berlaku.
+    utils.remove(penanda);
+
+    // Belum punya posisi sah — saat pertama dipasang, atau sesudah sempat
+    // disembunyikan karena halaman di luar daftar menu.
+    if (!penandaTerpasang.current) {
+      penandaTerpasang.current = true;
+      timbul();
+      return;
+    }
+
+    // Padam dulu di tempat lamanya, baru timbul di tempat yang baru. Dengan
+    // satu elemen, ini satu-satunya cara berpindah tanpa terlihat menempuh
+    // jarak di antara keduanya.
+    const msPadam = durasiGerak(100);
+    if (msPadam === 0) {
+      timbul();
       return;
     }
 
     animate(penanda, {
-      ...posisi,
-      duration: durasiGerak(260),
-      ease: "outQuint",
+      opacity: 0,
+      duration: msPadam,
+      ease: "inQuad",
+      onComplete: timbul,
     });
   }, [pathname]);
 
