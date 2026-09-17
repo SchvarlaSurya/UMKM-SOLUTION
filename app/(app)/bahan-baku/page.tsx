@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { HalamanBahanBaku } from "@/components/bahan-baku/HalamanBahanBaku";
 import { authOptions } from "@/lib/authOptions";
 import { getDataHalamanBahanBaku } from "@/lib/data";
+import { petaUmurHarga } from "@/lib/hargaBasi";
 
 export default async function BahanBakuPage() {
   const session = await getServerSession(authOptions);
@@ -11,5 +12,7 @@ export default async function BahanBakuPage() {
 
   const { bahan, pemakaian } = await getDataHalamanBahanBaku(userId);
 
-  return <HalamanBahanBaku bahan={bahan} pemakaian={pemakaian} />;
+  return (
+    <HalamanBahanBaku bahan={bahan} pemakaian={pemakaian} umurHarga={petaUmurHarga(bahan)} />
+  );
 }
