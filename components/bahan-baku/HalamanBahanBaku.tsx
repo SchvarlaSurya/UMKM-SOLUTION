@@ -15,12 +15,20 @@ import {
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/ui/Table";
 import { useToast } from "@/components/ui/Toast";
-import { IconCari, IconHapus, IconPensil, IconPeringatan, IconTambah } from "@/components/ui/icons";
+import {
+  IconCari,
+  IconHapus,
+  IconKalkulator,
+  IconPensil,
+  IconPeringatan,
+  IconTambah,
+} from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 import { formatRupiah, formatTanggal } from "@/lib/format";
 import { HARI_HARGA_BASI } from "@/lib/hargaBasi";
 import type { BahanBaku } from "@/lib/types";
 import { ModalBahanBaku, type NilaiFormBahan } from "./ModalBahanBaku";
+import { ModalSimulasiKenaikan } from "./ModalSimulasiKenaikan";
 
 /**
  * Daftar bahan datang dari Server Component dan tidak disalin ke state:
@@ -47,6 +55,15 @@ export function HalamanBahanBaku({
   const [galat, setGalat] = useState<string | null>(null);
   const [akanDihapus, setAkanDihapus] = useState<BahanBaku | null>(null);
   const [galatHapus, setGalatHapus] = useState<string | null>(null);
+  // Bahan dan status terbuka dipisah: menutup modal tidak mengosongkan
+  // bahannya, jadi isi modal tidak berkedip kosong saat dialog ditutup.
+  const [bahanSimulasi, setBahanSimulasi] = useState<BahanBaku | null>(null);
+  const [simulasiTerbuka, setSimulasiTerbuka] = useState(false);
+
+  function bukaSimulasi(item: BahanBaku) {
+    setBahanSimulasi(item);
+    setSimulasiTerbuka(true);
+  }
 
   // Satu baris fakta tentang datanya sendiri, bukan kalimat penjelas yang
   // sama di setiap kunjungan. Jumlah bahan yang belum dipakai resep mana pun
@@ -253,6 +270,16 @@ export function HalamanBahanBaku({
                     </TD>
                     <TD className="text-right">
                       <span className="inline-flex items-center gap-1">
+                        <Button
+                          varian="ghost"
+                          ukuran="sm"
+                          className="px-2"
+                          aria-label={`Simulasi kenaikan harga ${b.nama}`}
+                          title="Simulasi kenaikan"
+                          onClick={() => bukaSimulasi(b)}
+                        >
+                          <IconKalkulator width={16} height={16} />
+                        </Button>
                         <Button varian="link" ukuran="sm" onClick={() => bukaEdit(b)}>
                           <IconPensil width={14} height={14} />
                           Edit harga
@@ -326,6 +353,15 @@ export function HalamanBahanBaku({
                   </p>
                   <div className="flex shrink-0 items-center gap-1">
                     <Button
+                      varian="ghost"
+                      ukuran="sm"
+                      className="px-2"
+                      aria-label={`Simulasi kenaikan harga ${b.nama}`}
+                      onClick={() => bukaSimulasi(b)}
+                    >
+                      <IconKalkulator width={16} height={16} />
+                    </Button>
+                    <Button
                       varian="secondary"
                       ukuran="sm"
                       onClick={() => bukaEdit(b)}
@@ -379,6 +415,12 @@ export function HalamanBahanBaku({
         galatServer={galat}
         onTutup={() => setModalTerbuka(false)}
         onSimpan={simpan}
+      />
+
+      <ModalSimulasiKenaikan
+        bahan={bahanSimulasi}
+        terbuka={simulasiTerbuka}
+        onTutup={() => setSimulasiTerbuka(false)}
       />
 
       <ModalKonfirmasiHapus
