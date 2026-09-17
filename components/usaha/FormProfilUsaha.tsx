@@ -6,7 +6,8 @@ import { simpanProfilUsaha } from "@/lib/actions/usaha";
 import { Banner } from "@/components/ui/Banner";
 import { Button } from "@/components/ui/Button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Input, Select } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
+import { PilihOpsi } from "@/components/ui/PilihOpsi";
 import { JENIS_USAHA_KULINER } from "@/lib/jenisUsaha";
 
 export function FormProfilUsaha({
@@ -76,19 +77,14 @@ export function FormProfilUsaha({
             error={galat ?? undefined}
           />
 
-          <Select
+          <PilihOpsi
             id="jenis-usaha"
             label="Jenis usaha"
-            value={jenisUsaha}
-            onChange={(e) => setJenisUsaha(e.target.value)}
+            opsi={JENIS_USAHA_KULINER.map((jenis) => ({ nilai: jenis, label: jenis }))}
+            nilai={jenisUsaha}
+            onPilih={setJenisUsaha}
             helper="Dipakai sebagai keterangan di bawah nama usaha."
-          >
-            {JENIS_USAHA_KULINER.map((jenis) => (
-              <option key={jenis} value={jenis}>
-                {jenis}
-              </option>
-            ))}
-          </Select>
+          />
         </div>
 
         {tersimpan && !berubah && (

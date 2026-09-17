@@ -1,11 +1,9 @@
 import type {
   InputHTMLAttributes,
   ReactNode,
-  SelectHTMLAttributes,
   WheelEvent,
 } from "react";
 import { cn } from "@/lib/cn";
-import { IconChevronBawah } from "./icons";
 
 /**
  * Di Chrome/Edge, scroll roda mouse atau touchpad di atas `<input type="number">`
@@ -22,7 +20,8 @@ export function cegahScrollUbahAngka(e: WheelEvent<HTMLInputElement>) {
   if (e.currentTarget === document.activeElement) e.currentTarget.blur();
 }
 
-const kontrolDasar =
+/** Rupa dasar semua kotak isian, dipakai juga oleh pemicu daftar turun. */
+export const kontrolDasar =
   "h-10 w-full rounded-card border border-border bg-card px-3 text-sm text-foreground " +
   "placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 " +
   "focus-visible:outline-ring disabled:opacity-50";
@@ -46,7 +45,8 @@ function idKeterangan(id: string | undefined, error?: string, helper?: ReactNode
   return undefined;
 }
 
-function Field({
+/** Label, kotak, dan keterangan di bawahnya — kerangka bersama tiap kolom. */
+export function Field({
   label,
   helper,
   error,
@@ -102,60 +102,6 @@ export function Input({
         }}
         {...props}
       />
-    </Field>
-  );
-}
-
-export function Select({
-  label,
-  helper,
-  error,
-  className,
-  id,
-  children,
-  ...props
-}: FieldProps & SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <Field label={label} helper={helper} error={error} htmlFor={id} className={className}>
-      {/*
-        Panah bawaan peramban diganti panah sendiri.
-
-        Bentuk panah `<select>` digambar sistem operasi: di macOS sepasang
-        chevron kecil di dalam kotak abu, di Windows segitiga penuh. Itulah satu-
-        satunya bagian kontrol ini yang tidak mengikuti sisa antarmuka, dan yang
-        membuat dropdown terlihat beda dari kotak pilih bahan.
-
-        Hanya rupanya yang berubah. Elemennya tetap `<select>` asli, jadi di
-        ponsel tetap membuka pemilih roda bawaan sistem, dan navigasi papan ketik
-        maupun pembaca layar tidak tersentuh sama sekali.
-      */}
-      <div className="relative">
-        <select
-          id={id}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={idKeterangan(id, error, helper)}
-          className={cn(
-            kontrolDasar,
-            "appearance-none pr-9",
-            error && "border-destructive",
-            props.disabled && "cursor-not-allowed",
-          )}
-          {...props}
-        >
-          {children}
-        </select>
-        <IconChevronBawah
-          width={16}
-          height={16}
-          aria-hidden="true"
-          className={cn(
-            "pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground",
-            // Panah ikut meredup bersama kotaknya; `disabled:opacity-50` di
-            // kontrolnya tidak menjangkau ikon yang berada di luar <select>.
-            props.disabled && "opacity-50",
-          )}
-        />
-      </div>
     </Field>
   );
 }

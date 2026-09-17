@@ -1,23 +1,33 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type Ref } from "react";
-import { animate, utils } from "animejs";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type Ref,
+} from "react";
 import { cn } from "@/lib/cn";
 import { IconCari, IconChevronBawah } from "@/components/ui/icons";
-import { useEfekTataLetak } from "@/components/ui/useEfekTataLetak";
-import { durasiGerak } from "@/lib/gerak";
+import {
+  KELAS_PANEL_DAFTAR,
+  TINGGI_DAFTAR_MAKS,
+  kelasOpsiDaftar,
+  perluBukaKeAtas,
+  useAnimasiDaftarTurun,
+  useTutupSaatKlikLuar,
+} from "@/components/ui/daftarTurun";
 import type { BahanBaku } from "@/lib/types";
-
-/** Tinggi daftar dibatasi supaya 20+ bahan tidak memanjang sampai keluar layar. */
-const TINGGI_DAFTAR_MAKS = 224;
 
 /**
  * Pemilih bahan baku yang bisa diketik untuk menyaring.
  *
- * Menggantikan `<select>` bawaan di baris resep. Daftar opsi `<select>`
- * digambar peramban dan sistem operasi, jadi tingginya tidak bisa dibatasi dan
- * isinya tidak bisa disaring — pada 20+ bahan, satu-satunya cara menemukan
- * bahan adalah menggulir seluruh daftarnya.
+ * Kembarannya yang tanpa pencarian adalah `PilihOpsi`; keduanya memakai rupa
+ * panel, arah buka, dan animasi yang sama dari `daftarTurun`. Bedanya cuma satu
+ * dan memang disengaja: daftar bahan tumbuh seiring pemakaian sampai puluhan,
+ * jadi hanya di sini isinya perlu bisa disaring.
  *
  * Mengikuti pola ARIA combobox: kotak ketik dengan `role="combobox"` yang
  * menunjuk daftar `role="listbox"`, dan penanda baris aktif lewat
@@ -54,66 +64,24 @@ export function PilihBahan({
   function buka() {
     if (terbuka) return;
 
-    // Arah dibuka dihitung saat itu juga. Baris resep bisa berada di dasar
-    // badan modal yang menggulir, dan `visualViewport` dipakai lebih dulu
-    // karena papan ketik di ponsel mengecilkan ruang terlihat tanpa mengubah
-    // innerHeight.
-    const kotak = refWadah.current?.getBoundingClientRect();
-    const tinggiTerlihat = window.visualViewport?.height ?? window.innerHeight;
-    if (kotak) {
-      const ruangBawah = tinggiTerlihat - kotak.bottom;
-      setKeAtas(ruangBawah < TINGGI_DAFTAR_MAKS && kotak.top > ruangBawah);
-    }
-
+    setKeAtas(perluBukaKeAtas(refWadah.current));
     setKueri("");
     setSorot(Math.max(0, hasil.findIndex((b) => b.id === nilai)));
     setTerbuka(true);
   }
 
-  function tutup() {
+  const tutup = useCallback(() => {
     setTerbuka(false);
     setKueri("");
-  }
+  }, []);
 
   function pilih(bahanBakuId: number) {
     onPilih(bahanBakuId);
     tutup();
   }
 
-  /**
-   * Daftar muncul dari tepi kotak ketiknya.
-   *
-   * Ini satu-satunya lapisan melayang di aplikasi yang tadinya menyentak;
-   * modal, toast, dan drawer semuanya bergerak. Pendek saja — 120ms — karena
-   * daftarnya dibuka berkali-kali dalam satu sesi mengisi resep, dan animasi
-   * masuk yang panjang berubah jadi penghalang.
-   *
-   * Hanya animasi masuk. Menutupnya sengaja seketika: sesudah bahan dipilih,
-   * daftar yang masih memudar terbaca seperti pilihannya belum tersimpan.
-   */
-  useEfekTataLetak(() => {
-    if (!terbuka) return;
-    const daftar = refDaftar.current;
-    if (!daftar) return;
-
-    const ms = durasiGerak(120);
-    if (ms === 0) return;
-
-    // Arah gesernya mengikuti arah bukanya, supaya daftarnya terbaca keluar
-    // dari kotak ketik dan bukan melayang masuk dari arah mana saja.
-    utils.set(daftar, { opacity: 0, scaleY: 0.96, translateY: keAtas ? 4 : -4 });
-    animate(daftar, {
-      opacity: 1,
-      scaleY: 1,
-      translateY: 0,
-      duration: ms,
-      ease: "outQuad",
-    });
-
-    return () => {
-      utils.remove(daftar);
-    };
-  }, [terbuka, keAtas]);
+  useAnimasiDaftarTurun(terbuka, keAtas, refDaftar);
+  useTutupSaatKlikLuar(terbuka, refWadah, tutup);
 
   // Baris tersorot digulir ke dalam pandangan. `nearest` supaya daftarnya tidak
   // melompat saat barisnya sebenarnya sudah terlihat.
@@ -122,15 +90,6 @@ export function PilihBahan({
     const baris = refDaftar.current?.children[sorot];
     baris?.scrollIntoView({ block: "nearest" });
   }, [sorot, terbuka]);
-
-  useEffect(() => {
-    if (!terbuka) return;
-    function tanganiKlikLuar(peristiwa: PointerEvent) {
-      if (!refWadah.current?.contains(peristiwa.target as Node)) tutup();
-    }
-    document.addEventListener("pointerdown", tanganiKlikLuar);
-    return () => document.removeEventListener("pointerdown", tanganiKlikLuar);
-  }, [terbuka]);
 
   function tanganiTombol(peristiwa: KeyboardEvent<HTMLInputElement>) {
     if (peristiwa.key === "ArrowDown") {
@@ -229,10 +188,7 @@ export function PilihBahan({
             maxHeight: TINGGI_DAFTAR_MAKS,
             transformOrigin: keAtas ? "bottom center" : "top center",
           }}
-          className={cn(
-            "absolute inset-x-0 z-20 overflow-y-auto rounded-card border border-border bg-card py-1 shadow-[0_10px_30px_rgba(32,46,40,0.16)]",
-            keAtas ? "bottom-full mb-1" : "top-full mt-1",
-          )}
+          className={cn(KELAS_PANEL_DAFTAR, keAtas ? "bottom-full mb-1" : "top-full mt-1")}
         >
           {hasil.length === 0 && (
             <li className="px-3 py-2 text-sm text-muted-foreground">
@@ -253,11 +209,7 @@ export function PilihBahan({
                 pilih(b.id);
               }}
               onPointerEnter={() => setSorot(i)}
-              className={cn(
-                "cursor-pointer px-3 py-2 text-sm",
-                i === sorot ? "bg-muted text-foreground" : "text-foreground",
-                b.id === nilai && "font-medium text-primary",
-              )}
+              className={kelasOpsiDaftar(i === sorot, b.id === nilai)}
             >
               {b.nama}
               <span className="ml-1.5 text-xs text-muted-foreground">{b.satuan}</span>

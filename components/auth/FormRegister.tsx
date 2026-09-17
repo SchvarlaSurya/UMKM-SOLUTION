@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
-import { Input, Select } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
+import { PilihOpsi } from "@/components/ui/PilihOpsi";
 import { useToast } from "@/components/ui/Toast";
 import { JENIS_USAHA_KULINER } from "@/lib/jenisUsaha";
 
@@ -121,13 +122,13 @@ export function FormRegister() {
         error={galatKolom.namaUsaha}
       />
 
-      <Select id="jenis-usaha" name="jenisUsaha" label="Jenis usaha" defaultValue={JENIS_USAHA_KULINER[0]}>
-        {JENIS_USAHA_KULINER.map((jenis) => (
-          <option key={jenis} value={jenis}>
-            {jenis}
-          </option>
-        ))}
-      </Select>
+      <PilihOpsi
+        id="jenis-usaha"
+        name="jenisUsaha"
+        label="Jenis usaha"
+        opsi={JENIS_USAHA_KULINER.map((jenis) => ({ nilai: jenis, label: jenis }))}
+        nilaiAwal={JENIS_USAHA_KULINER[0]}
+      />
 
       <Input
         id="email"
