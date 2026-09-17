@@ -5,6 +5,7 @@ import type {
   WheelEvent,
 } from "react";
 import { cn } from "@/lib/cn";
+import { IconChevronBawah } from "./icons";
 
 /**
  * Di Chrome/Edge, scroll roda mouse atau touchpad di atas `<input type="number">`
@@ -116,15 +117,45 @@ export function Select({
 }: FieldProps & SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <Field label={label} helper={helper} error={error} htmlFor={id} className={className}>
-      <select
-        id={id}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={idKeterangan(id, error, helper)}
-        className={cn(kontrolDasar, "pr-8", error && "border-destructive")}
-        {...props}
-      >
-        {children}
-      </select>
+      {/*
+        Panah bawaan peramban diganti panah sendiri.
+
+        Bentuk panah `<select>` digambar sistem operasi: di macOS sepasang
+        chevron kecil di dalam kotak abu, di Windows segitiga penuh. Itulah satu-
+        satunya bagian kontrol ini yang tidak mengikuti sisa antarmuka, dan yang
+        membuat dropdown terlihat beda dari kotak pilih bahan.
+
+        Hanya rupanya yang berubah. Elemennya tetap `<select>` asli, jadi di
+        ponsel tetap membuka pemilih roda bawaan sistem, dan navigasi papan ketik
+        maupun pembaca layar tidak tersentuh sama sekali.
+      */}
+      <div className="relative">
+        <select
+          id={id}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={idKeterangan(id, error, helper)}
+          className={cn(
+            kontrolDasar,
+            "appearance-none pr-9",
+            error && "border-destructive",
+            props.disabled && "cursor-not-allowed",
+          )}
+          {...props}
+        >
+          {children}
+        </select>
+        <IconChevronBawah
+          width={16}
+          height={16}
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground",
+            // Panah ikut meredup bersama kotaknya; `disabled:opacity-50` di
+            // kontrolnya tidak menjangkau ikon yang berada di luar <select>.
+            props.disabled && "opacity-50",
+          )}
+        />
+      </div>
     </Field>
   );
 }

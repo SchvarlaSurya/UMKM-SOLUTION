@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type Ref } from "react";
 import { animate, utils } from "animejs";
 import { cn } from "@/lib/cn";
-import { IconCari } from "@/components/ui/icons";
+import { IconCari, IconChevronBawah } from "@/components/ui/icons";
 import { useEfekTataLetak } from "@/components/ui/useEfekTataLetak";
 import { durasiGerak } from "@/lib/gerak";
 import type { BahanBaku } from "@/lib/types";
@@ -198,7 +198,21 @@ export function PilihBahan({
           onFocus={buka}
           onClick={buka}
           onKeyDown={tanganiTombol}
-          className="h-10 w-full rounded-card border border-border bg-card pr-3 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+          className="h-10 w-full rounded-card border border-border bg-card pr-9 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+        />
+        {/* Panah yang sama dengan <select> di seluruh form: penanda bersama
+            bahwa kontrol ini membuka daftar. Kaca pembesar di kiri tetap ada
+            karena menandai kemampuan yang hanya dimiliki kotak ini — isinya
+            bisa diketik untuk menyaring. */}
+        <IconChevronBawah
+          width={16}
+          height={16}
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground",
+            "transition-transform duration-150 motion-reduce:transition-none",
+            terbuka && "rotate-180",
+          )}
         />
       </div>
 
