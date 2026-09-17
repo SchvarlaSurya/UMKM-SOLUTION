@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { hapusProduk } from "@/lib/actions/produk";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -9,6 +9,7 @@ import { ModalKonfirmasiHapus } from "@/components/ui/ModalKonfirmasiHapus";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Tabs } from "@/components/ui/Tabs";
 import { useToast } from "@/components/ui/Toast";
+import { useAnimasiGantiFilter } from "@/components/ui/useAnimasiGantiFilter";
 import { IconCari, IconPanahKanan, IconProduk, IconTambah } from "@/components/ui/icons";
 import { formatPersen } from "@/lib/format";
 import type { BahanBaku, ProdukDenganHpp } from "@/lib/types";
@@ -44,6 +45,13 @@ export function HalamanProduk({
 
   const denganHpp = produk;
   const jumlahPerhatian = denganHpp.filter((p) => !p.statusAman).length;
+
+  // Dipasang di pembungkus hasil, bukan di grid kartunya: filter yang tidak
+  // menemukan apa pun menukar grid itu dengan EmptyState, dan pergantian ke
+  // keadaan kosong sama perlunya dijelaskan.
+  const refHasil = useRef<HTMLDivElement>(null);
+
+  useAnimasiGantiFilter(filter, [refHasil]);
 
   // Rata-rata margin sengaja dipilih: jumlah per status sudah terbaca di tab
   // tepat di bawahnya, jadi mengulangnya di sini tidak menambah apa pun.
@@ -186,51 +194,53 @@ export function HalamanProduk({
         </div>
       </div>
 
-      {terlihat.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {terlihat.map((p) => (
-            <KartuProduk
-              key={p.id}
-              produk={p}
-              onEdit={() => bukaEdit(p)}
-              onLihatHistori={() => setProdukHistori(p)}
-              onHapus={() => {
-                setAkanDihapus(p);
-                setGalatHapus(null);
-              }}
-            />
-          ))}
-        </div>
-      ) : produk.length === 0 ? (
-        <EmptyState
-          ikon={<IconProduk />}
-          judul="Belum ada produk"
-          deskripsi={
-            bahan.length === 0
-              ? "Catat bahan baku dulu, karena resep butuh minimal satu bahan."
-              : "Buat produk pertama beserta takaran per porsinya, lalu HPP dan marginnya terhitung otomatis."
-          }
-          aksi={
-            bahan.length === 0 ? (
-              <ButtonLink href="/bahan-baku" varian="secondary" ukuran="sm">
-                Ke bahan baku
-                <IconPanahKanan width={14} height={14} />
-              </ButtonLink>
-            ) : (
-              <Button varian="primary" ukuran="sm" onClick={bukaTambah}>
-                <IconTambah width={14} height={14} />
-                Tambah produk
-              </Button>
-            )
-          }
-        />
-      ) : (
-        <EmptyState
-          ikon={<IconProduk />}
-          judul="Tidak ada produk yang cocok"
-          deskripsi="Ubah kata kunci pencarian atau pilih filter lain."
-        />
-      )}
+      <div ref={refHasil}>
+        {terlihat.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {terlihat.map((p) => (
+              <KartuProduk
+                key={p.id}
+                produk={p}
+                onEdit={() => bukaEdit(p)}
+                onLihatHistori={() => setProdukHistori(p)}
+                onHapus={() => {
+                  setAkanDihapus(p);
+                  setGalatHapus(null);
+                }}
+              />
+            ))}
+          </div>
+        ) : produk.length === 0 ? (
+          <EmptyState
+            ikon={<IconProduk />}
+            judul="Belum ada produk"
+            deskripsi={
+              bahan.length === 0
+                ? "Catat bahan baku dulu, karena resep butuh minimal satu bahan."
+                : "Buat produk pertama beserta takaran per porsinya, lalu HPP dan marginnya terhitung otomatis."
+            }
+            aksi={
+              bahan.length === 0 ? (
+                <ButtonLink href="/bahan-baku" varian="secondary" ukuran="sm">
+                  Ke bahan baku
+                  <IconPanahKanan width={14} height={14} />
+                </ButtonLink>
+              ) : (
+                <Button varian="primary" ukuran="sm" onClick={bukaTambah}>
+                  <IconTambah width={14} height={14} />
+                  Tambah produk
+                </Button>
+              )
+            }
+          />
+        ) : (
+          <EmptyState
+            ikon={<IconProduk />}
+            judul="Tidak ada produk yang cocok"
+            deskripsi="Ubah kata kunci pencarian atau pilih filter lain."
+          />
+        )}
+      </div>
 
       <ModalProduk
         terbuka={modalTerbuka}
