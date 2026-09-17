@@ -15,8 +15,10 @@ import {
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/ui/Table";
 import { useToast } from "@/components/ui/Toast";
-import { IconCari, IconHapus, IconPensil, IconTambah } from "@/components/ui/icons";
+import { IconCari, IconHapus, IconPensil, IconPeringatan, IconTambah } from "@/components/ui/icons";
+import { cn } from "@/lib/cn";
 import { formatRupiah, formatTanggal } from "@/lib/format";
+import { HARI_HARGA_BASI } from "@/lib/hargaBasi";
 import type { BahanBaku } from "@/lib/types";
 import { ModalBahanBaku, type NilaiFormBahan } from "./ModalBahanBaku";
 
@@ -28,13 +30,17 @@ import { ModalBahanBaku, type NilaiFormBahan } from "./ModalBahanBaku";
 export function HalamanBahanBaku({
   bahan,
   pemakaian,
+  umurHarga,
 }: {
   bahan: BahanBaku[];
   pemakaian: Record<number, number>;
+  /** Umur harga tiap bahan dalam hari, dihitung di server. Berkunci id bahan. */
+  umurHarga: Record<number, number>;
 }) {
   const tampilkanToast = useToast();
   const [menyimpan, mulaiSimpan] = useTransition();
   const [cari, setCari] = useState("");
+  const [hanyaBasi, setHanyaBasi] = useState(false);
   const [mode, setMode] = useState<"tambah" | "edit">("tambah");
   const [terpilih, setTerpilih] = useState<BahanBaku | null>(null);
   const [modalTerbuka, setModalTerbuka] = useState(false);
@@ -54,10 +60,28 @@ export function HalamanBahanBaku({
       : `${dasar} · ${belumDipakai} belum dipakai resep mana pun`;
   }, [bahan, pemakaian]);
 
+  const jumlahBasi = useMemo(
+    () => bahan.filter((b) => (umurHarga[b.id] ?? 0) >= HARI_HARGA_BASI).length,
+    [bahan, umurHarga],
+  );
+
+  // Penyaringnya ikut mati begitu tidak ada lagi bahan yang perlu dicek. Tombol
+  // penyalanya hilang di saat yang sama, jadi tanpa ini daftarnya tertinggal
+  // kosong tanpa jalan kembali — persis sesudah pemiliknya memperbarui harga
+  // basi yang terakhir.
+  const filterBasi = hanyaBasi && jumlahBasi > 0;
+
   const terlihat = useMemo(() => {
     const kunci = cari.trim().toLowerCase();
-    return kunci === "" ? bahan : bahan.filter((b) => b.nama.toLowerCase().includes(kunci));
-  }, [bahan, cari]);
+    return bahan.filter((b) => {
+      if (filterBasi && (umurHarga[b.id] ?? 0) < HARI_HARGA_BASI) return false;
+      return kunci === "" || b.nama.toLowerCase().includes(kunci);
+    });
+  }, [bahan, cari, filterBasi, umurHarga]);
+
+  const pesanKosong = filterBasi
+    ? "Tidak ada bahan yang perlu dicek cocok dengan pencarian."
+    : "Tidak ada bahan yang cocok dengan pencarian.";
 
   function bukaTambah() {
     setMode("tambah");
@@ -149,20 +173,42 @@ export function HalamanBahanBaku({
             <CardTitle>Daftar bahan baku</CardTitle>
             <Badge varian="count">{bahan.length}</Badge>
           </div>
-          <div className="relative w-full sm:w-auto">
-            <IconCari
-              width={16}
-              height={16}
-              className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
-            />
-            <input
-              type="search"
-              value={cari}
-              onChange={(e) => setCari(e.target.value)}
-              placeholder="Cari nama bahan…"
-              aria-label="Cari nama bahan"
-              className="h-9 w-full rounded-card border border-border bg-card pr-3 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring sm:w-56"
-            />
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            {/* Muncul hanya kalau memang ada yang perlu dicek: tombol saring
+                yang selalu ada dan selalu kosong hasilnya cuma jadi hiasan. */}
+            {jumlahBasi > 0 && (
+              <button
+                type="button"
+                aria-pressed={filterBasi}
+                onClick={() => setHanyaBasi((s) => !s)}
+                className={cn(
+                  "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
+                  "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                  filterBasi
+                    ? "border-warning-border bg-warning-bg text-warning"
+                    : "border-border bg-card text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <IconPeringatan width={14} height={14} />
+                {jumlahBasi} perlu dicek
+              </button>
+            )}
+
+            <div className="relative w-full sm:w-auto">
+              <IconCari
+                width={16}
+                height={16}
+                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
+              />
+              <input
+                type="search"
+                value={cari}
+                onChange={(e) => setCari(e.target.value)}
+                placeholder="Cari nama bahan…"
+                aria-label="Cari nama bahan"
+                className="h-9 w-full rounded-card border border-border bg-card pr-3 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring sm:w-56"
+              />
+            </div>
           </div>
         </CardHeader>
 
@@ -180,10 +226,16 @@ export function HalamanBahanBaku({
             <TBody>
               {terlihat.map((b) => {
                 const dipakai = pemakaian[b.id] ?? 0;
+                const umur = umurHarga[b.id] ?? 0;
                 return (
                   <TR key={b.id}>
                     <TD>
-                      <span className="block font-medium">{b.nama}</span>
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{b.nama}</span>
+                        {umur >= HARI_HARGA_BASI && (
+                          <Badge varian="warning">Belum dicek {umur} hari</Badge>
+                        )}
+                      </span>
                       <span className="block text-xs text-muted-foreground">
                         Diperbarui {formatTanggal(b.updatedAt)}
                       </span>
@@ -233,7 +285,7 @@ export function HalamanBahanBaku({
                         </span>
                       </>
                     ) : (
-                      "Tidak ada bahan yang cocok dengan pencarian."
+                      pesanKosong
                     )}
                   </TD>
                 </TR>
@@ -245,6 +297,7 @@ export function HalamanBahanBaku({
         <MobileDataList className="mt-4">
           {terlihat.map((b) => {
             const dipakai = pemakaian[b.id] ?? 0;
+            const umur = umurHarga[b.id] ?? 0;
             return (
               <MobileDataListItem key={b.id}>
                 <div className="flex items-start justify-between gap-4">
@@ -253,6 +306,11 @@ export function HalamanBahanBaku({
                     <p className="mt-1 text-xs text-muted-foreground">
                       Diperbarui {formatTanggal(b.updatedAt)}
                     </p>
+                    {umur >= HARI_HARGA_BASI && (
+                      <Badge varian="warning" className="mt-2">
+                        Belum dicek {umur} hari
+                      </Badge>
+                    )}
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="text-sm font-semibold text-foreground">
@@ -300,7 +358,7 @@ export function HalamanBahanBaku({
                   </span>
                 </>
               ) : (
-                "Tidak ada bahan yang cocok dengan pencarian."
+                pesanKosong
               )}
             </MobileDataEmpty>
           )}
