@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { cegahScrollUbahAngka, Input, Select } from "@/components/ui/Input";
+import { cegahScrollUbahAngka, Input } from "@/components/ui/Input";
+import { PilihOpsi } from "@/components/ui/PilihOpsi";
 import { InputAngka } from "@/components/ui/InputAngka";
 import { Modal } from "@/components/ui/Modal";
 import { IconKalkulator, IconTambah, IconTutup } from "@/components/ui/icons";
@@ -487,18 +488,13 @@ function FormProduk({
           placeholder="Contoh: Nasi Ayam Geprek"
           className="sm:col-span-2"
         />
-        <Select
+        <PilihOpsi
           id="kategori-produk"
           name="kategori"
           label="Kategori"
-          defaultValue={produk?.kategori ?? KATEGORI[0]}
-        >
-          {KATEGORI.map((k) => (
-            <option key={k} value={k}>
-              {k}
-            </option>
-          ))}
-        </Select>
+          opsi={KATEGORI.map((k) => ({ nilai: k, label: k }))}
+          nilaiAwal={produk?.kategori ?? KATEGORI[0]}
+        />
       </div>
 
       <section className="rounded-card border border-border bg-muted/30 p-3">
@@ -778,23 +774,21 @@ function FormProduk({
                         bisa diubah hanya menambah kendali palsu; tampilkan
                         satuannya sebagai keterangan saja. */}
                     {pilihanSatuan.length > 1 ? (
-                      <label className="w-20 shrink-0">
-                        <span className="sr-only">Satuan jumlah</span>
-                        <select
-                          value={b.satuanDipilih}
-                          onChange={(e) => ubahBaris(b.key, { satuanDipilih: e.target.value })}
-                          aria-label={`Satuan untuk ${bahanTerpilih?.nama ?? "bahan"}`}
-                          className="h-10 w-full rounded-card border border-border bg-card px-2 text-xs text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-                        >
-                          {pilihanSatuan.map((satuan) => (
-                            <option key={satuan.nilai} value={satuan.nilai}>
-                              {satuan.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                      // Sedikit lebih lebar dari sebelumnya: kotak yang sama
+                      // dengan dropdown lain menyediakan ruang untuk panahnya,
+                      // dan "liter" tidak muat lagi di 80px.
+                      <PilihOpsi
+                        className="w-24 shrink-0"
+                        opsi={pilihanSatuan.map((satuan) => ({
+                          nilai: satuan.nilai,
+                          label: satuan.label,
+                        }))}
+                        nilai={b.satuanDipilih}
+                        onPilih={(satuanDipilih) => ubahBaris(b.key, { satuanDipilih })}
+                        ariaLabel={`Satuan untuk ${bahanTerpilih?.nama ?? "bahan"}`}
+                      />
                     ) : (
-                      <span className="flex h-10 w-20 shrink-0 items-center text-xs text-muted-foreground">
+                      <span className="flex h-10 w-24 shrink-0 items-center text-xs text-muted-foreground">
                         {pilihanSatuan[0]?.label}
                       </span>
                     )}

@@ -165,6 +165,14 @@ export function IconChevronKanan(props: IconProps) {
   );
 }
 
+export function IconChevronBawah(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="m6 9 6 6 6-6" />
+    </Base>
+  );
+}
+
 export function IconHapus(props: IconProps) {
   return (
     <Base {...props}>

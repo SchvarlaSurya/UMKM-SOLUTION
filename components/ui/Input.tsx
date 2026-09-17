@@ -1,7 +1,6 @@
 import type {
   InputHTMLAttributes,
   ReactNode,
-  SelectHTMLAttributes,
   WheelEvent,
 } from "react";
 import { cn } from "@/lib/cn";
@@ -21,7 +20,8 @@ export function cegahScrollUbahAngka(e: WheelEvent<HTMLInputElement>) {
   if (e.currentTarget === document.activeElement) e.currentTarget.blur();
 }
 
-const kontrolDasar =
+/** Rupa dasar semua kotak isian, dipakai juga oleh pemicu daftar turun. */
+export const kontrolDasar =
   "h-10 w-full rounded-card border border-border bg-card px-3 text-sm text-foreground " +
   "placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 " +
   "focus-visible:outline-ring disabled:opacity-50";
@@ -45,7 +45,8 @@ function idKeterangan(id: string | undefined, error?: string, helper?: ReactNode
   return undefined;
 }
 
-function Field({
+/** Label, kotak, dan keterangan di bawahnya — kerangka bersama tiap kolom. */
+export function Field({
   label,
   helper,
   error,
@@ -101,30 +102,6 @@ export function Input({
         }}
         {...props}
       />
-    </Field>
-  );
-}
-
-export function Select({
-  label,
-  helper,
-  error,
-  className,
-  id,
-  children,
-  ...props
-}: FieldProps & SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <Field label={label} helper={helper} error={error} htmlFor={id} className={className}>
-      <select
-        id={id}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={idKeterangan(id, error, helper)}
-        className={cn(kontrolDasar, "pr-8", error && "border-destructive")}
-        {...props}
-      >
-        {children}
-      </select>
     </Field>
   );
 }

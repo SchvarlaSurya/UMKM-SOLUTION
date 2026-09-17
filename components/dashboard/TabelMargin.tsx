@@ -176,7 +176,10 @@ export function TabelMargin({
         </Table>
       </div>
 
-      <MobileDataList ref={refIsiMobile}>
+      {/* mt-4 menyamai versi tabel di atasnya. CardHeader sengaja tidak punya
+          padding bawah, jadi jarak ke isi kartu memang tugas isinya sendiri —
+          tanpa ini garis atas daftar menempel persis di kolom pencarian. */}
+      <MobileDataList ref={refIsiMobile} className="mt-4">
         {terlihat.map((p) => (
           <MobileDataListItem key={p.id}>
             <div className="flex items-start justify-between gap-3">
