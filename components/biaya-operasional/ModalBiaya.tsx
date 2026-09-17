@@ -2,7 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
-import { Input, Select } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
+import { PilihOpsi } from "@/components/ui/PilihOpsi";
 import { InputAngka } from "@/components/ui/InputAngka";
 import { Modal } from "@/components/ui/Modal";
 import type { BiayaOperasional, JenisBiaya } from "@/lib/types";
@@ -114,16 +115,17 @@ function FormBiaya({
       />
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Select
+        <PilihOpsi
           id="jenis-biaya"
           name="jenis"
           label="Jenis biaya"
-          value={jenis}
-          onChange={(e) => setJenis(e.target.value as JenisBiaya)}
-        >
-          <option value="tetap">Tetap (per bulan)</option>
-          <option value="persentase">Persentase (dari harga jual)</option>
-        </Select>
+          opsi={[
+            { nilai: "tetap", label: "Tetap (per bulan)" },
+            { nilai: "persentase", label: "Persentase (dari harga jual)" },
+          ]}
+          nilai={jenis}
+          onPilih={(v) => setJenis(v as JenisBiaya)}
+        />
 
         {jenis === "tetap" ? (
           /* key memaksa kolom dibuat ulang saat jenis berganti, supaya nilai

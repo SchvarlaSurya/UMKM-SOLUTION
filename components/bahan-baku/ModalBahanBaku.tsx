@@ -2,7 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
-import { Input, Select } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
+import { PilihOpsi } from "@/components/ui/PilihOpsi";
 import { InputAngka } from "@/components/ui/InputAngka";
 import { Modal } from "@/components/ui/Modal";
 import { Banner } from "@/components/ui/Banner";
@@ -136,24 +137,19 @@ function FormBahan({
       />
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Select
+        <PilihOpsi
           id="satuan-bahan"
           name="satuan"
           label="Satuan"
-          defaultValue={bahan?.satuan ?? SATUAN[0]}
+          opsi={SATUAN.map((s) => ({ nilai: s, label: s }))}
+          nilaiAwal={bahan?.satuan ?? SATUAN[0]}
           disabled={mode === "edit"}
           helper={
             mode === "edit"
               ? "Terkunci: takaran resep yang sudah tersimpan tidak ikut dikonversi."
               : undefined
           }
-        >
-          {SATUAN.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </Select>
+        />
 
         <InputAngka
           id="harga-bahan"
