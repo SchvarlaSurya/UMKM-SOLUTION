@@ -119,7 +119,12 @@ async function getPengaturan(userId: number, db: DatabaseClient = prisma) {
   return pengaturan ?? PENGATURAN_DEFAULT
 }
 
-async function getKonteksBiaya(userId: number, db: DatabaseClient = prisma) {
+/**
+ * Pengaturan dan komponen biaya operasional milik satu user. Diekspor untuk
+ * simulasi kenaikan bahan, supaya default pengaturan dan pemilahan biaya
+ * tetap berasal dari satu tempat.
+ */
+export async function getKonteksBiaya(userId: number, db: DatabaseClient = prisma) {
   const [pengaturan, semuaBiaya] = await Promise.all([
     getPengaturan(userId, db),
     db.biayaOperasional.findMany({ where: { userId } }),
