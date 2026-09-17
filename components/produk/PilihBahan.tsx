@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type Ref } from "react";
+import { animate, utils } from "animejs";
 import { cn } from "@/lib/cn";
 import { IconCari } from "@/components/ui/icons";
+import { useEfekTataLetak } from "@/components/ui/useEfekTataLetak";
+import { durasiGerak } from "@/lib/gerak";
 import type { BahanBaku } from "@/lib/types";
 
 /** Tinggi daftar dibatasi supaya 20+ bahan tidak memanjang sampai keluar layar. */
@@ -76,6 +79,41 @@ export function PilihBahan({
     onPilih(bahanBakuId);
     tutup();
   }
+
+  /**
+   * Daftar muncul dari tepi kotak ketiknya.
+   *
+   * Ini satu-satunya lapisan melayang di aplikasi yang tadinya menyentak;
+   * modal, toast, dan drawer semuanya bergerak. Pendek saja — 120ms — karena
+   * daftarnya dibuka berkali-kali dalam satu sesi mengisi resep, dan animasi
+   * masuk yang panjang berubah jadi penghalang.
+   *
+   * Hanya animasi masuk. Menutupnya sengaja seketika: sesudah bahan dipilih,
+   * daftar yang masih memudar terbaca seperti pilihannya belum tersimpan.
+   */
+  useEfekTataLetak(() => {
+    if (!terbuka) return;
+    const daftar = refDaftar.current;
+    if (!daftar) return;
+
+    const ms = durasiGerak(120);
+    if (ms === 0) return;
+
+    // Arah gesernya mengikuti arah bukanya, supaya daftarnya terbaca keluar
+    // dari kotak ketik dan bukan melayang masuk dari arah mana saja.
+    utils.set(daftar, { opacity: 0, scaleY: 0.96, translateY: keAtas ? 4 : -4 });
+    animate(daftar, {
+      opacity: 1,
+      scaleY: 1,
+      translateY: 0,
+      duration: ms,
+      ease: "outQuad",
+    });
+
+    return () => {
+      utils.remove(daftar);
+    };
+  }, [terbuka, keAtas]);
 
   // Baris tersorot digulir ke dalam pandangan. `nearest` supaya daftarnya tidak
   // melompat saat barisnya sebenarnya sudah terlihat.
@@ -170,7 +208,13 @@ export function PilihBahan({
           id={idDaftar}
           role="listbox"
           aria-label={label}
-          style={{ maxHeight: TINGGI_DAFTAR_MAKS }}
+          // Titik tumpu transform menempel di sisi yang berbatasan dengan kotak
+          // ketik, jadi daftarnya membuka menjauh dari kotaknya, bukan dari
+          // tengah dirinya sendiri.
+          style={{
+            maxHeight: TINGGI_DAFTAR_MAKS,
+            transformOrigin: keAtas ? "bottom center" : "top center",
+          }}
           className={cn(
             "absolute inset-x-0 z-20 overflow-y-auto rounded-card border border-border bg-card py-1 shadow-[0_10px_30px_rgba(32,46,40,0.16)]",
             keAtas ? "bottom-full mb-1" : "top-full mt-1",
