@@ -11,10 +11,8 @@ import { lupakanAngka } from "@/lib/ingatanAngka";
 import { inisial } from "@/lib/format";
 import { navItems } from "./nav-items";
 import {
-  IconBenih,
   IconKeluar,
   IconLogo,
-  IconPanahKanan,
   IconPensil,
   IconToko,
   IconTutup,
@@ -272,26 +270,6 @@ export function Sidebar({
           </ul>
         </div>
       </nav>
-
-      <div className="mx-3 mb-3 rounded-card bg-accent px-3 py-3.5">
-        <span className="flex size-7 items-center justify-center rounded-full bg-card text-primary">
-          <IconBenih width={16} height={16} />
-        </span>
-        <p className="mt-2.5 text-sm font-semibold text-accent-foreground">
-          Untung dimulai dari tahu.
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Perbarui harga bahan secara rutin agar HPP tetap akurat.
-        </p>
-        <Link
-          href="/bahan-baku"
-          onClick={onTutup}
-          className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline underline-offset-4"
-        >
-          Cek bahan baku
-          <IconPanahKanan width={14} height={14} />
-        </Link>
-      </div>
 
       <div className="flex items-center gap-2.5 border-t border-sidebar-border px-4 py-3">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
