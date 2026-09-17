@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { IconPanahKanan, IconPanahNaik, IconPanahTurun, IconTren } from "@/components/ui/icons";
+import { PilihBahan } from "@/components/produk/PilihBahan";
 import { formatPersen, formatRupiah } from "@/lib/format";
 import type { TitikHarga } from "@/lib/data";
 import type { BahanBaku } from "@/lib/types";
@@ -81,20 +82,17 @@ export function WidgetHargaBahan({
             Harga per {bahanTerpilih?.satuan ?? "satuan"} · 30 hari terakhir
           </CardDescription>
         </div>
-        <label className="sm:ml-auto">
-          <span className="sr-only">Pilih bahan baku</span>
-          <select
-            value={bahanId}
-            onChange={(e) => setBahanId(Number(e.target.value))}
-            className="h-9 rounded-card border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-          >
-            {bahan.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.nama}
-              </option>
-            ))}
-          </select>
-        </label>
+        {/* Lebar dipatok di pembungkusnya, bukan mengikuti nama bahan
+            terpanjang seperti <select> dulu: kotak yang berubah lebar tiap
+            ganti bahan menggeser judul kartu di sebelahnya. */}
+        <div className="w-full sm:ml-auto sm:w-56">
+          <PilihBahan
+            bahan={bahan}
+            nilai={bahanId}
+            onPilih={setBahanId}
+            label="Pilih bahan baku"
+          />
+        </div>
       </CardHeader>
 
       <div className="px-5 pt-4">
