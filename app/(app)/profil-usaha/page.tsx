@@ -19,7 +19,6 @@ export default async function ProfilUsahaPage() {
   return (
     <>
       <PageHeader
-        label="Kelola usaha"
         judul="Profil usaha"
         subjudul="Ganti nama usaha kalau salah ketik, atau lengkapi kalau belum pernah diisi."
       />

@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Tabs } from "@/components/ui/Tabs";
 import { useToast } from "@/components/ui/Toast";
 import { IconCari, IconPanahKanan, IconProduk, IconTambah } from "@/components/ui/icons";
+import { formatPersen } from "@/lib/format";
 import type { BahanBaku, ProdukDenganHpp } from "@/lib/types";
 import { KartuProduk } from "./KartuProduk";
 import { ModalHistoriHargaJual } from "./ModalHistoriHargaJual";
@@ -43,6 +44,14 @@ export function HalamanProduk({
 
   const denganHpp = produk;
   const jumlahPerhatian = denganHpp.filter((p) => !p.statusAman).length;
+
+  // Rata-rata margin sengaja dipilih: jumlah per status sudah terbaca di tab
+  // tepat di bawahnya, jadi mengulangnya di sini tidak menambah apa pun.
+  const ringkasanProduk = useMemo(() => {
+    if (produk.length === 0) return undefined;
+    const rata = produk.reduce((total, p) => total + p.marginPersen, 0) / produk.length;
+    return `${produk.length} produk · rata-rata margin ${formatPersen(rata)}`;
+  }, [produk]);
 
   const terlihat = useMemo(() => {
     const kunci = cari.trim().toLowerCase();
@@ -140,9 +149,8 @@ export function HalamanProduk({
   return (
     <>
       <PageHeader
-        label="Kelola usaha"
         judul="Produk & resep"
-        subjudul="Takaran yang tepat membuat HPP lebih akurat."
+        subjudul={ringkasanProduk}
         aksi={
           <Button varian="primary" onClick={bukaTambah}>
             <IconTambah width={16} height={16} />

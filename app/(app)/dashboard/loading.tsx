@@ -19,9 +19,7 @@ export default function MemuatDashboard() {
       </p>
 
       <PageHeader
-        label="Kesehatan usaha"
-        judul="Kenali angka. Jaga untung."
-        subjudul="Pantau HPP dan margin setiap produk, tanpa biaya yang terlewat."
+        judul="Ringkasan usaha"
         aksi={<Skeleton nada="latar" bentuk="kotak" className="h-10 w-36" />}
       />
 

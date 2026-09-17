@@ -13,9 +13,8 @@ export default function MemuatBiayaOperasional() {
       </p>
 
       <PageHeader
-        label="Kelola usaha"
         judul="Biaya operasional"
-        subjudul="Masukkan biaya yang sering luput dari perhitungan."
+        subjudul={<Skeleton nada="latar" className="my-0.5 h-4 w-64" />}
         aksi={<Skeleton nada="latar" bentuk="kotak" className="h-10 w-36" />}
       />
 

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "@/lib/cn";
 
 export function PageHeader({
   label,
@@ -8,7 +9,7 @@ export function PageHeader({
 }: {
   label?: string;
   judul: string;
-  subjudul?: string;
+  subjudul?: ReactNode;
   aksi?: ReactNode;
 }) {
   return (
@@ -19,10 +20,21 @@ export function PageHeader({
             {label}
           </p>
         )}
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        {/* Jarak atas hanya kalau ada label di atasnya, kalau tidak judulnya
+            menggantung jauh dari tepi. */}
+        <h1
+          className={cn(
+            "text-2xl font-semibold tracking-tight text-foreground sm:text-3xl",
+            label && "mt-2",
+          )}
+        >
           {judul}
         </h1>
-        {subjudul && <p className="mt-2 max-w-xl text-sm text-muted-foreground">{subjudul}</p>}
+        {/* <div>, bukan <p>: loading.tsx mengisinya dengan batang Skeleton,
+            dan <div> di dalam <p> bukan sarang HTML yang sah. */}
+        {subjudul && (
+          <div className="mt-2 max-w-xl text-sm text-muted-foreground">{subjudul}</div>
+        )}
       </div>
       {aksi && <div className="shrink-0">{aksi}</div>}
     </header>

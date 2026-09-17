@@ -14,9 +14,8 @@ export default function MemuatBahanBaku() {
       </p>
 
       <PageHeader
-        label="Kelola usaha"
         judul="Bahan baku"
-        subjudul="Satu harga diperbarui, semua resep terkait ikut terhitung."
+        subjudul={<Skeleton nada="latar" className="my-0.5 h-4 w-64" />}
         aksi={<Skeleton nada="latar" bentuk="kotak" className="h-10 w-36" />}
       />
 
