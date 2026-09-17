@@ -38,6 +38,15 @@ export function HalamanTren({
   const bahanTerpilih = bahan.find((b) => b.id === bahanId);
 
   // Histori sudah urut naik dari lapisan data; salin sebelum dibalik.
+  // Jumlah catatan di seluruh bahan. Angka di kaki tabel hanya menghitung
+  // bahan yang sedang dipilih, jadi yang gabungan belum ada di halaman ini.
+  const ringkasanTren = useMemo(() => {
+    const totalCatatan = Object.values(histori).reduce((n, daftar) => n + daftar.length, 0);
+    if (totalCatatan === 0) return undefined;
+    const bahanBerubah = Object.values(histori).filter((daftar) => daftar.length > 0).length;
+    return `${totalCatatan} catatan perubahan harga dari ${bahanBerubah} bahan`;
+  }, [histori]);
+
   const catatan = useMemo(() => [...(histori[bahanId] ?? [])], [histori, bahanId]);
 
   // Setiap catatan menyimpan harga sebelum dan sesudah perubahan. Titik pertama
@@ -64,11 +73,7 @@ export function HalamanTren({
   if (!bahanTerpilih) {
     return (
       <>
-        <PageHeader
-          label="Pantau perubahan"
-          judul="Tren harga bahan"
-          subjudul="Lihat perubahan harga sebelum margin ikut berubah."
-        />
+        <PageHeader judul="Tren harga bahan" />
         <EmptyState
           ikon={<IconTren />}
           judul="Belum ada catatan perubahan harga"
@@ -102,9 +107,8 @@ export function HalamanTren({
   return (
     <>
       <PageHeader
-        label="Pantau perubahan"
         judul="Tren harga bahan"
-        subjudul="Lihat perubahan harga sebelum margin ikut berubah."
+        subjudul={ringkasanTren}
       />
 
       <Card>

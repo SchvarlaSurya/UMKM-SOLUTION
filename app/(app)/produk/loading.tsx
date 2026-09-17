@@ -11,9 +11,8 @@ export default function MemuatProduk() {
       </p>
 
       <PageHeader
-        label="Kelola usaha"
         judul="Produk & resep"
-        subjudul="Takaran yang tepat membuat HPP lebih akurat."
+        subjudul={<Skeleton nada="latar" className="my-0.5 h-4 w-64" />}
         aksi={<Skeleton nada="latar" bentuk="kotak" className="h-10 w-36" />}
       />
 

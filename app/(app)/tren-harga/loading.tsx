@@ -13,9 +13,8 @@ export default function MemuatTrenHarga() {
       </p>
 
       <PageHeader
-        label="Pantau perubahan"
         judul="Tren harga bahan"
-        subjudul="Lihat perubahan harga sebelum margin ikut berubah."
+        subjudul={<Skeleton nada="latar" className="my-0.5 h-4 w-64" />}
       />
 
       {/* Grafik histori */}

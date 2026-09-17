@@ -72,6 +72,20 @@ export function HalamanBiayaOperasional({
     };
   }, [biaya, estimasiPorsi]);
 
+  // Rupiah per porsinya sudah tampil besar di kartu alokasi tepat di bawah,
+  // jadi yang disebut di sini komposisinya: berapa yang tetap, berapa yang
+  // memotong dari harga jual.
+  const ringkasanBiaya = useMemo(() => {
+    if (biaya.length === 0) return undefined;
+    const jumlahTetap = biaya.filter((b) => b.jenis === "tetap").length;
+    const jumlahPersentase = biaya.length - jumlahTetap;
+    const bagian = [
+      jumlahTetap > 0 ? `${jumlahTetap} biaya tetap` : null,
+      jumlahPersentase > 0 ? `${jumlahPersentase} biaya persentase` : null,
+    ].filter(Boolean);
+    return bagian.join(" dan ");
+  }, [biaya]);
+
   function bukaTambah() {
     setMode("tambah");
     setTerpilih(null);
@@ -156,9 +170,8 @@ export function HalamanBiayaOperasional({
   return (
     <>
       <PageHeader
-        label="Kelola usaha"
         judul="Biaya operasional"
-        subjudul="Masukkan biaya yang sering luput dari perhitungan."
+        subjudul={ringkasanBiaya}
         aksi={
           <Button varian="primary" onClick={bukaTambah}>
             <IconTambah width={16} height={16} />

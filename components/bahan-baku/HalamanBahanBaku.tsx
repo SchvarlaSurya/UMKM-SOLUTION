@@ -42,6 +42,18 @@ export function HalamanBahanBaku({
   const [akanDihapus, setAkanDihapus] = useState<BahanBaku | null>(null);
   const [galatHapus, setGalatHapus] = useState<string | null>(null);
 
+  // Satu baris fakta tentang datanya sendiri, bukan kalimat penjelas yang
+  // sama di setiap kunjungan. Jumlah bahan yang belum dipakai resep mana pun
+  // tidak muncul di tempat lain sebagai angka gabungan.
+  const ringkasanBahan = useMemo(() => {
+    if (bahan.length === 0) return undefined;
+    const belumDipakai = bahan.filter((b) => (pemakaian[b.id] ?? 0) === 0).length;
+    const dasar = `${bahan.length} bahan tercatat`;
+    return belumDipakai === 0
+      ? dasar
+      : `${dasar} · ${belumDipakai} belum dipakai resep mana pun`;
+  }, [bahan, pemakaian]);
+
   const terlihat = useMemo(() => {
     const kunci = cari.trim().toLowerCase();
     return kunci === "" ? bahan : bahan.filter((b) => b.nama.toLowerCase().includes(kunci));
@@ -117,9 +129,8 @@ export function HalamanBahanBaku({
   return (
     <>
       <PageHeader
-        label="Kelola usaha"
         judul="Bahan baku"
-        subjudul="Satu harga diperbarui, semua resep terkait ikut terhitung."
+        subjudul={ringkasanBahan}
         aksi={
           <Button varian="primary" onClick={bukaTambah}>
             <IconTambah width={16} height={16} />
