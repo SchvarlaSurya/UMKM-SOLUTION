@@ -696,7 +696,19 @@ function FormProduk({
           )}
         </div>
 
-        <ul className="mt-3 flex flex-col gap-2">
+        {/*
+          Tiap bahan dipisah garis, bukan cuma jarak.
+
+          Sebelumnya jarak antar bahan dan jarak antar bagian di dalam satu
+          bahan sama-sama 8px, padahal satu bahan setinggi 108px di layar kecil
+          dan terpecah jadi tiga baris saat membungkus. Tanpa beda jarak,
+          enam kontrol itu terbaca sebagai satu tumpukan datar — masukan QA
+          dari Person C.
+
+          Memperlebar jaraknya saja tidak cukup pada baris setinggi itu; batas
+          yang tegas lebih murah daripada jarak yang harus terus dibesarkan.
+        */}
+        <ul className="mt-3 flex flex-col">
           {baris.map((b) => {
             const bahanTerpilih = bahan.find((x) => x.id === b.bahanBakuId);
             // Bahan yang sudah dipakai baris lain dikeluarkan dari pilihan.
@@ -721,7 +733,14 @@ function FormProduk({
                 ? jumlahDalamSatuanDasar / jumlahPorsiAngka
                 : null;
             return (
-              <li key={b.key} className="flex flex-wrap items-end gap-2">
+              <li
+                key={b.key}
+                // Garis dan padding yang membentuk jaraknya ditulis bersama di
+                // baris ini, bukan dipisah jadi divide-y di <ul>: keduanya satu
+                // keputusan, dan kalau salah satunya diubah nanti yang lain
+                // ikut terlihat.
+                className="flex flex-wrap items-end gap-2 border-t border-border py-3 first:border-t-0 first:pt-0 last:pb-0"
+              >
                 <div className="min-w-48 flex-1">
                   <PilihBahan
                     ref={(el) => {
