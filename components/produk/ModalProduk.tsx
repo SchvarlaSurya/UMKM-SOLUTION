@@ -11,6 +11,7 @@ import { formatRupiah } from "@/lib/format";
 import { konversiKeSatuanDasar, pilihanSatuanUntuk } from "@/lib/satuan";
 import { nilaiIsian } from "@/lib/takaran";
 import type { BahanBaku, ModePenentuanHarga, Produk } from "@/lib/types";
+import { PilihBahan } from "./PilihBahan";
 
 export const KATEGORI = [
   "Makanan utama",
@@ -725,9 +726,8 @@ function FormProduk({
                 : null;
             return (
               <li key={b.key} className="flex flex-wrap items-end gap-2">
-                <label className="min-w-48 flex-1">
-                  <span className="sr-only">Bahan baku</span>
-                  <select
+                <div className="min-w-48 flex-1">
+                  <PilihBahan
                     ref={(el) => {
                       // Fokus diberikan sekali saat baris barunya muncul.
                       if (el && fokusKeBaris.current === b.key) {
@@ -735,24 +735,18 @@ function FormProduk({
                         fokusKeBaris.current = null;
                       }
                     }}
-                    value={b.bahanBakuId}
-                    onChange={(e) => {
-                      const bahanBakuId = Number(e.target.value);
+                    bahan={pilihanBahan}
+                    nilai={b.bahanBakuId}
+                    label="Bahan baku"
+                    onPilih={(bahanBakuId) => {
                       const satuanDasar = bahan.find((item) => item.id === bahanBakuId)?.satuan ?? "";
                       ubahBaris(b.key, {
                         bahanBakuId,
                         satuanDipilih: pilihanSatuanUntuk(satuanDasar)[0].nilai,
                       });
                     }}
-                    className="h-10 w-full rounded-card border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-                  >
-                    {pilihanBahan.map((x) => (
-                      <option key={x.id} value={x.id}>
-                        {x.nama}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                  />
+                </div>
 
                 {/* Jumlah, satuannya, dan hasil per porsi dikelompokkan jadi
                     satu kolom. Di layar kecil hasil per porsi dulu jatuh ke
