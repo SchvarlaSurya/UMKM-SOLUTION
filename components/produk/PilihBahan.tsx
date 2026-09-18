@@ -157,7 +157,19 @@ export function PilihBahan({
           onFocus={buka}
           onClick={buka}
           onKeyDown={tanganiTombol}
-          className="h-10 w-full rounded-card border border-border bg-card pr-9 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+          className={cn(
+            "h-10 w-full rounded-card border border-border bg-card pr-9 pl-9 text-sm text-foreground placeholder:text-muted-foreground",
+            // Cincin fokus hanya saat daftarnya tertutup. Kotak ini kotak ketik,
+            // jadi peramban menganggapnya focus-visible bahkan saat diklik
+            // tetikus — padahal begitu diklik daftarnya langsung terbuka, dan
+            // panel yang terbuka itu penanda "sedang aktif" yang jauh lebih
+            // jelas daripada cincinnya. Saat tertutup tapi masih fokus (mis.
+            // sesudah Escape) cincinnya kembali, supaya pengguna papan ketik
+            // tidak kehilangan jejak.
+            terbuka
+              ? "focus-visible:outline-none"
+              : "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+          )}
         />
         {/* Panah yang sama dengan <select> di seluruh form: penanda bersama
             bahwa kontrol ini membuka daftar. Kaca pembesar di kiri tetap ada

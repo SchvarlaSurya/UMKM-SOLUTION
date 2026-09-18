@@ -100,3 +100,25 @@ body {
 dialog::backdrop {
   opacity: var(--opasitas-latar, 1);
 }
+
+/*
+ * Recharts 3 memasang `tabindex="0"` di elemen <svg> grafiknya supaya titik
+ * data bisa ditelusuri dengan papan ketik. Konsekuensinya, mengklik grafik
+ * ikut memberinya fokus, dan peramban menggambar cincin fokus bawaan — digambar
+ * dengan warna sistem operasi, jadi tidak mengikuti apa pun di aplikasi ini.
+ *
+ * Yang muncul karena klik tetikus dimatikan. Yang muncul karena Tab diganti
+ * cincin milik aplikasi, bukan ikut dihapus: tanpa itu pengguna papan ketik
+ * kehilangan satu-satunya petunjuk bahwa grafiknya sedang aktif.
+ *
+ * Ditulis di sini, bukan sebagai kelas di komponen grafik, karena elemen yang
+ * perlu disasar dibuat di dalam Recharts dan tidak bisa diberi className.
+ */
+.recharts-surface:focus {
+  outline: none;
+}
+
+.recharts-surface:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}

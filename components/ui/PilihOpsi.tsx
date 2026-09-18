@@ -189,6 +189,11 @@ export function PilihOpsi({
           className={cn(
             kontrolDasar,
             "flex items-center pr-9 text-left",
+            // Sama dengan PilihBahan: selagi panelnya terbuka, panel itu sendiri
+            // yang menandai kontrol ini sedang aktif, jadi cincin fokusnya tidak
+            // perlu ikut menyala. Saat tertutup cincinnya kembali seperti kotak
+            // isian lain.
+            terbuka && "focus-visible:outline-none",
             error && "border-destructive",
             disabled && "cursor-not-allowed",
           )}
