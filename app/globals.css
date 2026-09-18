@@ -122,3 +122,19 @@ dialog::backdrop {
   outline: 2px solid var(--color-ring);
   outline-offset: 2px;
 }
+
+/*
+ * Cincin fokus pada kotak isian hanya muncul kalau fokusnya datang dari papan
+ * ketik.
+ *
+ * `:focus-visible` bawaan peramban tidak membedakan klik dan Tab untuk
+ * `<input>` — mengklik kotak ketik tetap dihitung focus-visible, karena di
+ * sana mengetik memang diharapkan. Penanda di <html> dipasang komponen
+ * ModalitasFokus: Tab menyalakannya, tekanan penunjuk mematikannya.
+ *
+ * Sengaja hanya kotak isian. Tombol dan tautan sudah dibedakan dengan benar
+ * oleh peramban, jadi tidak perlu ikut diatur di sini.
+ */
+html:not([data-fokus-papan-ketik]) :is(input, textarea):focus-visible {
+  outline: none;
+}

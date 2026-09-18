@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { ModalitasFokus } from "@/components/ui/ModalitasFokus";
 import { PenyediaToast } from "@/components/ui/Toast";
 import "./globals.css";
 
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       {/* Penyedia toast dipasang di layout akar supaya halaman masuk dan daftar
           ikut terjangkau, bukan hanya halaman di dalam (app). */}
       <body className="min-h-full flex flex-col">
+        <ModalitasFokus />
         <PenyediaToast>{children}</PenyediaToast>
       </body>
     </html>
