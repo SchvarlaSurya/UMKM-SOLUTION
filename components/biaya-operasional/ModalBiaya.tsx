@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { PilihOpsi } from "@/components/ui/PilihOpsi";
 import { InputAngka } from "@/components/ui/InputAngka";
 import { Modal } from "@/components/ui/Modal";
+import { useSesiModal } from "@/components/ui/useSesiModal";
 import type { BiayaOperasional, JenisBiaya } from "@/lib/types";
 
 export type NilaiFormBiaya = {
@@ -37,6 +38,8 @@ export function ModalBiaya({
   onTutup: () => void;
   onSimpan: (nilai: NilaiFormBiaya) => void;
 }) {
+  const sesi = useSesiModal(terbuka);
+
   return (
     <Modal
       terbuka={terbuka}
@@ -54,8 +57,11 @@ export function ModalBiaya({
         </Button>
       }
     >
+      {/* Nomor sesi ikut di key: tanpa itu mode tambah selalu menghasilkan key
+          yang sama ("tambah-baru"), jadi nama, jenis, dan nilai yang tadi
+          diketik masih terisi saat form dibuka berikutnya. */}
       <FormBiaya
-        key={`${mode}-${biaya?.id ?? "baru"}`}
+        key={`${mode}-${biaya?.id ?? "baru"}-${sesi}`}
         biaya={biaya}
         estimasiPorsi={estimasiPorsi}
         galatServer={galatServer}
