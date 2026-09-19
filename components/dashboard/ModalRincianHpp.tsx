@@ -75,6 +75,28 @@ export function ModalRincianHpp({
             {formatRupiah(rincian.sisaPerPorsi)}
           </span>
         </li>
+        <li className="flex items-start justify-between gap-4 py-2.5">
+          <span className="block text-sm font-medium text-foreground">Titik impas</span>
+          {rincian.titikImpasPorsi === null ? (
+            <span className="max-w-sm text-right text-sm font-medium text-warning">
+              Harga jual tidak menutup biaya variabel, titik impas tidak dapat dihitung
+            </span>
+          ) : rincian.titikImpasPorsi === 0 ? (
+            // Tidak ada biaya tetap yang perlu ditutup. Angka "0 porsi/bulan"
+            // benar secara hitungan, tapi terbaca seperti data yang belum terisi.
+            <span className="max-w-sm text-right text-sm font-medium text-success">
+              Tidak ada biaya tetap yang perlu ditutup — produk ini langsung menguntungkan
+              sejak porsi pertama
+            </span>
+          ) : (
+            <span className="text-sm font-semibold text-foreground whitespace-nowrap">
+              {rincian.titikImpasPorsi.toLocaleString("id-ID", {
+                maximumFractionDigits: 2,
+              })}{" "}
+              porsi/bulan
+            </span>
+          )}
+        </li>
       </ul>
     </Modal>
   );

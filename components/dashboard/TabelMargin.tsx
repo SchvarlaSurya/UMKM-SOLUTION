@@ -45,7 +45,11 @@ export function TabelMargin({
   const [filter, setFilter] = useState<Filter>("semua");
   const [cari, setCari] = useState("");
   const [halaman, setHalaman] = useState(1);
-  const [produkTerpilih, setProdukTerpilih] = useState<ProdukDenganHpp | null>(null);
+  // Hanya id-nya yang disimpan. Menyimpan objek produknya membuat modal
+  // memegang salinan lama: harga jual di modal berasal dari salinan itu,
+  // sedangkan rincian dibaca dari props yang ikut diperbarui, jadi keduanya
+  // bisa menampilkan angka berbeda untuk produk yang sama.
+  const [idTerpilih, setIdTerpilih] = useState<number | null>(null);
   // Tabel dan daftar mobile dirender berdampingan, hanya satu yang terlihat
   // per lebar layar; keduanya diserahkan sekaligus dan yang belum terpasang
   // dilewati di dalam hook.
@@ -54,6 +58,10 @@ export function TabelMargin({
   const refKartu = useRef<HTMLElement>(null);
 
   const jumlahPerhatian = produk.filter((p) => !p.statusAman).length;
+
+  // Selalu dari daftar produk yang sedang dirender tabel, bukan salinan saat
+  // baris diklik. Produk yang terhapus di render berikutnya menutup modalnya.
+  const produkTerpilih = idTerpilih === null ? null : (produk.find((p) => p.id === idTerpilih) ?? null);
 
   const terlihat = useMemo(() => {
     const kunci = cari.trim().toLowerCase();
@@ -205,7 +213,7 @@ export function TabelMargin({
                     ukuran="sm"
                     className="px-2"
                     aria-label={`Lihat rincian HPP ${p.nama}`}
-                    onClick={() => setProdukTerpilih(p)}
+                    onClick={() => setIdTerpilih(p.id)}
                   >
                     <IconPanahKeluar width={16} height={16} />
                   </Button>
@@ -283,7 +291,7 @@ export function TabelMargin({
               varian="secondary"
               ukuran="sm"
               className="mt-4 w-full"
-              onClick={() => setProdukTerpilih(p)}
+              onClick={() => setIdTerpilih(p.id)}
             >
               Lihat rincian HPP
               <IconPanahKeluar width={15} height={15} />
@@ -324,10 +332,10 @@ export function TabelMargin({
 
       <ModalRincianHpp
         terbuka={produkTerpilih !== null}
-        onTutup={() => setProdukTerpilih(null)}
+        onTutup={() => setIdTerpilih(null)}
         namaProduk={produkTerpilih?.nama ?? ""}
         hargaJual={produkTerpilih?.hargaJual ?? 0}
-        rincian={produkTerpilih ? rincian[produkTerpilih.id] : null}
+        rincian={produkTerpilih ? (rincian[produkTerpilih.id] ?? null) : null}
       />
     </Card>
   );

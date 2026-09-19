@@ -241,7 +241,7 @@ function HasilSimulasi({ status, satuan }: { status: Status; satuan: string }) {
             {jatuhDiBawahBatas > 0 &&
               ` ${jatuhDiBawahBatas} produk akan jatuh di bawah batas margin aman ${formatPersen(hasil.batasMarginAman, 0)}.`}
             {adaTargetMargin &&
-              " Produk bertarget margin ikut menyesuaikan harga jual, jadi marginnya tetap."}
+              " Harga jual owner tetap; kalkulator margin akan menampilkan rekomendasi terbaru saat produk diedit."}
           </p>
 
           <div className="hidden overflow-hidden rounded-card border border-border md:block">
@@ -317,11 +317,15 @@ function HasilSimulasi({ status, satuan }: { status: Status; satuan: string }) {
                   <div>
                     <dt className="text-muted-foreground">Harga jual</dt>
                     <dd className="mt-0.5">
-                      <DuaAngka
-                        rataKiri
-                        lama={formatRupiah(p.hargaJualLama)}
-                        baru={formatRupiah(p.hargaJualHipotetis)}
-                      />
+                      {p.hargaJualHipotetis === p.hargaJualLama ? (
+                        formatRupiah(p.hargaJualLama)
+                      ) : (
+                        <DuaAngka
+                          rataKiri
+                          lama={formatRupiah(p.hargaJualLama)}
+                          baru={formatRupiah(p.hargaJualHipotetis)}
+                        />
+                      )}
                     </dd>
                   </div>
                   <div>

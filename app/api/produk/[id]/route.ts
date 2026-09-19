@@ -1,7 +1,9 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
+import { isPembulatanHarga } from '@/lib/hpp'
 import { bacaCaraTakaran } from '@/lib/takaran'
+import { segarkanHalamanProduk } from '@/lib/revalidasi'
 import { validasiResep } from '@/lib/validasiResep'
 import {
   calculateHargaJualTargetMarginDariResep,
@@ -66,6 +68,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       targetMarginPersen,
       modeTakaran,
       jumlahPorsiProduksi,
+      pembulatanHarga,
     } = parsed.body
 
     // Resep dikirim dalam takaran per porsi; ini merekam cara pemiliknya
@@ -107,6 +110,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       }
       targetMarginTersimpan = targetMarginInput
     }
+    // Field baru, jadi produk lama yang tidak mengirimnya tetap memakai nilai
+    // tersimpan. Mode manual tidak memakai pembulatan sama sekali.
+    const pembulatanInput =
+      pembulatanHarga === undefined ? existing.pembulatanHarga : pembulatanHarga
+    const pembulatanTersimpan = modeHarga === 'targetMargin' ? pembulatanInput : 0
+    if (!isPembulatanHarga(pembulatanTersimpan)) {
+      return errorResponse('Pembulatan harga harus 0, 100, 500, atau 1000', 400)
+    }
 
     // `resep` opsional: kalau tidak dikirim, resep lama dibiarkan apa adanya.
     // Kalau dikirim, aturannya sama ketat dengan POST.
@@ -142,7 +153,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
               resepUntukHarga,
               auth.userId,
               targetMarginTersimpan as number,
-              tx
+              tx,
+              pembulatanTersimpan
             )
           : null
 
@@ -158,10 +170,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         data: {
           nama: nama.trim(),
           kategori: isTeksTerisi(kategori) ? kategori.trim() : existing.kategori,
+          // Mode target margin: harga dari body sengaja diabaikan, yang
+          // disimpan adalah hasil hitung sistem.
           hargaJual: hargaSistem?.hargaJual ?? (hargaJual as number),
           modePenentuanHarga: modeHarga,
           targetMarginPersen:
             modeHarga === 'targetMargin' ? targetMarginTersimpan : null,
+          pembulatanHarga: pembulatanTersimpan,
           ...caraTakaran,
         },
         omit: { userId: true },
@@ -203,6 +218,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       return produk
     })
 
+    segarkanHalamanProduk(resepBaru !== null)
+
     return NextResponse.json(updated)
   } catch (error) {
     if (error instanceof PerhitunganHargaTargetError) {
@@ -231,6 +248,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       prisma.historiHargaJual.deleteMany({ where: { produkId: id } }),
       prisma.produk.delete({ where: { id, userId: auth.userId } }),
     ])
+
+    segarkanHalamanProduk(true)
 
     return NextResponse.json({ success: true })
   } catch (error) {
