@@ -35,7 +35,7 @@ export function KartuAuth({
             className="flex items-center justify-center gap-2 text-foreground lg:hidden"
             aria-label="Ruang Margin"
           >
-            <span className="flex size-9 items-center justify-center rounded-card bg-primary text-primary-foreground">
+            <span className="flex size-9 items-center justify-center rounded-card bg-warning-bg">
               <IconLogo width={20} height={20} />
             </span>
             <span className="text-base font-semibold tracking-tight">

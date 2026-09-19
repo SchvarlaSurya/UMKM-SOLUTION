@@ -295,7 +295,6 @@ export function IconLogo(props: IconProps) {
   return (
     <svg
       viewBox="0 0 24 24"
-      fill="currentColor"
       aria-hidden="true"
       focusable="false"
       width={20}
@@ -303,27 +302,30 @@ export function IconLogo(props: IconProps) {
       {...props}
     >
       {/*
-        Konsep "ruang margin": dua balok tebal mengapit sebuah celah. Balok atas
-        harga jual, balok bawah modal, dan jarak di antaranya adalah margin —
-        satu-satunya bagian yang benar-benar jadi milik pemilik usaha.
+        Tiga batang menanjak — margin yang tumbuh — dengan batang tertinggi
+        berubah jadi siluet sendok takar. Grafiknya menyatakan "alat ukur",
+        sendoknya menyatakan "dapur"; bersama-sama menjelaskan bahwa ini alat
+        metrik untuk usaha makanan, bukan papan saham.
 
-        Celah itu tidak dibiarkan kosong: di dalamnya berdiri huruf "r" dari
-        "ruang", sekaligus membuat celahnya terbaca sebagai ruang yang dijaga,
-        bukan sekadar sela.
+        Batang ketiga sengaja selebar dua batang lainnya, dan hanya mangkuknya
+        yang melebar sedikit. Versi bertangkai ramping sudah dicoba: bentuknya
+        berhenti terbaca sebagai batang grafik dan jatuh jadi seperti jarum
+        penanda.
+
+        Dua warna, bukan `currentColor`: batang memakai netral gelap dan sendok
+        memakai aksen hangat, dan perbedaan itu yang jadi titik fokusnya.
+        Karena itu tanda ini butuh latar terang — pemakainya membungkusnya
+        dengan petak `bg-warning-bg`, bukan petak hijau seperti logo lama.
 
         Koordinatnya disalin apa adanya dari app/icon.svg lalu diperkecil lewat
-        satu transform, bukan digambar ulang dalam satuan 24: menggambar ulang
-        membuat tebal balok dan tinggi hurufnya meleset sedikit, dan petak di
-        sidebar langsung terlihat lebih sesak daripada ikon di tab peramban.
-
-        Tanpa latar sendiri: pemakainya membungkusnya dengan petak
-        `bg-primary`, dan bentuknya mengikuti `currentColor`.
+        satu transform, supaya tanda di aplikasi dan ikon di tab peramban tidak
+        pernah berbeda proporsi.
       */}
-      <g transform="translate(-5.45 -5.45) scale(0.545)">
-        <rect x="11" y="10" width="42" height="9" rx="3" />
-        <rect x="21" y="23" width="8" height="18" rx="1.5" />
-        <rect x="29" y="23" width="14" height="8" rx="3" />
-        <rect x="11" y="45" width="42" height="9" rx="3" />
+      <g transform="translate(-5.44 -5.15) scale(0.545)">
+        <rect x="12" y="38" width="10" height="14" rx="2.5" fill="var(--foreground)" />
+        <rect x="26" y="29" width="10" height="23" rx="2.5" fill="var(--foreground)" />
+        <rect x="40" y="22" width="10" height="30" rx="2.5" fill="var(--warning)" />
+        <ellipse cx="45" cy="18" rx="7.5" ry="7" fill="var(--warning)" />
       </g>
     </svg>
   );

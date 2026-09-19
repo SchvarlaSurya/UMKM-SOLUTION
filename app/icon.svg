@@ -2,30 +2,19 @@
   <title>ruangmargin</title>
 
   <!--
-    Konsep "ruang margin": dua balok tebal mengapit sebuah celah.
+    Tiga batang menanjak dengan batang tertinggi berubah jadi siluet sendok
+    takar. Grafiknya menyatakan "alat ukur", sendoknya menyatakan "dapur".
 
-    Balok atas harga jual, balok bawah modal, dan jarak di antaranya adalah
-    margin — satu-satunya bagian yang benar-benar jadi milik pemilik usaha.
-    Celah itu tidak dibiarkan kosong: di dalamnya berdiri huruf "r" dari
-    "ruang", sekaligus membuat celahnya terbaca sebagai ruang yang dijaga,
-    bukan sekadar sela.
-
-    Hurufnya sengaja besar dan bertangkai tebal. Versi yang lebih kecil dan
-    proporsional sudah dicoba dan luruh jadi noda di petak 16px yang dipakai
-    tab peramban.
-
-    Warna ditulis langsung karena berkas ini dibaca peramban sebagai gambar,
-    di luar jangkauan custom property CSS.
+    Warna ditulis langsung: berkas ini dibaca peramban sebagai gambar, di luar
+    jangkauan custom property CSS. Nilainya menyalin token yang dipakai
+    IconLogo, yaitu foreground #202e28 dan warning #b45309; kalau salah satunya
+    berubah, berkas ini ikut disesuaikan manual.
   -->
-  <rect width="64" height="64" rx="18" fill="#17634b" />
+  <rect width="64" height="64" rx="18" fill="#fff5eb" />
 
-  <!-- Balok harga jual -->
-  <rect x="11" y="10" width="42" height="9" rx="3" fill="#ffffff" />
+  <rect x="12" y="38" width="10" height="14" rx="2.5" fill="#202e28" />
+  <rect x="26" y="29" width="10" height="23" rx="2.5" fill="#202e28" />
 
-  <!-- Huruf "r" yang berdiri di dalam celah -->
-  <rect x="21" y="23" width="8" height="18" rx="1.5" fill="#ffffff" />
-  <rect x="29" y="23" width="14" height="8" rx="3" fill="#ffffff" />
-
-  <!-- Balok modal -->
-  <rect x="11" y="45" width="42" height="9" rx="3" fill="#ffffff" />
+  <rect x="40" y="22" width="10" height="30" rx="2.5" fill="#b45309" />
+  <ellipse cx="45" cy="18" rx="7.5" ry="7" fill="#b45309" />
 </svg>

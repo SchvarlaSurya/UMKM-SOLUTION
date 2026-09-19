@@ -177,7 +177,7 @@ export function Sidebar({
     <div className="flex h-full w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
       <div className="flex items-center justify-between gap-2 px-4 py-4">
         <Link href="/dashboard" className="flex items-center gap-2 text-sidebar-foreground">
-          <span className="flex size-8 items-center justify-center rounded-card bg-primary text-primary-foreground">
+          <span className="flex size-8 items-center justify-center rounded-card bg-warning-bg">
             <IconLogo width={18} height={18} />
           </span>
           <span className="text-base font-semibold tracking-tight">
