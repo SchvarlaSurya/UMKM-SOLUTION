@@ -2,27 +2,30 @@
   <title>ruangmargin</title>
 
   <!--
-    Ikon peramban, diturunkan dari IconLogo di sidebar.
+    Konsep "ruang margin": dua balok tebal mengapit sebuah celah.
 
-    Bukan salinan persis, dan itu disengaja. Logo aslinya punya dua pasang daun
-    dengan tangkai setebal 1,4 pada kanvas 24 — di petak 16px, ukuran yang
-    dipakai tab peramban, semua itu luruh jadi gumpalan kelabu. Versi ini
-    menyisakan satu pasang daun dan pucuknya, ditebalkan sampai bentuknya masih
-    terbaca sebagai tunas saat kecil.
+    Balok atas harga jual, balok bawah modal, dan jarak di antaranya adalah
+    margin — satu-satunya bagian yang benar-benar jadi milik pemilik usaha.
+    Celah itu tidak dibiarkan kosong: di dalamnya berdiri huruf "r" dari
+    "ruang", sekaligus membuat celahnya terbaca sebagai ruang yang dijaga,
+    bukan sekadar sela.
 
-    Latarnya kotak membulat hijau primary (#17634b) dengan tanda putih, sama
-    seperti petak logo di sidebar. Warnanya ditulis langsung karena berkas ini
-    dibaca peramban sebagai gambar, di luar jangkauan custom property CSS.
+    Hurufnya sengaja besar dan bertangkai tebal. Versi yang lebih kecil dan
+    proporsional sudah dicoba dan luruh jadi noda di petak 16px yang dipakai
+    tab peramban.
+
+    Warna ditulis langsung karena berkas ini dibaca peramban sebagai gambar,
+    di luar jangkauan custom property CSS.
   -->
   <rect width="64" height="64" rx="18" fill="#17634b" />
 
-  <!-- Tangkai -->
-  <path d="M32 54V22" stroke="#ffffff" stroke-width="6" stroke-linecap="round" />
+  <!-- Balok harga jual -->
+  <rect x="11" y="10" width="42" height="9" rx="3" fill="#ffffff" />
 
-  <!-- Sepasang daun -->
-  <path d="M32 40c-9 0-14.6-3.7-15.8-10.5 7.1-2.8 13.9-.6 15.8 10.5Z" fill="#ffffff" />
-  <path d="M32 40c9 0 14.6-3.7 15.8-10.5-7.1-2.8-13.9-.6-15.8 10.5Z" fill="#ffffff" />
+  <!-- Huruf "r" yang berdiri di dalam celah -->
+  <rect x="21" y="23" width="8" height="18" rx="1.5" fill="#ffffff" />
+  <rect x="29" y="23" width="14" height="8" rx="3" fill="#ffffff" />
 
-  <!-- Pucuk -->
-  <path d="M32 22c0-6.5 3.4-11.1 9.3-13.3.6 7.4-3.1 11.8-9.3 13.3Z" fill="#ffffff" />
+  <!-- Balok modal -->
+  <rect x="11" y="45" width="42" height="9" rx="3" fill="#ffffff" />
 </svg>

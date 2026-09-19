@@ -295,7 +295,7 @@ export function IconLogo(props: IconProps) {
   return (
     <svg
       viewBox="0 0 24 24"
-      fill="none"
+      fill="currentColor"
       aria-hidden="true"
       focusable="false"
       width={20}
@@ -303,39 +303,28 @@ export function IconLogo(props: IconProps) {
       {...props}
     >
       {/*
-        Tangkai berhenti di y=20, bukan mepet tepi: ekor kosong yang panjang
-        membuat bobot logo turun ke bawah lingkaran.
+        Konsep "ruang margin": dua balok tebal mengapit sebuah celah. Balok atas
+        harga jual, balok bawah modal, dan jarak di antaranya adalah margin —
+        satu-satunya bagian yang benar-benar jadi milik pemilik usaha.
+
+        Celah itu tidak dibiarkan kosong: di dalamnya berdiri huruf "r" dari
+        "ruang", sekaligus membuat celahnya terbaca sebagai ruang yang dijaga,
+        bukan sekadar sela.
+
+        Koordinatnya disalin apa adanya dari app/icon.svg lalu diperkecil lewat
+        satu transform, bukan digambar ulang dalam satuan 24: menggambar ulang
+        membuat tebal balok dan tinggi hurufnya meleset sedikit, dan petak di
+        sidebar langsung terlihat lebih sesak daripada ikon di tab peramban.
+
+        Tanpa latar sendiri: pemakainya membungkusnya dengan petak
+        `bg-primary`, dan bentuknya mengikuti `currentColor`.
       */}
-      <path
-        d="M12 20V7.6"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        opacity="0.85"
-      />
-
-      {/* Pasangan daun bawah, sedikit lebih lebar supaya bentuknya terbaca */}
-      <path d="M12 16.2c-2.9 0-4.7-1.2-5.1-3.4 2.3-.9 4.5-.2 5.1 3.4Z" fill="currentColor" />
-      <path
-        d="M12 16.2c2.9 0 4.7-1.2 5.1-3.4-2.3-.9-4.5-.2-5.1 3.4Z"
-        fill="currentColor"
-        opacity="0.7"
-      />
-
-      {/* Pasangan daun atas */}
-      <path
-        d="M12 11.3c-2.3 0-3.8-1-4.1-2.7 1.8-.7 3.6-.2 4.1 2.7Z"
-        fill="currentColor"
-        opacity="0.9"
-      />
-      <path
-        d="M12 11.3c2.3 0 3.8-1 4.1-2.7-1.8-.7-3.6-.2-4.1 2.7Z"
-        fill="currentColor"
-        opacity="0.6"
-      />
-
-      {/* Pucuk */}
-      <path d="M12 7.6c0-2.1 1.1-3.6 3-4.3.2 2.4-1 3.8-3 4.3Z" fill="currentColor" />
+      <g transform="translate(-5.45 -5.45) scale(0.545)">
+        <rect x="11" y="10" width="42" height="9" rx="3" />
+        <rect x="21" y="23" width="8" height="18" rx="1.5" />
+        <rect x="29" y="23" width="14" height="8" rx="3" />
+        <rect x="11" y="45" width="42" height="9" rx="3" />
+      </g>
     </svg>
   );
 }
