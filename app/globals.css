@@ -118,7 +118,19 @@ dialog::backdrop {
   outline: none;
 }
 
-.recharts-surface:focus-visible {
+/*
+ * Cincin papan ketiknya digantungkan pada penanda modalitas, bukan pada
+ * `:focus-visible` sendirian.
+ *
+ * `:focus-visible` untuk <svg> ber-tabindex ditentukan heuristik peramban, dan
+ * heuristik itu berbeda antar peramban dan antar keadaan. Kalau sebuah
+ * peramban menganggap klik pada grafik sebagai focus-visible, aturan yang
+ * hanya bersandar padanya tidak menghilangkan garisnya — ia cuma menukar
+ * cincin bawaan peramban dengan cincin aplikasi, dan bagi yang melihat tetap
+ * ada garis. Penanda dari ModalitasFokus tidak menebak: ia mati begitu ada
+ * tekanan penunjuk.
+ */
+html[data-fokus-papan-ketik] .recharts-surface:focus-visible {
   outline: 2px solid var(--color-ring);
   outline-offset: 2px;
 }
