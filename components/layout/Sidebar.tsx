@@ -12,12 +12,12 @@ import { inisial } from "@/lib/format";
 import { navItems } from "./nav-items";
 import {
   IconKeluar,
-  IconLogo,
   IconPensil,
   IconToko,
   IconTutup,
 } from "@/components/ui/icons";
 import { Button } from "@/components/ui/Button";
+import { Logo } from "@/components/ui/Logo";
 import { ModalKonfirmasi } from "@/components/ui/ModalKonfirmasi";
 
 type SidebarProps = {
@@ -176,13 +176,13 @@ export function Sidebar({
   return (
     <div className="flex h-full w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
       <div className="flex items-center justify-between gap-2 px-4 py-4">
-        <Link href="/dashboard" className="flex items-center gap-2 text-sidebar-foreground">
-          <span className="flex size-8 items-center justify-center rounded-card bg-primary text-primary-foreground">
-            <IconLogo width={18} height={18} />
-          </span>
-          <span className="text-base font-semibold tracking-tight">
-            ruang<span className="text-primary">margin</span>
-          </span>
+        {/* Logotype berdiri sendiri, tanpa petak ikon di sebelahnya: tandanya
+            sudah memuat nama mereknya, dan ikon kedua di sampingnya membuat dua
+            logo berdampingan. Warna teks dipatok di sini, bukan di dalam
+            komponennya, supaya `currentColor` tetap bisa diambil alih
+            pemakainya. */}
+        <Link href="/dashboard" className="flex items-center text-[#18181b]">
+          <Logo className="h-7 w-auto" />
         </Link>
         {onTutup && (
           <Button varian="ghost" ukuran="sm" onClick={onTutup} aria-label="Tutup menu" className="px-2 lg:hidden">
