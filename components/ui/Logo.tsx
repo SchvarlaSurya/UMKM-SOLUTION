@@ -1,85 +1,96 @@
+import type { SVGProps } from "react";
+
 /**
- * Logotype "ruangmargin" — konsep Fokus Batas.
+ * Logo "ruangmargin" — konsep Lensa Tren.
  *
- * Murni teks, tanpa ikon terpisah. Dua sentuhan membawa maknanya:
+ * Lingkaran tebal adalah "ruang" yang melindungi margin; di dalamnya grafik
+ * garis menanjak mewakili pemantauan tren harga bahan; dan simpul yang lebih
+ * besar di ujung kanan atas mewakili peringatan yang dikirim aplikasi saat
+ * margin bocor atau harga sudah lama tidak diperbarui.
  *
- * - Titik pada "i" diganti tanda seru. Aplikasi ini memang berdiri di atas
- *   peringatan — margin bocor dan harga yang belum diperbarui — jadi tanda itu
- *   ditaruh di satu-satunya tempat yang secara alami sudah berisi titik.
- * - Balok penyorot di bawah "margin". Yang ditakar aplikasi ini adalah margin,
- *   dan penyorot menandai persis kata itu.
+ * Bentuk ikonnya digambar pada petak 0–100 lalu dipasang ulang lewat satu
+ * transform saat dipakai bersama tulisan. Dengan begitu ikon sendirian dan
+ * ikon di dalam kunci logo tidak pernah berbeda proporsi.
  *
- * Digambar sebagai <svg> dengan <text>, bukan HTML biasa: tanda seru harus
- * duduk tepat di posisi titik huruf "i", dan penyorotnya harus mulai persis di
- * huruf "m" dari "margin". Keduanya butuh koordinat, dan koordinat butuh kanvas
- * yang tidak ikut bergeser oleh pembungkus di sekitarnya.
+ * Koordinat tulisannya diukur dari Inter yang benar-benar dimuat aplikasi ini,
+ * pada font-size 80 dengan garis alas y=80:
  *
- * Semua angka di bawah diukur dari Inter yang benar-benar dimuat aplikasi ini,
- * pada font-size 80 dengan garis alas di y=80:
+ *   lebar "ruangmargin" (400 + 700)   490,76
+ *   puncak tinggi-x                    35,78
+ *   dasar ekor "g"                     97,27
  *
- *   lebar seluruh kata      490,76
- *   "margin" mulai di x     218,67
- *   sumbu batang "i"        430,11
- *   puncak tinggi-x         35,78
- *   puncak batang "i"       36,33
- *   dasar ekor "g"          97,27
- *
- * Kalau fontnya diganti, angka-angka itu ikut berubah dan perlu diukur ulang.
+ * getBBox() pada teks SVG tidak bisa dipakai untuk ini: yang dikembalikannya
+ * kotak em, bukan kotak tinta, sehingga semua huruf melapor tinggi yang sama.
+ * Angka di atas diambil lewat canvas TextMetrics. Mengganti font berarti
+ * mengukur ulang.
  */
 
-/** Warna penyorot. Di luar palet aplikasi, dipatok oleh panduan merek. */
-const WARNA_PENYOROT = "#0D9488";
-
-export function Logo({ className }: { className?: string }) {
+/** Ikon pada petak 0–100, tanpa pembungkus <svg> sendiri. */
+function LensaTren() {
   return (
-    <svg
-      viewBox="0 0 492 128"
-      className={className}
-      role="img"
-      aria-label="ruangmargin"
-      fill="currentColor"
-    >
+    <>
+      {/* Lensa: ruang yang melindungi margin. */}
+      <circle
+        cx="50"
+        cy="50"
+        r="40"
+        fill="none"
+        strokeWidth="8"
+        className="stroke-slate-600"
+      />
+
+      {/* Tren harga yang menanjak dari kiri bawah ke kanan atas. */}
+      <path
+        d="M28 64 42 50 54 58 72 36"
+        fill="none"
+        strokeWidth="8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="stroke-orange-500"
+      />
+
+      {/*
+        Simpul peringatan. Jari-jarinya 7 lawan 4 milik ujung garis, jadi ia
+        menonjol tanpa terbaca sebagai bentuk terpisah dari grafiknya.
+      */}
+      <circle cx="72" cy="36" r="7" className="fill-orange-500" />
+    </>
+  );
+}
+
+export function Logo({
+  teks = true,
+  ...props
+}: SVGProps<SVGSVGElement> & {
+  /** Sertakan tulisan "ruangmargin" di sebelah ikon. */
+  teks?: boolean;
+}) {
+  if (!teks) {
+    return (
+      <svg viewBox="0 0 100 100" role="img" aria-label="ruangmargin logo" {...props}>
+        <title>ruangmargin</title>
+        <LensaTren />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 14 589 89" role="img" aria-label="ruangmargin logo" {...props}>
       <title>ruangmargin</title>
 
       {/*
-        Huruf terakhir "margin" ditulis dengan ı tanpa titik (U+0131), bukan i
-        biasa: titik bawaannya harus hilang supaya tanda seru di bawah ini tidak
-        bertumpuk dengan titik asli. Teksnya tidak pernah dibaca pembaca layar —
-        `role="img"` dan `aria-label` yang mengambil alih — jadi ejaan
-        internalnya tidak bocor ke pengguna.
+        Ikon dikecilkan jadi setinggi 76 dan dipusatkan pada pita tinggi-x
+        tulisannya, bukan pada seluruh kotak teks: memusatkannya pada kotak
+        penuh ikut menghitung ekor "g" dan membuat ikonnya duduk terlalu tinggi.
       */}
-      <text x="0" y="80" fontSize="80" fontFamily="inherit">
+      <g transform="translate(-5.18 14.69) scale(0.864)">
+        <LensaTren />
+      </g>
+
+      <text x="98" y="80" fontSize="80" fontFamily="inherit" className="fill-slate-800">
         <tspan fontWeight="400">ruang</tspan>
-        <tspan fontWeight="700">margın</tspan>
+        <tspan fontWeight="700">margin</tspan>
       </text>
-
-      {/*
-        Tanda seru pengganti titik "i", duduk di sumbu batangnya (x=430).
-
-        Lebarnya 9 — sedikit di bawah batang "i" yang 11,7 — supaya terbaca
-        sebagai tanda baca, bukan sebagai perpanjangan batangnya. Tingginya 17;
-        versi yang lebih pendek sudah dicoba dan hasilnya terbaca sebagai dua
-        titik bertumpuk, bukan tanda seru.
-
-        Dasarnya berhenti di 32,3, menyisakan 4 ke puncak batang "i" di 36,33 —
-        jarak yang sama dengan jarak batang ke titiknya, jadi ketiganya terbaca
-        satu kesatuan.
-      */}
-      <rect x="425.5" y="2.8" width="9" height="17" rx="4.5" />
-      <circle cx="430" cy="27.8" r="4.5" />
-
-      {/*
-        Penyorot dimulai persis di tepi kiri "m" dan berakhir di tepi kanan "n",
-        di bawah ekor "g" supaya tidak memotongnya.
-      */}
-      <rect
-        x="218.67"
-        y="104"
-        width="272.09"
-        height="14"
-        rx="4"
-        fill={WARNA_PENYOROT}
-      />
     </svg>
   );
 }

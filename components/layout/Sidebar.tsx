@@ -176,13 +176,12 @@ export function Sidebar({
   return (
     <div className="flex h-full w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
       <div className="flex items-center justify-between gap-2 px-4 py-4">
-        {/* Logotype berdiri sendiri, tanpa petak ikon di sebelahnya: tandanya
-            sudah memuat nama mereknya, dan ikon kedua di sampingnya membuat dua
-            logo berdampingan. Warna teks dipatok di sini, bukan di dalam
-            komponennya, supaya `currentColor` tetap bisa diambil alih
-            pemakainya. */}
-        <Link href="/dashboard" className="flex items-center text-[#18181b]">
-          <Logo className="h-7 w-auto" />
+        {/* Kunci logo berdiri sendiri, tanpa petak ikon di sebelahnya: ikonnya
+            sudah menyatu di dalam komponen Logo. Warnanya juga dipegang
+            komponen itu, jadi tidak ada kelas warna yang perlu dipasang di
+            sini. */}
+        <Link href="/dashboard" className="flex min-w-0 items-center">
+          <Logo className="h-6 w-auto shrink" />
         </Link>
         {onTutup && (
           <Button varian="ghost" ukuran="sm" onClick={onTutup} aria-label="Tutup menu" className="px-2 lg:hidden">
