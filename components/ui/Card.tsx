@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { cn } from "@/lib/cn";
 
 type DivProps = {
@@ -6,9 +6,14 @@ type DivProps = {
   className?: string;
 };
 
-export function Card({ children, className }: DivProps) {
+export function Card({
+  children,
+  className,
+  ref,
+}: DivProps & { ref?: Ref<HTMLElement> }) {
   return (
     <section
+      ref={ref}
       className={cn(
         "rounded-card border border-border bg-card shadow-[0_1px_2px_rgba(32,46,40,0.04)]",
         className,

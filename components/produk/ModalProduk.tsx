@@ -7,6 +7,7 @@ import { cegahScrollUbahAngka, Input } from "@/components/ui/Input";
 import { PilihOpsi } from "@/components/ui/PilihOpsi";
 import { InputAngka } from "@/components/ui/InputAngka";
 import { Modal } from "@/components/ui/Modal";
+import { useSesiModal } from "@/components/ui/useSesiModal";
 import { IconKalkulator, IconTambah, IconTutup } from "@/components/ui/icons";
 import { formatPersen, formatRupiah } from "@/lib/format";
 import { PILIHAN_PEMBULATAN_HARGA } from "@/lib/hpp";
@@ -62,18 +63,9 @@ export function ModalProduk({
   onTutup: () => void;
   onSimpan: (nilai: NilaiFormProduk) => void;
 }) {
-  // Modal (<dialog>) tetap merender isinya saat tertutup, jadi FormProduk
-  // dengan key yang sama mempertahankan state antar buka-tutup: mode harga,
-  // target margin, dan resep dari sesi yang dibatalkan ikut terbawa ke sesi
-  // berikutnya. Penghitung sesi naik setiap kali modal dibuka dan masuk ke key,
-  // sehingga setiap sesi mulai dari form baru. Disesuaikan saat render, bukan
-  // di useEffect, supaya form lama tidak sempat tampil satu frame.
-  const [sesi, setSesi] = useState(0);
-  const [terbukaSebelumnya, setTerbukaSebelumnya] = useState(terbuka);
-  if (terbuka !== terbukaSebelumnya) {
-    setTerbukaSebelumnya(terbuka);
-    if (terbuka) setSesi((n) => n + 1);
-  }
+  // Tanpa nomor sesi di key, mode harga, target margin, dan resep dari sesi
+  // yang dibatalkan ikut terbawa saat modal dibuka lagi.
+  const sesi = useSesiModal(terbuka);
 
   return (
     <Modal

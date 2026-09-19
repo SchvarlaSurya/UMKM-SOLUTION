@@ -7,6 +7,7 @@ import { PilihOpsi } from "@/components/ui/PilihOpsi";
 import { InputAngka } from "@/components/ui/InputAngka";
 import { Modal } from "@/components/ui/Modal";
 import { Banner } from "@/components/ui/Banner";
+import { useSesiModal } from "@/components/ui/useSesiModal";
 import type { BahanBaku } from "@/lib/types";
 
 // pack, box, dan bal adalah satuan hitung tanpa konversi, sama seperti butir
@@ -50,6 +51,8 @@ export function ModalBahanBaku({
   onTutup: () => void;
   onSimpan: (nilai: NilaiFormBahan) => void;
 }) {
+  const sesi = useSesiModal(terbuka);
+
   return (
     <Modal
       terbuka={terbuka}
@@ -71,9 +74,12 @@ export function ModalBahanBaku({
         </Button>
       }
     >
-      {/* key memaksa form dibuat ulang tiap ganti bahan, jadi isian tidak tersisa. */}
+      {/* key memaksa form dibuat ulang tiap ganti bahan — dan tiap modal dibuka
+          lagi. Tanpa nomor sesi, mode tambah selalu menghasilkan key yang sama
+          ("tambah-baru"), jadi nama, satuan, dan harga yang tadi diketik masih
+          terisi saat form dibuka berikutnya. */}
       <FormBahan
-        key={`${mode}-${bahan?.id ?? "baru"}`}
+        key={`${mode}-${bahan?.id ?? "baru"}-${sesi}`}
         mode={mode}
         bahan={bahan}
         jumlahProdukTerkait={jumlahProdukTerkait}

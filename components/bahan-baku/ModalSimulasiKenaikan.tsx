@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/MobileDataList";
 import { Modal } from "@/components/ui/Modal";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/Table";
+import { useSesiModal } from "@/components/ui/useSesiModal";
 import { IconKalkulator, IconPeringatan } from "@/components/ui/icons";
 import { formatPersen, formatRupiah } from "@/lib/format";
 import type { DampakProduk, HasilSimulasiKenaikan } from "@/lib/simulasiKenaikan";
@@ -54,12 +55,7 @@ export function ModalSimulasiKenaikan({
   // Modal (<dialog>) tetap merender isinya saat tertutup. Tanpa penghitung
   // sesi di key, persentase dan hasil simulasi bahan sebelumnya ikut terbawa
   // saat modal dibuka lagi — kebocoran yang sama dengan form produk dulu.
-  const [sesi, setSesi] = useState(0);
-  const [terbukaSebelumnya, setTerbukaSebelumnya] = useState(terbuka);
-  if (terbuka !== terbukaSebelumnya) {
-    setTerbukaSebelumnya(terbuka);
-    if (terbuka) setSesi((n) => n + 1);
-  }
+  const sesi = useSesiModal(terbuka);
 
   return (
     <Modal
@@ -99,6 +95,10 @@ function FormSimulasi({ bahan }: { bahan: BahanBaku }) {
     const angka = Number(persen);
     if (persen.trim() === "" || !Number.isFinite(angka) || angka <= 0) {
       setGalatInput("Isi persentase kenaikan lebih dari 0.");
+      // Hasil hitungan sebelumnya ikut dibuang. Tanpa ini panel hasil tetap
+      // terpampang di bawah pesan galat, dan angka lamanya mudah terbaca
+      // sebagai jawaban untuk isian yang baru saja ditolak.
+      setStatus({ jenis: "awal" });
       return;
     }
     setGalatInput(null);
