@@ -790,7 +790,13 @@ function FormProduk({
                 // baris ini, bukan dipisah jadi divide-y di <ul>: keduanya satu
                 // keputusan, dan kalau salah satunya diubah nanti yang lain
                 // ikut terlihat.
-                className="flex flex-wrap items-end gap-2 border-t border-border py-3 first:border-t-0 first:pt-0 last:pb-0"
+                //
+                // items-start, bukan items-end: kolom jumlah membawa keterangan
+                // "Per porsi" di bawahnya, jadi ia 20px lebih tinggi daripada
+                // kotak lain. Menyamakan tepi bawah berarti kotak bahan dan
+                // tombol hapus ikut terdorong turun sejauh itu, dan tiga kotak
+                // yang mestinya terbaca satu baris berdiri di dua ketinggian.
+                className="flex flex-wrap items-start gap-2 border-t border-border py-3 first:border-t-0 first:pt-0 last:pb-0"
               >
                 <div className="min-w-48 flex-1">
                   <PilihBahan
