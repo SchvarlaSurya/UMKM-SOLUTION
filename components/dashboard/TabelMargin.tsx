@@ -10,16 +10,30 @@ import {
   MobileDataList,
   MobileDataListItem,
 } from "@/components/ui/MobileDataList";
+import { Paginasi } from "@/components/ui/Paginasi";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Table, TBody, TD, TH, THead, TR, TableFooterNote } from "@/components/ui/Table";
 import { Tabs } from "@/components/ui/Tabs";
 import { useAnimasiGantiFilter } from "@/components/ui/useAnimasiGantiFilter";
 import { IconCari, IconCentang, IconPanahKeluar, IconPeringatan } from "@/components/ui/icons";
+import { durasiGerak } from "@/lib/gerak";
 import type { RincianHpp } from "@/lib/hpp";
 import type { ProdukDenganHpp } from "@/lib/types";
 import { ModalRincianHpp } from "./ModalRincianHpp";
 
 type Filter = "semua" | "perhatian" | "aman";
+
+/**
+ * Baris per halaman.
+ *
+ * Satu angka untuk kedua tampilan, meski tingginya jauh berbeda: baris tabel
+ * 61px, kartu mobile 194px. Delapan menahan tabelnya di sekitar 490px di layar
+ * besar — muat sekali pandang — dan memotong daftar mobile dari 4.207px jadi
+ * sekitar 1.550px. Angka yang berbeda per lebar layar berarti potongan
+ * halamannya ikut berubah saat jendela diubah ukurannya, dan pembaca kehilangan
+ * tempatnya.
+ */
+const UKURAN_HALAMAN = 8;
 
 export function TabelMargin({
   produk,
@@ -30,14 +44,14 @@ export function TabelMargin({
 }) {
   const [filter, setFilter] = useState<Filter>("semua");
   const [cari, setCari] = useState("");
+  const [halaman, setHalaman] = useState(1);
   const [produkTerpilih, setProdukTerpilih] = useState<ProdukDenganHpp | null>(null);
   // Tabel dan daftar mobile dirender berdampingan, hanya satu yang terlihat
   // per lebar layar; keduanya diserahkan sekaligus dan yang belum terpasang
   // dilewati di dalam hook.
   const refIsiTabel = useRef<HTMLTableSectionElement>(null);
   const refIsiMobile = useRef<HTMLDivElement>(null);
-
-  useAnimasiGantiFilter(filter, [refIsiTabel, refIsiMobile]);
+  const refKartu = useRef<HTMLElement>(null);
 
   const jumlahPerhatian = produk.filter((p) => !p.statusAman).length;
 
@@ -53,8 +67,43 @@ export function TabelMargin({
     });
   }, [produk, filter, cari]);
 
+  // Menyaring mengubah isi daftar, jadi halaman 3 dari hasil lama tidak berarti
+  // apa-apa untuk hasil baru. Disesuaikan saat render, bukan lewat efek: kalau
+  // menunggu efek, satu frame sempat tergambar dengan potongan halaman yang
+  // salah.
+  const kunciSaring = `${filter}|${cari.trim().toLowerCase()}`;
+  const [kunciSebelumnya, setKunciSebelumnya] = useState(kunciSaring);
+  if (kunciSaring !== kunciSebelumnya) {
+    setKunciSebelumnya(kunciSaring);
+    setHalaman(1);
+  }
+
+  const totalHalaman = Math.max(1, Math.ceil(terlihat.length / UKURAN_HALAMAN));
+  // Dijepit, bukan cuma direset saat menyaring: data bisa menyusut sendiri
+  // sesudah revalidatePath, dan halaman di luar rentang membuat tabelnya kosong
+  // tanpa sebab yang terlihat.
+  const halamanAktif = Math.min(halaman, totalHalaman);
+  const mulai = (halamanAktif - 1) * UKURAN_HALAMAN;
+  const halamanIni = terlihat.slice(mulai, mulai + UKURAN_HALAMAN);
+
+  // Berganti halaman menukar isi daftar sama seperti berganti tab, jadi
+  // keduanya memakai jeda yang sama.
+  useAnimasiGantiFilter(`${filter}|${halamanAktif}`, [refIsiTabel, refIsiMobile]);
+
+  function pindahHalaman(tujuan: number) {
+    setHalaman(tujuan);
+
+    // Tanpa ini pembaca tertinggal di kaki tabel setelah menekan panah, dan di
+    // ponsel baris pertama halaman baru berada jauh di atas layar. 72px adalah
+    // tinggi topbar lengket ditambah sedikit ruang napas.
+    const kartu = refKartu.current;
+    if (!kartu) return;
+    const atas = kartu.getBoundingClientRect().top + window.scrollY - 72;
+    window.scrollTo({ top: atas, behavior: durasiGerak(1) === 0 ? "auto" : "smooth" });
+  }
+
   return (
-    <Card>
+    <Card ref={refKartu}>
       <CardHeader className="flex-col items-stretch gap-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -112,7 +161,7 @@ export function TabelMargin({
             </TR>
           </THead>
           <TBody ref={refIsiTabel}>
-            {terlihat.map((p) => (
+            {halamanIni.map((p) => (
               <TR key={p.id}>
                 <TD>
                   <span className="block font-medium">{p.nama}</span>
@@ -180,7 +229,7 @@ export function TabelMargin({
           padding bawah, jadi jarak ke isi kartu memang tugas isinya sendiri —
           tanpa ini garis atas daftar menempel persis di kolom pencarian. */}
       <MobileDataList ref={refIsiMobile} className="mt-4">
-        {terlihat.map((p) => (
+        {halamanIni.map((p) => (
           <MobileDataListItem key={p.id}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -250,9 +299,27 @@ export function TabelMargin({
         )}
       </MobileDataList>
 
+      {/* Rumus margin menyerah pada pindah halaman saat produknya sudah banyak.
+          Ia keterangan pengenalan — paling berguna justru di akun yang produknya
+          masih sedikit, dan di situ paginasinya belum muncul. */}
       <TableFooterNote
-        kiri={`Menampilkan ${terlihat.length} dari ${produk.length} produk`}
-        kanan="Margin = (harga jual − HPP) ÷ harga jual"
+        kiri={
+          terlihat.length === 0
+            ? `Tidak ada dari ${produk.length} produk yang cocok`
+            : `Menampilkan ${mulai + 1}–${mulai + halamanIni.length} dari ${terlihat.length} produk`
+        }
+        kanan={
+          totalHalaman > 1 ? (
+            <Paginasi
+              halaman={halamanAktif}
+              totalHalaman={totalHalaman}
+              onPindah={pindahHalaman}
+              label="Halaman tabel margin produk"
+            />
+          ) : (
+            "Margin = (harga jual − HPP) ÷ harga jual"
+          )
+        }
       />
 
       <ModalRincianHpp
