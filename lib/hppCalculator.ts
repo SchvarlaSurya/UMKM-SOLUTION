@@ -1,5 +1,11 @@
 import { prisma } from '@/lib/prisma'
-import { biayaBahanProduk, hitungHpp, komponenBiaya } from '@/lib/hpp'
+import {
+  biayaBahanProduk,
+  bulatkanHargaJual,
+  hitungHpp,
+  hitungTitikImpas,
+  komponenBiaya,
+} from '@/lib/hpp'
 import { Prisma } from '@/app/generated/prisma/client'
 
 export type HppResult = {
@@ -7,6 +13,8 @@ export type HppResult = {
   hppTerhitung: number
   marginPersen: number
   statusAman: boolean
+  /** Porsi per bulan untuk menutup biaya tetap; null kalau tidak terhingga. */
+  titikImpasPorsi: number | null
 }
 
 export type CalculateHppOptions = {
@@ -48,11 +56,18 @@ export function isTargetMarginPersen(nilai: unknown): nilai is number {
   )
 }
 
-/** Hitung harga jual target dan bulatkan ke rupiah penuh. */
+/**
+ * Hitung harga jual yang memenuhi target margin, dibulatkan ke rupiah penuh.
+ *
+ * `pembulatan` membulatkan hasilnya KE ATAS ke kelipatan pasaran (100, 500,
+ * 1000). Karena ke atas, margin aktualnya sedikit lebih tinggi dari target —
+ * yang ditampilkan ke pengguna harus margin aktual, bukan angka target.
+ */
 export function hitungHargaJualTargetMargin(
   hpp: number,
   persenKomisi: number,
-  targetMarginPersen: number
+  targetMarginPersen: number,
+  pembulatan = 0
 ): number {
   if (!Number.isFinite(hpp) || hpp < 0) {
     throw new PerhitunganHargaTargetError('HPP harus berupa angka yang valid dan tidak negatif')
@@ -75,7 +90,10 @@ export function hitungHargaJualTargetMargin(
     )
   }
 
-  const hargaJual = Math.round(hpp / (1 - totalPersen / 100))
+  const hargaJual = bulatkanHargaJual(
+    Math.round(hpp / (1 - totalPersen / 100)),
+    pembulatan
+  )
   if (!Number.isFinite(hargaJual)) {
     throw new PerhitunganHargaTargetError('Harga jual target tidak dapat dihitung')
   }
@@ -90,7 +108,16 @@ export type ResepHargaTarget = {
 export type HasilHargaTarget = {
   hppTerhitung: number
   persenKomisi: number
+  /** Harga yang akan disimpan; sudah dibulatkan sesuai `pembulatanHarga`. */
   hargaJual: number
+  pembulatanHarga: number
+  /** Sebelum dibulatkan; sama dengan `hargaJual` kalau tanpa pembulatan. */
+  hargaJualSebelumPembulatan: number
+  /**
+   * Margin di harga jual yang benar-benar dipakai. Setelah pembulatan ke atas,
+   * angkanya sedikit di atas target, jadi inilah yang layak ditampilkan.
+   */
+  marginAktualPersen: number
 }
 
 type DatabaseClient = Pick<
@@ -140,7 +167,8 @@ export async function calculateHargaJualTargetMarginDariResep(
   resep: readonly ResepHargaTarget[],
   userId: number,
   targetMarginPersen: number,
-  db: DatabaseClient = prisma
+  db: DatabaseClient = prisma,
+  pembulatanHarga = 0
 ): Promise<HasilHargaTarget> {
   const [bahan, konteks] = await Promise.all([
     db.bahanBaku.findMany({
@@ -167,14 +195,32 @@ export async function calculateHargaJualTargetMarginDariResep(
   )
   const hppTerhitung = biayaBahan + konteks.komponen.biayaTetapPerPorsi
 
+  const hargaJualSebelumPembulatan = hitungHargaJualTargetMargin(
+    hppTerhitung,
+    konteks.komponen.persenKomisi,
+    targetMarginPersen
+  )
+  const hargaJual = hitungHargaJualTargetMargin(
+    hppTerhitung,
+    konteks.komponen.persenKomisi,
+    targetMarginPersen,
+    pembulatanHarga
+  )
+
   return {
     hppTerhitung,
     persenKomisi: konteks.komponen.persenKomisi,
-    hargaJual: hitungHargaJualTargetMargin(
-      hppTerhitung,
-      konteks.komponen.persenKomisi,
-      targetMarginPersen
-    ),
+    hargaJual,
+    pembulatanHarga,
+    hargaJualSebelumPembulatan,
+    // Margin dihitung ulang dari harga yang benar-benar dipakai, lewat rumus
+    // margin yang sama dengan seluruh aplikasi.
+    marginAktualPersen: hitungHpp(
+      biayaBahan,
+      hargaJual,
+      konteks.komponen,
+      konteks.pengaturan.batasMarginAman
+    ).marginPersen,
   }
 }
 
@@ -205,8 +251,9 @@ export async function calculateHpp(
   // yang sama tanpa memanggil fungsi ini sekali per produk:
   // biaya tetap dibagi estimasi porsi per bulan, komisi persentase dipotong
   // dari HARGA JUAL (bukan dari HPP).
+  const biayaBahan = biayaBahanProduk(produk)
   const { hppTerhitung, marginPersen } = hitungHpp(
-    biayaBahanProduk(produk),
+    biayaBahan,
     produk.hargaJual,
     konteks.komponen,
     threshold
@@ -223,6 +270,7 @@ export async function calculateHpp(
     hppTerhitung,
     marginPersen,
     statusAman: marginPersen >= threshold,
+    titikImpasPorsi: hitungTitikImpas(biayaBahan, produk.hargaJual, konteks.komponen),
   }
 }
 
@@ -267,7 +315,8 @@ async function recalculateProduk(
         ? hitungHargaJualTargetMargin(
             hppTerhitung,
             konteks.komponen.persenKomisi,
-            produk.targetMarginPersen ?? Number.NaN
+            produk.targetMarginPersen ?? Number.NaN,
+            produk.pembulatanHarga
           )
         : produk.hargaJual
     const rincian = hitungHpp(
@@ -394,18 +443,15 @@ export async function calculateAllHpp(
   const threshold = thresholdOverride ?? konteks.pengaturan.batasMarginAman
 
   return semuaProduk.map((produk) => {
-    const rincian = hitungHpp(
-      biayaBahanProduk(produk),
-      produk.hargaJual,
-      konteks.komponen,
-      threshold
-    )
+    const biayaBahan = biayaBahanProduk(produk)
+    const rincian = hitungHpp(biayaBahan, produk.hargaJual, konteks.komponen, threshold)
 
     return {
       produkId: produk.id,
       hppTerhitung: rincian.hppTerhitung,
       marginPersen: rincian.marginPersen,
       statusAman: rincian.marginPersen >= threshold,
+      titikImpasPorsi: hitungTitikImpas(biayaBahan, produk.hargaJual, konteks.komponen),
     }
   })
 }

@@ -28,6 +28,7 @@ export type MasukanProduk = {
 };
 
 export type KomponenBiaya = {
+  totalBiayaTetapBulanan: number;
   biayaTetapPerPorsi: number;
   persenKomisi: number;
 };
@@ -42,6 +43,7 @@ export function komponenBiaya(
     .reduce((total, b) => total + b.nilai, 0);
 
   return {
+    totalBiayaTetapBulanan: totalTetapPerBulan,
     biayaTetapPerPorsi:
       pengaturan.estimasiPorsiPerBulan > 0
         ? totalTetapPerBulan / pengaturan.estimasiPorsiPerBulan
@@ -50,6 +52,56 @@ export function komponenBiaya(
       .filter((b) => b.jenis === "persentase")
       .reduce((total, b) => total + b.nilai, 0),
   };
+}
+
+/**
+ * Kelipatan pembulatan harga jual yang lazim dipakai di pasaran. 0 berarti
+ * tanpa pembulatan, dan itu nilai default supaya produk lama tidak berubah.
+ */
+export const PILIHAN_PEMBULATAN_HARGA = [0, 100, 500, 1000] as const;
+export type PembulatanHarga = (typeof PILIHAN_PEMBULATAN_HARGA)[number];
+
+export function isPembulatanHarga(nilai: unknown): nilai is PembulatanHarga {
+  return (
+    typeof nilai === "number" &&
+    (PILIHAN_PEMBULATAN_HARGA as readonly number[]).includes(nilai)
+  );
+}
+
+/**
+ * Bulatkan harga jual KE ATAS ke kelipatan terdekat: 8905 dengan kelipatan 500
+ * menjadi 9000. Sengaja ke atas, bukan ke terdekat, supaya margin yang
+ * dijanjikan tidak pernah berkurang gara-gara pembulatan.
+ *
+ * Kelipatan 0 (atau tidak sah) mengembalikan harga apa adanya.
+ */
+export function bulatkanHargaJual(harga: number, kelipatan: number): number {
+  if (!Number.isFinite(harga) || !Number.isFinite(kelipatan) || kelipatan <= 0) {
+    return harga;
+  }
+  return Math.ceil(harga / kelipatan) * kelipatan;
+}
+
+/**
+ * Jumlah porsi per bulan yang perlu terjual untuk menutup seluruh biaya tetap.
+ * Biaya variabel hanya terdiri dari bahan dan komisi harga jual; alokasi biaya
+ * tetap per porsi sengaja tidak dipakai agar biaya tetap tidak dihitung dua kali.
+ */
+export function hitungTitikImpas(
+  biayaBahan: number,
+  hargaJual: number,
+  { totalBiayaTetapBulanan, persenKomisi }: KomponenBiaya,
+): number | null {
+  const potonganKomisi = hargaJual * (persenKomisi / 100);
+  const biayaVariabelPerPorsi = biayaBahan + potonganKomisi;
+  const kontribusiPerPorsi = hargaJual - biayaVariabelPerPorsi;
+
+  if (kontribusiPerPorsi <= 0 || !Number.isFinite(kontribusiPerPorsi)) {
+    return null;
+  }
+
+  const titikImpasPorsi = totalBiayaTetapBulanan / kontribusiPerPorsi;
+  return Number.isFinite(titikImpasPorsi) ? titikImpasPorsi : null;
 }
 
 export type HasilHpp = {
@@ -106,6 +158,7 @@ export type BarisRincian = {
 export type RincianHpp = HasilHpp & {
   baris: BarisRincian[];
   sisaPerPorsi: number;
+  titikImpasPorsi: number | null;
 };
 
 /**
@@ -119,8 +172,9 @@ export function rincianHpp(
   pengaturan: MasukanPengaturan,
 ): RincianHpp {
   const komponen = komponenBiaya(biaya, pengaturan);
+  const biayaBahan = biayaBahanProduk(produk);
   const hasil = hitungHpp(
-    biayaBahanProduk(produk),
+    biayaBahan,
     produk.hargaJual,
     komponen,
     pengaturan.batasMarginAman,
@@ -151,6 +205,7 @@ export function rincianHpp(
     ...hasil,
     baris,
     sisaPerPorsi: produk.hargaJual - hasil.hppTerhitung - potonganKomisi,
+    titikImpasPorsi: hitungTitikImpas(biayaBahan, produk.hargaJual, komponen),
   };
 }
 

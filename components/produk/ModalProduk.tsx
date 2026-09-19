@@ -8,7 +8,8 @@ import { PilihOpsi } from "@/components/ui/PilihOpsi";
 import { InputAngka } from "@/components/ui/InputAngka";
 import { Modal } from "@/components/ui/Modal";
 import { IconKalkulator, IconTambah, IconTutup } from "@/components/ui/icons";
-import { formatRupiah } from "@/lib/format";
+import { formatPersen, formatRupiah } from "@/lib/format";
+import { PILIHAN_PEMBULATAN_HARGA } from "@/lib/hpp";
 import { konversiKeSatuanDasar, pilihanSatuanUntuk } from "@/lib/satuan";
 import { nilaiIsian } from "@/lib/takaran";
 import type { BahanBaku, ModePenentuanHarga, Produk } from "@/lib/types";
@@ -30,6 +31,8 @@ export type NilaiFormProduk = {
   hargaJual: number;
   modePenentuanHarga: ModePenentuanHarga;
   targetMarginPersen: number | null;
+  /** Kelipatan pembulatan harga target: 0, 100, 500, atau 1000. */
+  pembulatanHarga: number;
   resep: BarisResep[];
   /** Cara takaran diketik; resep di atas tetap dikirim dalam takaran per porsi. */
   modeTakaran: ModeTakaran;
@@ -115,6 +118,10 @@ type HasilSimulasi = {
   persenKomisi: number;
   hargaJual: number;
   targetMarginPersen: number;
+  pembulatanHarga: number;
+  hargaJualSebelumPembulatan: number;
+  /** Margin di harga yang benar-benar dipakai, sesudah pembulatan ke atas. */
+  marginAktualPersen: number;
 };
 
 type StatusSimulasi = {
@@ -263,6 +270,9 @@ function FormProduk({
       ? String(produk.targetMarginPersen)
       : "20",
   );
+  const [pembulatan, setPembulatan] = useState(
+    String(produk?.pembulatanHarga ?? 0),
+  );
   const [simulasi, setSimulasi] = useState<StatusSimulasi | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** Baris yang baru ditambahkan dan menunggu fokus. */
@@ -282,6 +292,7 @@ function FormProduk({
     () => susunResep({ baris, bahan, modeTakaran, jumlahPorsi }),
     [baris, bahan, modeTakaran, jumlahPorsi],
   );
+  const pembulatanAngka = Number(pembulatan);
   const targetMarginAngka = Number(targetMargin);
   const targetMarginValid =
     targetMargin.trim() !== "" &&
@@ -290,7 +301,11 @@ function FormProduk({
     targetMarginAngka <= 80;
   const kunciSimulasi =
     modeHarga === "targetMargin" && targetMarginValid && hasilResep.ok
-      ? JSON.stringify({ resep: hasilResep.data, targetMarginPersen: targetMarginAngka })
+      ? JSON.stringify({
+          resep: hasilResep.data,
+          targetMarginPersen: targetMarginAngka,
+          pembulatanHarga: pembulatanAngka,
+        })
       : null;
   const simulasiAktif =
     kunciSimulasi !== null && simulasi?.kunci === kunciSimulasi ? simulasi : null;
@@ -308,6 +323,7 @@ function FormProduk({
           body: JSON.stringify({
             resep: hasilResep.data,
             targetMarginPersen: targetMarginAngka,
+            pembulatanHarga: pembulatanAngka,
           }),
           cache: "no-store",
           signal: controller.signal,
@@ -339,7 +355,7 @@ function FormProduk({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [hasilResep, kunciSimulasi, targetMarginAngka]);
+  }, [hasilResep, kunciSimulasi, pembulatanAngka, targetMarginAngka]);
 
   /**
    * Pindah mode tanpa membuang angka yang sudah diketik.
@@ -470,6 +486,7 @@ function FormProduk({
       hargaJual,
       modePenentuanHarga: modeHarga,
       targetMarginPersen: modeHarga === "targetMargin" ? targetMarginAngka : null,
+      pembulatanHarga: modeHarga === "targetMargin" ? pembulatanAngka : 0,
       resep: hasilResep.data,
       modeTakaran,
       jumlahPorsiProduksi:
@@ -617,13 +634,55 @@ function FormProduk({
                     {simulasiAktif.hasil.persenKomisi.toLocaleString("id-ID", {
                       maximumFractionDigits: 1,
                     })}
-                    %.
+                    %.{" "}
+                    {/* Setelah dibulatkan ke atas, margin yang benar-benar
+                        didapat lebih tinggi dari target, jadi yang ditampilkan
+                        margin aktualnya — bukan angka target yang sudah tidak
+                        berlaku lagi. */}
+                    {simulasiAktif.hasil.pembulatanHarga > 0 &&
+                    simulasiAktif.hasil.hargaJual !==
+                      simulasiAktif.hasil.hargaJualSebelumPembulatan ? (
+                      <>
+                        Dibulatkan dari{" "}
+                        {formatRupiah(simulasiAktif.hasil.hargaJualSebelumPembulatan)}, margin
+                        jadi{" "}
+                        <span className="font-medium text-foreground">
+                          {formatPersen(simulasiAktif.hasil.marginAktualPersen)}
+                        </span>
+                        .
+                      </>
+                    ) : (
+                      <>
+                        Margin{" "}
+                        <span className="font-medium text-foreground">
+                          {formatPersen(simulasiAktif.hasil.marginAktualPersen)}
+                        </span>
+                        .
+                      </>
+                    )}
                   </p>
                 ) : (
                   <p className="text-muted-foreground">Menghitung harga terbaru...</p>
                 )}
               </div>
             </div>
+          )}
+
+          {modeHarga === "targetMargin" && (
+            <PilihOpsi
+              id="pembulatan-harga"
+              label="Pembulatan harga"
+              opsi={PILIHAN_PEMBULATAN_HARGA.map((nilai) => ({
+                nilai: String(nilai),
+                label:
+                  nilai === 0
+                    ? "Tanpa pembulatan"
+                    : `Kelipatan ${nilai.toLocaleString("id-ID")}`,
+              }))}
+              nilaiAwal={pembulatan}
+              onPilih={setPembulatan}
+              helper="Harga dibulatkan ke atas, jadi margin tidak pernah berkurang."
+            />
           )}
         </div>
       </section>

@@ -84,6 +84,9 @@ model Produk {
   modeTakaran        String             @default("per-porsi")
   /// Jumlah porsi sekali produksi, hanya terisi kalau modeTakaran memakainya.
   jumlahPorsiProduksi Float?
+  /// Kelipatan pembulatan harga jual pada mode target margin: 0, 100, 500,
+  /// atau 1000. 0 berarti tanpa pembulatan, dan itu perilaku produk lama.
+  pembulatanHarga    Int                @default(0)
   userId             Int
   user               User               @relation(fields: [userId], references: [id])
   resep              Resep[]

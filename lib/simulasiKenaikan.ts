@@ -34,6 +34,8 @@ export type ProdukUntukSimulasi = {
   hargaJual: number;
   modePenentuanHarga: string;
   targetMarginPersen: number | null;
+  /** Kelipatan pembulatan harga target yang tersimpan di produk. */
+  pembulatanHarga?: number;
   resep: ReadonlyArray<{
     bahanBakuId: number;
     jumlahDipakai: number;
@@ -119,6 +121,7 @@ export function hitungDampakKenaikan({
           biayaBahanHipotetis + komponen.biayaTetapPerPorsi,
           komponen.persenKomisi,
           p.targetMarginPersen ?? Number.NaN,
+          p.pembulatanHarga ?? 0,
         );
       } catch (error) {
         // Target yang tidak sah juga menggagalkan hitung ulang sungguhan;

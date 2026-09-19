@@ -41,6 +41,8 @@ export type Produk = {
   modeTakaran: ModeTakaran;
   /** Jumlah porsi sekali produksi, hanya terisi pada mode sekali-produksi. */
   jumlahPorsiProduksi: number | null;
+  /** Kelipatan pembulatan harga jual target: 0, 100, 500, atau 1000. */
+  pembulatanHarga: number;
   resep: Resep[];
 };
 
@@ -82,6 +84,7 @@ export type HppResult = {
   hppTerhitung: number;
   marginPersen: number;
   statusAman: boolean;
+  titikImpasPorsi: number | null;
 };
 
 export type HistoriHarga = {

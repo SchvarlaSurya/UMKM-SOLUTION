@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { isPembulatanHarga } from "@/lib/hpp";
 import { bacaCaraTakaran, type ModeTakaran } from "@/lib/takaran";
 import {
   calculateHargaJualTargetMarginDariResep,
@@ -44,6 +45,8 @@ export type MasukanProduk = {
 export type MasukanTambahProduk = MasukanProduk & {
   modePenentuanHarga?: ModePenentuanHarga;
   targetMarginPersen?: number | null;
+  /** Kelipatan pembulatan harga target: 0, 100, 500, atau 1000. */
+  pembulatanHarga?: number;
 };
 
 const HALAMAN_DATA_PRODUK = ["/produk", "/dashboard"] as const;
@@ -107,6 +110,11 @@ export async function tambahProduk(masukan: MasukanTambahProduk): Promise<HasilA
   if (modeHarga === "targetMargin" && !isTargetMarginPersen(masukan.targetMarginPersen)) {
     return { ok: false, error: "Target margin harus antara 0 sampai 80 persen." };
   }
+  const pembulatanHarga =
+    modeHarga === "targetMargin" ? (masukan.pembulatanHarga ?? 0) : 0;
+  if (!isPembulatanHarga(pembulatanHarga)) {
+    return { ok: false, error: "Pembulatan harga harus 0, 100, 500, atau 1000." };
+  }
 
   const galat = await periksaMasukan(masukan, auth.userId, modeHarga === "manual");
   if (galat) return { ok: false, error: galat };
@@ -127,6 +135,7 @@ export async function tambahProduk(masukan: MasukanTambahProduk): Promise<HasilA
               auth.userId,
               targetMarginPersen,
               tx,
+              pembulatanHarga,
             )
           : null;
 
@@ -134,9 +143,12 @@ export async function tambahProduk(masukan: MasukanTambahProduk): Promise<HasilA
         data: {
           nama: masukan.nama.trim(),
           kategori: masukan.kategori?.trim() || "Umum",
+          // Mode target margin: angka dari klien diabaikan, harga hasil hitung
+          // sistem yang disimpan.
           hargaJual: hargaSistem?.hargaJual ?? masukan.hargaJual,
           modePenentuanHarga: modeHarga,
           targetMarginPersen,
+          pembulatanHarga,
           ...bacaCaraTakaran(masukan.modeTakaran, masukan.jumlahPorsiProduksi),
           userId: auth.userId,
           resep: { create: resep },
