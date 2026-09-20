@@ -65,7 +65,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           hargaJual: true,
           modePenentuanHarga: true,
           targetMarginPersen: true,
-          pembulatanHarga: true,
           resep: {
             where: { bahanBaku: { userId: auth.userId } },
             select: {

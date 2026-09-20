@@ -35,12 +35,16 @@ describe("harga jual mode target margin", () => {
     // HPP naik dari 4.620 ke 5.520, harga jual mengikuti supaya margin 15%.
     assert.equal(hasil.hargaJualLama, 22_000);
     assert.ok(hasil.hargaJualHipotetis > hasil.hppHipotetis);
-    assert.equal(hasil.hargaJualHipotetis, Math.round(5_520 / 0.85));
+    // 5.520 / 0,85 = 6.494, dibulatkan otomatis ke atas ke kelipatan 100.
+    assert.equal(hasil.hargaJualHipotetis, 6_500);
     assert.ok(hasil.hppHipotetis > hasil.hppLama);
-    assert.ok(Math.abs(hasil.marginHipotetis - 15) < 0.01);
+    // Pembulatan ke atas membuat margin sedikit di atas target, tidak pernah
+    // di bawahnya: 6.500 dengan HPP 5.520 memberi 15,08%.
+    assert.ok(hasil.marginHipotetis >= 15);
+    assert.ok(hasil.marginHipotetis < 16);
   });
 
-  it("membulatkan harga ke atas sesuai pembulatan produk", () => {
+  it("membulatkan harga hasil hitung ke atas secara otomatis", () => {
     const [hasil] = hitungDampakKenaikan({
       produk: [
         {
@@ -50,7 +54,6 @@ describe("harga jual mode target margin", () => {
           hargaJual: 22_000,
           modePenentuanHarga: "targetMargin",
           targetMarginPersen: 15,
-          pembulatanHarga: 500,
           resep: [
             {
               bahanBakuId: 1,
@@ -70,7 +73,9 @@ describe("harga jual mode target margin", () => {
       batasMarginAman: 10,
     });
 
-    assert.equal(hasil.hargaJualHipotetis % 500, 0);
+    // HPP hipotetisnya 5.520, rumus mentah 6.494, rentang 1.000-9.999 jadi
+    // dibulatkan ke atas ke kelipatan 100.
+    assert.equal(hasil.hargaJualHipotetis, 6_500);
     // Dibulatkan ke atas, jadi margin aktualnya tidak pernah di bawah target.
     assert.ok(hasil.marginHipotetis >= 15);
   });

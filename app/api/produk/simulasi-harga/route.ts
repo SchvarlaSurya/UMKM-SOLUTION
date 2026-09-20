@@ -11,7 +11,6 @@ import {
   isTargetMarginPersen,
   PerhitunganHargaTargetError,
 } from '@/lib/hppCalculator'
-import { isPembulatanHarga } from '@/lib/hpp'
 import { validasiResep } from '@/lib/validasiResep'
 
 export async function POST(req: Request) {
@@ -22,13 +21,9 @@ export async function POST(req: Request) {
     const parsed = await readJsonBody(req)
     if (!parsed.ok) return errorResponse('Body request harus JSON yang valid', 400)
 
-    const { resep, targetMarginPersen, pembulatanHarga } = parsed.body
+    const { resep, targetMarginPersen } = parsed.body
     if (!isTargetMarginPersen(targetMarginPersen)) {
       return errorResponse('Target margin harus angka antara 0 sampai 80 persen', 400)
-    }
-    const pembulatan = pembulatanHarga ?? 0
-    if (!isPembulatanHarga(pembulatan)) {
-      return errorResponse('Pembulatan harga harus 0, 100, 500, atau 1000', 400)
     }
 
     const cekResep = validasiResep(resep)
@@ -39,9 +34,7 @@ export async function POST(req: Request) {
     const hasil = await calculateHargaJualTargetMarginDariResep(
       cekResep.data,
       auth.userId,
-      targetMarginPersen,
-      undefined,
-      pembulatan
+      targetMarginPersen
     )
 
     return NextResponse.json({ ...hasil, targetMarginPersen })

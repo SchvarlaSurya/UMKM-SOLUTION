@@ -55,21 +55,7 @@ export function komponenBiaya(
 }
 
 /**
- * Kelipatan pembulatan harga jual yang lazim dipakai di pasaran. 0 berarti
- * tanpa pembulatan, dan itu nilai default supaya produk lama tidak berubah.
- */
-export const PILIHAN_PEMBULATAN_HARGA = [0, 100, 500, 1000] as const;
-export type PembulatanHarga = (typeof PILIHAN_PEMBULATAN_HARGA)[number];
-
-export function isPembulatanHarga(nilai: unknown): nilai is PembulatanHarga {
-  return (
-    typeof nilai === "number" &&
-    (PILIHAN_PEMBULATAN_HARGA as readonly number[]).includes(nilai)
-  );
-}
-
-/**
- * Bulatkan harga jual KE ATAS ke kelipatan terdekat: 8905 dengan kelipatan 500
+ * Bulatkan harga jual KE ATAS ke kelipatan tertentu: 8905 dengan kelipatan 500
  * menjadi 9000. Sengaja ke atas, bukan ke terdekat, supaya margin yang
  * dijanjikan tidak pernah berkurang gara-gara pembulatan.
  *
@@ -80,6 +66,37 @@ export function bulatkanHargaJual(harga: number, kelipatan: number): number {
     return harga;
   }
   return Math.ceil(harga / kelipatan) * kelipatan;
+}
+
+/**
+ * Kelipatan pembulatan menurut besaran harganya. Harga kecil dibulatkan halus
+ * supaya tidak melonjak jauh; harga besar dibulatkan kasar supaya angkanya
+ * lazim dibaca di daftar menu.
+ */
+const TANGGA_PEMBULATAN = [
+  { batasBawah: 50_000, kelipatan: 1_000 },
+  { batasBawah: 10_000, kelipatan: 500 },
+  { batasBawah: 1_000, kelipatan: 100 },
+] as const;
+
+/**
+ * Pembulatan otomatis untuk harga hasil kalkulasi target margin. Tidak ada
+ * pilihan untuk pemilik: kelipatannya ditentukan sistem dari besaran harga.
+ *
+ *   < 1.000          apa adanya
+ *   1.000 – 9.999    kelipatan 100    (8.905 -> 9.000)
+ *   10.000 – 49.999  kelipatan 500    (14.235 -> 14.500)
+ *   >= 50.000        kelipatan 1.000  (62.300 -> 63.000)
+ *
+ * Selalu ke atas, jadi margin aktualnya sedikit di atas target — tidak pernah
+ * di bawah janji yang sudah ditetapkan pemilik. Hanya dipakai pada harga yang
+ * dihitung sistem; harga manual yang diketik pemilik tidak pernah diubah.
+ */
+export function bulatkanHargaJualOtomatis(harga: number): number {
+  if (!Number.isFinite(harga)) return harga;
+
+  const tangga = TANGGA_PEMBULATAN.find((t) => harga >= t.batasBawah);
+  return tangga ? bulatkanHargaJual(harga, tangga.kelipatan) : harga;
 }
 
 /**

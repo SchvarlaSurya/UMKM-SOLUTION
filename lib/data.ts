@@ -134,7 +134,6 @@ async function ambilProduk(
         targetMarginPersen: true,
         modeTakaran: true,
         jumlahPorsiProduksi: true,
-        pembulatanHarga: true,
       },
     }),
     // Sengaja tanpa orderBy, sama seperti relasi bersarang sebelumnya: urutan

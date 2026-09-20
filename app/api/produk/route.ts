@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
-import { isPembulatanHarga } from '@/lib/hpp'
 import { bacaCaraTakaran } from '@/lib/takaran'
 import { segarkanHalamanProduk } from '@/lib/revalidasi'
 import { validasiResep } from '@/lib/validasiResep'
@@ -58,7 +57,6 @@ export async function POST(req: Request) {
       targetMarginPersen,
       modeTakaran,
       jumlahPorsiProduksi,
-      pembulatanHarga,
     } = parsed.body
 
     // Resep dikirim dalam takaran per porsi; ini merekam cara pemiliknya
@@ -80,13 +78,6 @@ export async function POST(req: Request) {
         return errorResponse('Target margin harus angka antara 0 sampai 80 persen', 400)
       }
       targetMarginTersimpan = targetMarginPersen
-    }
-    // Pembulatan hanya berlaku pada harga yang dihitung sistem; mode manual
-    // memakai angka pemiliknya apa adanya, jadi tersimpan 0.
-    const pembulatanTersimpan =
-      modeHarga === 'targetMargin' && pembulatanHarga !== undefined ? pembulatanHarga : 0
-    if (!isPembulatanHarga(pembulatanTersimpan)) {
-      return errorResponse('Pembulatan harga harus 0, 100, 500, atau 1000', 400)
     }
     if (kategori !== undefined && kategori !== null && !isTeksTerisi(kategori)) {
       return errorResponse('Kategori tidak boleh kosong', 400)
@@ -116,8 +107,7 @@ export async function POST(req: Request) {
               cekResep.data,
               auth.userId,
               targetMarginTersimpan as number,
-              tx,
-              pembulatanTersimpan
+              tx
             )
           : null
 
@@ -130,7 +120,6 @@ export async function POST(req: Request) {
           hargaJual: hargaSistem?.hargaJual ?? (hargaJual as number),
           modePenentuanHarga: modeHarga,
           targetMarginPersen: targetMarginTersimpan,
-          pembulatanHarga: pembulatanTersimpan,
           ...caraTakaran,
           userId: auth.userId,
           resep: { create: cekResep.data },

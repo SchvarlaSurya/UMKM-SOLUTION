@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import {
   biayaBahanProduk,
-  bulatkanHargaJual,
+  bulatkanHargaJualOtomatis,
   hitungHpp,
   hitungTitikImpas,
   komponenBiaya,
@@ -57,17 +57,17 @@ export function isTargetMarginPersen(nilai: unknown): nilai is number {
 }
 
 /**
- * Hitung harga jual yang memenuhi target margin, dibulatkan ke rupiah penuh.
+ * Hitung harga jual yang memenuhi target margin.
  *
- * `pembulatan` membulatkan hasilnya KE ATAS ke kelipatan pasaran (100, 500,
- * 1000). Karena ke atas, margin aktualnya sedikit lebih tinggi dari target —
- * yang ditampilkan ke pengguna harus margin aktual, bukan angka target.
+ * Hasilnya selalu dibulatkan otomatis ke kelipatan pasaran sesuai besarannya
+ * (lihat bulatkanHargaJualOtomatis), dan selalu ke atas. Jadi margin aktualnya
+ * sedikit lebih tinggi dari target; yang ditampilkan ke pengguna harus margin
+ * aktual itu, bukan angka target.
  */
 export function hitungHargaJualTargetMargin(
   hpp: number,
   persenKomisi: number,
-  targetMarginPersen: number,
-  pembulatan = 0
+  targetMarginPersen: number
 ): number {
   if (!Number.isFinite(hpp) || hpp < 0) {
     throw new PerhitunganHargaTargetError('HPP harus berupa angka yang valid dan tidak negatif')
@@ -90,10 +90,7 @@ export function hitungHargaJualTargetMargin(
     )
   }
 
-  const hargaJual = bulatkanHargaJual(
-    Math.round(hpp / (1 - totalPersen / 100)),
-    pembulatan
-  )
+  const hargaJual = bulatkanHargaJualOtomatis(Math.round(hpp / (1 - totalPersen / 100)))
   if (!Number.isFinite(hargaJual)) {
     throw new PerhitunganHargaTargetError('Harga jual target tidak dapat dihitung')
   }
@@ -108,10 +105,9 @@ export type ResepHargaTarget = {
 export type HasilHargaTarget = {
   hppTerhitung: number
   persenKomisi: number
-  /** Harga yang akan disimpan; sudah dibulatkan sesuai `pembulatanHarga`. */
+  /** Harga yang akan disimpan; sudah dibulatkan otomatis ke atas. */
   hargaJual: number
-  pembulatanHarga: number
-  /** Sebelum dibulatkan; sama dengan `hargaJual` kalau tanpa pembulatan. */
+  /** Hasil rumus sebelum dibulatkan, untuk ditampilkan sebagai pembanding. */
   hargaJualSebelumPembulatan: number
   /**
    * Margin di harga jual yang benar-benar dipakai. Setelah pembulatan ke atas,
@@ -167,8 +163,7 @@ export async function calculateHargaJualTargetMarginDariResep(
   resep: readonly ResepHargaTarget[],
   userId: number,
   targetMarginPersen: number,
-  db: DatabaseClient = prisma,
-  pembulatanHarga = 0
+  db: DatabaseClient = prisma
 ): Promise<HasilHargaTarget> {
   const [bahan, konteks] = await Promise.all([
     db.bahanBaku.findMany({
@@ -195,23 +190,19 @@ export async function calculateHargaJualTargetMarginDariResep(
   )
   const hppTerhitung = biayaBahan + konteks.komponen.biayaTetapPerPorsi
 
-  const hargaJualSebelumPembulatan = hitungHargaJualTargetMargin(
-    hppTerhitung,
-    konteks.komponen.persenKomisi,
-    targetMarginPersen
-  )
+  // Harga mentah sebelum pembulatan, untuk ditampilkan sebagai pembanding.
+  const totalPersen = konteks.komponen.persenKomisi + targetMarginPersen
+  const hargaJualSebelumPembulatan = Math.round(hppTerhitung / (1 - totalPersen / 100))
   const hargaJual = hitungHargaJualTargetMargin(
     hppTerhitung,
     konteks.komponen.persenKomisi,
-    targetMarginPersen,
-    pembulatanHarga
+    targetMarginPersen
   )
 
   return {
     hppTerhitung,
     persenKomisi: konteks.komponen.persenKomisi,
     hargaJual,
-    pembulatanHarga,
     hargaJualSebelumPembulatan,
     // Margin dihitung ulang dari harga yang benar-benar dipakai, lewat rumus
     // margin yang sama dengan seluruh aplikasi.
@@ -315,8 +306,7 @@ async function recalculateProduk(
         ? hitungHargaJualTargetMargin(
             hppTerhitung,
             konteks.komponen.persenKomisi,
-            produk.targetMarginPersen ?? Number.NaN,
-            produk.pembulatanHarga
+            produk.targetMarginPersen ?? Number.NaN
           )
         : produk.hargaJual
     const rincian = hitungHpp(

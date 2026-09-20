@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
-import { isPembulatanHarga } from '@/lib/hpp'
 import { bacaCaraTakaran } from '@/lib/takaran'
 import { segarkanHalamanProduk } from '@/lib/revalidasi'
 import { validasiResep } from '@/lib/validasiResep'
@@ -68,7 +67,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       targetMarginPersen,
       modeTakaran,
       jumlahPorsiProduksi,
-      pembulatanHarga,
     } = parsed.body
 
     // Resep dikirim dalam takaran per porsi; ini merekam cara pemiliknya
@@ -110,14 +108,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       }
       targetMarginTersimpan = targetMarginInput
     }
-    // Field baru, jadi produk lama yang tidak mengirimnya tetap memakai nilai
-    // tersimpan. Mode manual tidak memakai pembulatan sama sekali.
-    const pembulatanInput =
-      pembulatanHarga === undefined ? existing.pembulatanHarga : pembulatanHarga
-    const pembulatanTersimpan = modeHarga === 'targetMargin' ? pembulatanInput : 0
-    if (!isPembulatanHarga(pembulatanTersimpan)) {
-      return errorResponse('Pembulatan harga harus 0, 100, 500, atau 1000', 400)
-    }
 
     // `resep` opsional: kalau tidak dikirim, resep lama dibiarkan apa adanya.
     // Kalau dikirim, aturannya sama ketat dengan POST.
@@ -153,8 +143,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
               resepUntukHarga,
               auth.userId,
               targetMarginTersimpan as number,
-              tx,
-              pembulatanTersimpan
+              tx
             )
           : null
 
@@ -176,7 +165,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
           modePenentuanHarga: modeHarga,
           targetMarginPersen:
             modeHarga === 'targetMargin' ? targetMarginTersimpan : null,
-          pembulatanHarga: pembulatanTersimpan,
           ...caraTakaran,
         },
         omit: { userId: true },

@@ -41,8 +41,6 @@ export type Produk = {
   modeTakaran: ModeTakaran;
   /** Jumlah porsi sekali produksi, hanya terisi pada mode sekali-produksi. */
   jumlahPorsiProduksi: number | null;
-  /** Kelipatan pembulatan harga jual target: 0, 100, 500, atau 1000. */
-  pembulatanHarga: number;
   resep: Resep[];
 };
 
