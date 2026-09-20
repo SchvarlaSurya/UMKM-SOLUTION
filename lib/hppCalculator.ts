@@ -6,7 +6,6 @@ import {
   hitungTitikImpas,
   komponenBiaya,
 } from '@/lib/hpp'
-import { pangkasNotifikasiTerbaca } from '@/lib/notifikasi'
 import { Prisma } from '@/app/generated/prisma/client'
 
 export type HppResult = {
@@ -384,9 +383,6 @@ async function recalculateProduk(
         },
       ],
     })
-
-    // Tabelnya hanya tumbuh di sini, jadi di sini pula yang lama dibuang.
-    await pangkasNotifikasiTerbaca(db, userId)
   }
 
   return {
