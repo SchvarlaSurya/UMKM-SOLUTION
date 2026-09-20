@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { animate, utils } from "animejs";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { useToast } from "@/components/ui/Toast";
 import { useEfekTataLetak } from "@/components/ui/useEfekTataLetak";
 import { durasiGerak } from "@/lib/gerak";
 import { IconCentang, IconLonceng, IconProduk } from "@/components/ui/icons";
@@ -45,6 +46,7 @@ function bacaRingkasan(pesan: string): Ringkasan {
 
 export function PusatNotifikasi() {
   const wadahRef = useRef<HTMLDivElement>(null);
+  const tampilkanToast = useToast();
   const {
     belumDibaca,
     modalAwal,
@@ -61,6 +63,7 @@ export function PusatNotifikasi() {
   const [sesiBuka, setSesiBuka] = useState(0);
   const [memuatDaftar, setMemuatDaftar] = useState(false);
   const [menandai, setMenandai] = useState(false);
+  const [menghapus, setMenghapus] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
   const refPanel = useRef<HTMLElement>(null);
   const refLencana = useRef<HTMLSpanElement>(null);
@@ -68,6 +71,10 @@ export function PusatNotifikasi() {
   const sedangMenutup = useRef(false);
   const jumlahSebelumnya = useRef(belumDibaca.length);
   const daftarSebelumnya = useRef(daftar);
+
+  // Dihitung dari daftar panel, bukan dari provider: provider hanya memegang
+  // yang belum dibaca, sedangkan yang bisa dihapus justru kebalikannya.
+  const jumlahTerbaca = daftar?.filter((item) => item.sudahDibaca).length ?? 0;
 
   const ambilSemua = useCallback(async () => {
     setMemuatDaftar(true);
@@ -230,6 +237,47 @@ export function PusatNotifikasi() {
       setGalat(error instanceof Error ? error.message : "Gagal menandai semua notifikasi.");
     } finally {
       setMenandai(false);
+    }
+  }
+
+  /**
+   * Buang notifikasi yang sudah dibaca supaya daftarnya tidak menumpuk
+   * selamanya — di layar maupun di basis data.
+   *
+   * Tanpa modal konfirmasi: yang terhapus hanya kabar yang sudah dilihat
+   * pemiliknya, dan jumlahnya sudah tertulis di tombolnya sendiri. Modal di
+   * atas panel melayang juga bermasalah — panel ini menutup diri begitu ada
+   * tekanan penunjuk di luar dirinya.
+   */
+  async function hapusTerbaca() {
+    setMenghapus(true);
+    setGalat(null);
+    try {
+      const respons = await fetch("/api/notifikasi", {
+        method: "DELETE",
+        cache: "no-store",
+      });
+      const isi: unknown = await respons.json().catch(() => null);
+      if (!respons.ok) {
+        throw new Error(pesanGalat(isi, "Gagal menghapus notifikasi."));
+      }
+
+      setDaftar((saatIni) => saatIni?.filter((item) => !item.sudahDibaca) ?? null);
+      const jumlah =
+        isi && typeof isi === "object" && "jumlahDihapus" in isi
+          ? Number(isi.jumlahDihapus)
+          : 0;
+      tampilkanToast({
+        varian: "sukses",
+        pesan:
+          jumlah === 1
+            ? "1 notifikasi yang sudah dibaca dihapus."
+            : `${jumlah} notifikasi yang sudah dibaca dihapus.`,
+      });
+    } catch (error) {
+      setGalat(error instanceof Error ? error.message : "Gagal menghapus notifikasi.");
+    } finally {
+      setMenghapus(false);
     }
   }
 
@@ -423,7 +471,22 @@ export function PusatNotifikasi() {
               )}
             </div>
 
-            <footer className="border-t border-border px-4 py-3 text-right">
+            {/* Aksi merusak ditaruh di kaki, jauh dari daftar yang sedang
+                dibaca, dan jumlahnya ditulis di tombolnya sendiri supaya
+                akibatnya jelas sebelum ditekan. */}
+            <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3">
+              {jumlahTerbaca > 0 ? (
+                <button
+                  type="button"
+                  disabled={menghapus}
+                  onClick={() => void hapusTerbaca()}
+                  className="text-xs font-medium text-muted-foreground hover:text-destructive disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                >
+                  {menghapus ? "Menghapus…" : `Hapus ${jumlahTerbaca} yang sudah dibaca`}
+                </button>
+              ) : (
+                <span />
+              )}
               <Link
                 href="/produk"
                 onClick={tutupDropdown}
