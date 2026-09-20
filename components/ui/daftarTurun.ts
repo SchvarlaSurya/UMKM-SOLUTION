@@ -32,21 +32,80 @@ export function kelasOpsiDaftar(tersorot: boolean, terpilih: boolean): string {
   );
 }
 
-/**
- * Apakah panelnya harus dibuka ke atas.
- *
- * Dihitung saat panel hendak dibuka, bukan sekali di awal: pemicunya bisa
- * berada di dasar badan modal yang menggulir. `visualViewport` dipakai lebih
- * dulu karena papan ketik di ponsel mengecilkan ruang terlihat tanpa mengubah
- * `innerHeight`.
- */
-export function perluBukaKeAtas(wadah: HTMLElement | null): boolean {
-  const kotak = wadah?.getBoundingClientRect();
-  if (!kotak) return false;
+/** Jarak panel ke kotak pemicunya, plus sedikit ruang napas. */
+const JARAK_PANEL = 8;
 
-  const tinggiTerlihat = window.visualViewport?.height ?? window.innerHeight;
-  const ruangBawah = tinggiTerlihat - kotak.bottom;
-  return ruangBawah < TINGGI_DAFTAR_MAKS && kotak.top > ruangBawah;
+/**
+ * Tinggi terkecil yang masih digambar.
+ *
+ * Penjaga, bukan jalur normal: hanya tercapai kalau kotak penampungnya lebih
+ * pendek dari sekitar 120px, dan pada kotak sesempit itu panel setinggi 0
+ * lebih menyesatkan daripada panel yang sedikit terpotong.
+ */
+const TINGGI_DAFTAR_MIN = 72;
+
+export type PosisiDaftar = {
+  keAtas: boolean;
+  /** Tinggi maksimum panel supaya tidak melewati kotak yang memotongnya. */
+  tinggiMaks: number;
+};
+
+/**
+ * Batas tegak yang benar-benar berlaku untuk panel: irisan semua leluhur yang
+ * memotong, dan ruang yang terlihat.
+ *
+ * Ditelusuri sampai ke atas, bukan berhenti di leluhur pertama: panel di dalam
+ * modal dipotong dua kali — sekali oleh badan modal yang menggulir, sekali lagi
+ * oleh elemen <dialog> yang ber-overflow-hidden — dan yang menentukan adalah
+ * irisan keduanya.
+ */
+function batasTegak(wadah: HTMLElement): { atas: number; bawah: number } {
+  let atas = 0;
+  let bawah = window.visualViewport?.height ?? window.innerHeight;
+
+  for (let n = wadah.parentElement; n; n = n.parentElement) {
+    const gaya = getComputedStyle(n);
+    // Apa pun selain `visible` memotong: auto, scroll, hidden, maupun clip.
+    if (gaya.overflowY === "visible" && gaya.overflowX === "visible") continue;
+
+    const kotak = n.getBoundingClientRect();
+    atas = Math.max(atas, kotak.top);
+    bawah = Math.min(bawah, kotak.bottom);
+  }
+
+  return { atas, bawah };
+}
+
+/**
+ * Arah buka panel dan tinggi maksimumnya.
+ *
+ * Diukur terhadap kotak yang benar-benar memotong, bukan terhadap viewport.
+ * Versi sebelumnya membandingkan ruang dengan `innerHeight`, jadi di dalam
+ * modal ia mengira ruang di atas masih lapang — lalu panelnya membuka ke atas
+ * dan tertelan header modal; terukur 87px terpotong pada modal tambah bahan di
+ * layar 600x620.
+ *
+ * Dihitung tiap kali panel hendak dibuka, bukan sekali di awal: pemicunya bisa
+ * berpindah posisi seiring badan modal digulir.
+ */
+export function hitungPosisiDaftar(wadah: HTMLElement | null): PosisiDaftar {
+  if (!wadah) return { keAtas: false, tinggiMaks: TINGGI_DAFTAR_MAKS };
+
+  const kotak = wadah.getBoundingClientRect();
+  const batas = batasTegak(wadah);
+
+  const ruangBawah = batas.bawah - kotak.bottom - JARAK_PANEL;
+  const ruangAtas = kotak.top - batas.atas - JARAK_PANEL;
+
+  // Ke bawah lebih dulu — arah yang diharapkan — dan baru berbalik kalau sisi
+  // atas benar-benar lebih lapang.
+  const keAtas = ruangBawah < TINGGI_DAFTAR_MAKS && ruangAtas > ruangBawah;
+  const ruang = keAtas ? ruangAtas : ruangBawah;
+
+  return {
+    keAtas,
+    tinggiMaks: Math.min(TINGGI_DAFTAR_MAKS, Math.max(TINGGI_DAFTAR_MIN, Math.round(ruang))),
+  };
 }
 
 /**

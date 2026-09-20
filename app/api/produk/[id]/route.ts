@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
+import { pangkasNotifikasiTerbaca } from '@/lib/notifikasi'
 import { bacaCaraTakaran } from '@/lib/takaran'
 import { segarkanHalamanProduk } from '@/lib/revalidasi'
 import { validasiResep } from '@/lib/validasiResep'
@@ -201,6 +202,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             pesan: `1 produk mengalami perubahan harga jual karena ${alasan}.`,
           },
         })
+
+        // Tabelnya hanya tumbuh di sini, jadi di sini pula yang lama dibuang.
+        await pangkasNotifikasiTerbaca(tx, auth.userId)
       }
 
       return produk

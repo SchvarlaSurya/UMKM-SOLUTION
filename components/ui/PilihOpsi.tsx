@@ -7,8 +7,9 @@ import { Field, kontrolDasar } from "./Input";
 import {
   KELAS_PANEL_DAFTAR,
   TINGGI_DAFTAR_MAKS,
+  type PosisiDaftar,
   kelasOpsiDaftar,
-  perluBukaKeAtas,
+  hitungPosisiDaftar,
   useAnimasiDaftarTurun,
   useTutupSaatKlikLuar,
 } from "./daftarTurun";
@@ -77,7 +78,12 @@ export function PilihOpsi({
 
   const [terbuka, setTerbuka] = useState(false);
   const [sorot, setSorot] = useState(0);
-  const [keAtas, setKeAtas] = useState(false);
+  // Arah buka dan tinggi panel dihitung ulang tiap kali dibuka, karena
+  // pemicunya bisa berpindah posisi seiring badan modal digulir.
+  const [posisi, setPosisi] = useState<PosisiDaftar>({
+    keAtas: false,
+    tinggiMaks: TINGGI_DAFTAR_MAKS,
+  });
 
   const refWadah = useRef<HTMLDivElement>(null);
   const refDaftar = useRef<HTMLUListElement>(null);
@@ -90,11 +96,11 @@ export function PilihOpsi({
 
   const tutup = useCallback(() => setTerbuka(false), []);
   useTutupSaatKlikLuar(terbuka, refWadah, tutup);
-  useAnimasiDaftarTurun(terbuka, keAtas, refDaftar);
+  useAnimasiDaftarTurun(terbuka, posisi.keAtas, refDaftar);
 
   function buka() {
     if (terbuka || disabled) return;
-    setKeAtas(perluBukaKeAtas(refWadah.current));
+    setPosisi(hitungPosisiDaftar(refWadah.current));
     setSorot(Math.max(0, opsi.findIndex((o) => o.nilai === terpakai)));
     setTerbuka(true);
   }
@@ -221,10 +227,10 @@ export function PilihOpsi({
             role="listbox"
             aria-label={ariaLabel ?? label}
             style={{
-              maxHeight: TINGGI_DAFTAR_MAKS,
-              transformOrigin: keAtas ? "bottom center" : "top center",
+              maxHeight: posisi.tinggiMaks,
+              transformOrigin: posisi.keAtas ? "bottom center" : "top center",
             }}
-            className={cn(KELAS_PANEL_DAFTAR, keAtas ? "bottom-full mb-1" : "top-full mt-1")}
+            className={cn(KELAS_PANEL_DAFTAR, posisi.keAtas ? "bottom-full mb-1" : "top-full mt-1")}
           >
             {opsi.map((o, i) => (
               <li

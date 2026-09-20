@@ -51,3 +51,28 @@ export async function PATCH() {
     return handleError(error, 'Gagal menandai semua notifikasi sudah dibaca')
   }
 }
+
+/**
+ * Buang notifikasi yang sudah dibaca milik pemiliknya sendiri.
+ *
+ * Hanya yang `sudahDibaca` — yang belum dibaca sengaja tidak ikut, karena
+ * pemiliknya belum sempat melihatnya dan menghapusnya berarti menghilangkan
+ * kabar yang belum pernah sampai.
+ *
+ * Tidak ada jalan membatalkan, jadi filter userId ditulis di query-nya sendiri,
+ * bukan disaring belakangan.
+ */
+export async function DELETE() {
+  try {
+    const auth = await requireAuth()
+    if (!auth.authorized) return unauthorizedResponse()
+
+    const hasil = await prisma.notifikasi.deleteMany({
+      where: { userId: auth.userId, sudahDibaca: true },
+    })
+
+    return NextResponse.json({ success: true, jumlahDihapus: hasil.count })
+  } catch (error) {
+    return handleError(error, 'Gagal menghapus notifikasi yang sudah dibaca')
+  }
+}
