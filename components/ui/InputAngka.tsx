@@ -58,6 +58,8 @@ export function InputAngka({
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const [tampil, setTampil] = useState(() => formatRibuan(ambilDigit(nilai ?? "")));
+  // Keterangan di bawah kolom ikut dibacakan saat kolom difokus.
+  const idKeterangan = error ? `${id}-galat` : helper ? `${id}-bantuan` : undefined;
 
   function ubah(e: ChangeEvent<HTMLInputElement>) {
     const kolom = e.target;
@@ -118,6 +120,7 @@ export function InputAngka({
           placeholder={placeholder}
           disabled={disabled}
           aria-invalid={error ? true : undefined}
+          aria-describedby={idKeterangan}
           className="h-full w-full bg-transparent px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
         />
         {akhiran && (
@@ -131,9 +134,15 @@ export function InputAngka({
       {name && <input type="hidden" name={name} value={ambilDigit(tampil)} />}
 
       {error ? (
-        <p className="text-xs text-destructive">{error}</p>
+        <p id={idKeterangan} className="text-xs text-destructive">
+          {error}
+        </p>
       ) : (
-        helper && <p className="text-xs text-muted-foreground">{helper}</p>
+        helper && (
+          <p id={idKeterangan} className="text-xs text-muted-foreground">
+            {helper}
+          </p>
+        )
       )}
     </div>
   );
