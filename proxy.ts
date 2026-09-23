@@ -44,7 +44,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(tujuan);
   }
 
-  if (token && cocok(pathname, RUTE_TAMU)) {
+  // Landing page ("/") hanya untuk tamu. Dicocokkan persis, bukan lewat
+  // cocok(), karena semua jalur berawalan "/".
+  if (token && (pathname === "/" || cocok(pathname, RUTE_TAMU))) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
@@ -53,8 +55,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // "/" tidak perlu dijaga: app/page.tsx mengarahkannya ke /dashboard,
-    // yang sudah termasuk rute terlindungi.
+    "/",
     "/dashboard/:path*",
     "/bahan-baku/:path*",
     "/biaya-operasional/:path*",
