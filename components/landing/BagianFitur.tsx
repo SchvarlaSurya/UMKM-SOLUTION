@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { MasukBerurutan } from "@/components/ui/MasukBerurutan";
 import { MasukSaatTampil } from "@/components/ui/MasukSaatTampil";
 import { Eyebrow, JudulBagian } from "./BagianStatis";
 import { SimulasiMargin } from "./SimulasiMargin";
@@ -35,7 +36,7 @@ export function BagianFitur() {
           </p>
         </MasukSaatTampil>
 
-        <div className="mb-8 grid gap-7 md:grid-cols-2 md:gap-10">
+        <MasukBerurutan className="mb-8 grid gap-7 md:grid-cols-2 md:gap-10">
           <article className="py-2">
             <span className="mb-3 inline-block text-xs font-semibold tracking-wider text-primary">
               01 · HPP OTOMATIS
@@ -74,7 +75,7 @@ export function BagianFitur() {
               Contoh: terakhir diperbarui 21 hari lalu. Ini umur data harga, bukan kondisi bahan.
             </p>
           </article>
-        </div>
+        </MasukBerurutan>
 
         <SimulasiMargin />
 

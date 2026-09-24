@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { IconBahan, IconDashboard, IconToko } from "@/components/ui/icons";
+import { MasukBerurutan } from "@/components/ui/MasukBerurutan";
 import { MasukSaatTampil } from "@/components/ui/MasukSaatTampil";
 import { Eyebrow, JudulBagian } from "./BagianStatis";
 
@@ -37,7 +38,7 @@ export function BagianLangkah() {
           <JudulBagian id="judul-langkah">Tiga langkah sampai angkanya muncul.</JudulBagian>
         </MasukSaatTampil>
 
-        <ol className="grid gap-4 md:grid-cols-3">
+        <MasukBerurutan jenis="ol" className="grid gap-4 md:grid-cols-3">
           {LANGKAH.map((langkah, urutan) => (
             <li key={langkah.judul} className="flex flex-col rounded-card border border-border p-6">
               <div className="flex items-center gap-3">
@@ -54,7 +55,7 @@ export function BagianLangkah() {
               <p className="mt-2 text-sm text-muted-foreground">{langkah.deskripsi}</p>
             </li>
           ))}
-        </ol>
+        </MasukBerurutan>
       </div>
     </section>
   );
