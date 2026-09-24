@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { NextResponse } from 'next/server'
 import { errorResponse, handleError, isTeksTerisi, readJsonBody } from '@/lib/apiHelpers'
+import { cariUserLewatEmail, normalisasiEmail } from '@/lib/email'
 import { adalahJenisUsaha } from '@/lib/jenisUsaha'
 
 const PANJANG_PASSWORD_MINIMAL = 8
@@ -24,8 +25,10 @@ export async function POST(req: Request) {
       return errorResponse('Jenis usaha harus termasuk kategori usaha kuliner', 400)
     }
 
-    const emailBersih = email.trim().toLowerCase()
-    const existing = await prisma.user.findUnique({ where: { email: emailBersih } })
+    const emailBersih = normalisasiEmail(email)
+    // Tidak peka huruf, supaya akun lama "Budi@mail.com" tidak bisa didaftarkan
+    // ulang sebagai "budi@mail.com".
+    const existing = await cariUserLewatEmail(prisma, emailBersih)
     if (existing) return errorResponse('Email sudah terdaftar', 409)
 
     const hashed = await bcrypt.hash(password, 10)
