@@ -1,7 +1,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { AngkaNaikSaatTampil } from "@/components/ui/AngkaNaikSaatTampil";
 import { ButtonLink } from "@/components/ui/Button";
 import { IconPanahKanan } from "@/components/ui/icons";
+import { MasukSaatTampil } from "@/components/ui/MasukSaatTampil";
 import { Merek } from "./Merek";
 
 /** Label kecil di atas judul bagian, misalnya "01 / KENALI YANG TERLEWAT". */
@@ -48,7 +50,7 @@ export function BagianMasalah() {
       aria-labelledby="judul-masalah"
     >
       <div className="mx-auto grid w-full max-w-6xl items-start gap-10 px-4 sm:px-8 lg:grid-cols-2 lg:gap-24">
-        <div>
+        <MasukSaatTampil>
           <Eyebrow>01 / KENALI YANG TERLEWAT</Eyebrow>
           <JudulBagian id="judul-masalah">
             Penjualan tetap ramai.
@@ -66,7 +68,7 @@ export function BagianMasalah() {
             Lihat pengaruhnya pada menumu
             <IconPanahKanan width={16} height={16} />
           </a>
-        </div>
+        </MasukSaatTampil>
 
         <div>
           <dl className="tabular-nums">
@@ -111,7 +113,7 @@ export function BagianBukti() {
   return (
     <section id="bukti" className="scroll-mt-20 py-18 lg:py-24" aria-labelledby="judul-bukti">
       <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 sm:px-8 lg:grid-cols-2 lg:gap-24">
-        <div>
+        <MasukSaatTampil>
           <Eyebrow>04 / ANGKA YANG BISA DIPERIKSA</Eyebrow>
           <JudulBagian id="judul-bukti">
             Selisih kecil per porsi.
@@ -119,12 +121,12 @@ export function BagianBukti() {
             Terasa di 100 pesanan.
           </JudulBagian>
           <p className="mt-6 mb-3 text-5xl font-semibold tracking-tighter text-primary tabular-nums sm:text-7xl">
-            Rp 150.000
+            <AngkaNaikSaatTampil nilai={150_000} />
           </p>
           <p className="max-w-xl text-lg text-muted-foreground">
             lebih sedikit pada 100 porsi ketika HPP naik Rp 1.500 dan harga jual tetap.
           </p>
-        </div>
+        </MasukSaatTampil>
 
         <div>
           <div className="rounded-card border border-border bg-card p-5 sm:p-6">
@@ -180,7 +182,7 @@ export function BagianPenutup() {
   return (
     <section className="mx-auto w-full max-w-6xl px-4 pb-18 sm:px-8 lg:pb-24" aria-labelledby="judul-penutup">
       <div className="grid gap-7 rounded-b-2xl border-t-4 border-primary bg-accent p-6 sm:p-11 lg:grid-cols-[1fr_auto] lg:items-center">
-        <div>
+        <MasukSaatTampil>
           <Eyebrow>MULAI DARI SATU MENU</Eyebrow>
           <JudulBagian id="judul-penutup">
             Sebelum menentukan harga,
@@ -191,7 +193,7 @@ export function BagianPenutup() {
             Catat bahan dan biaya sekali, lalu biarkan HPP dan margin tiap produk terhitung sendiri
             setiap harga bahan berubah.
           </p>
-        </div>
+        </MasukSaatTampil>
         <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
           <ButtonLink href="/register" className="h-12 px-6 text-base">
             Daftar sekarang

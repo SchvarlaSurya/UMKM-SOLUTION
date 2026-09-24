@@ -11,6 +11,7 @@ import {
   IconProduk,
   IconTren,
 } from "@/components/ui/icons";
+import { MasukSaatTampil } from "@/components/ui/MasukSaatTampil";
 import { cn } from "@/lib/cn";
 import { formatPersen, formatRupiah } from "@/lib/format";
 import { Eyebrow, JudulBagian } from "./BagianStatis";
@@ -169,7 +170,7 @@ export function BagianPratinjau() {
       aria-labelledby="judul-pratinjau"
     >
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
-        <div className="mb-10 grid gap-5 lg:grid-cols-2 lg:items-end lg:gap-24">
+        <MasukSaatTampil className="mb-10 grid gap-5 lg:grid-cols-2 lg:items-end lg:gap-24">
           <div>
             <Eyebrow>03 / DI DALAM APLIKASI</Eyebrow>
             <JudulBagian id="judul-pratinjau">
@@ -182,7 +183,7 @@ export function BagianPratinjau() {
             Begitu bahan, biaya, dan resep tercatat, dashboard menghitung margin tiap produk dan
             menandai yang turun di bawah batas amanmu.
           </p>
-        </div>
+        </MasukSaatTampil>
 
         <figure aria-label="Contoh tampilan dashboard Ruang Margin dengan data demo: lima produk, dua di antaranya bermargin di bawah 30 persen">
           <div className="overflow-hidden rounded-2xl border border-border shadow-[0_24px_60px_rgba(23,99,75,0.10)]">
