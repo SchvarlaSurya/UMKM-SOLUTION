@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { MasukSaatTampil } from "@/components/ui/MasukSaatTampil";
 import { Eyebrow, JudulBagian } from "./BagianStatis";
 import { SimulasiMargin } from "./SimulasiMargin";
 
@@ -21,7 +22,7 @@ export function BagianFitur() {
       aria-labelledby="judul-fitur"
     >
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
-        <div className="mb-9 max-w-3xl">
+        <MasukSaatTampil className="mb-9 max-w-3xl">
           <Eyebrow>02 / DARI RESEP KE KEPUTUSAN</Eyebrow>
           <JudulBagian id="judul-fitur">
             Lima cara menjaga
@@ -32,7 +33,7 @@ export function BagianFitur() {
             Mulai dari biaya bahan, periksa perubahan, lalu tentukan harga dan jumlah penjualan yang
             perlu dicapai.
           </p>
-        </div>
+        </MasukSaatTampil>
 
         <div className="mb-8 grid gap-7 md:grid-cols-2 md:gap-10">
           <article className="py-2">
