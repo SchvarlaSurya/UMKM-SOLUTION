@@ -11,6 +11,17 @@ const JARAK = 8;
 /** Batas pemicu: bagian atas pembungkus melewati 12% tinggi layar dari bawah. */
 const AMBANG_MASUK = "bottom-=12% top";
 
+/**
+ * Pengamat gulir yang menyala sekali saat elemennya masuk area pandang.
+ *
+ * Diekspor supaya animasi landing page yang tidak memudar — angka yang
+ * berjalan naik, misalnya — tetap memakai ambang yang sama, bukan ambangnya
+ * sendiri-sendiri yang lama-lama berbeda.
+ */
+export function pengamatMasuk(elemen: HTMLElement) {
+  return onScroll({ target: elemen, enter: AMBANG_MASUK, repeat: false });
+}
+
 type OpsiMasukGulir = {
   /**
    * Kalau diisi, yang dianimasikan adalah anak langsung pembungkusnya, satu
@@ -57,7 +68,7 @@ export function useMasukGulir<T extends HTMLElement>({ jedaAntarAnak }: OpsiMasu
 
     utils.set(target, { opacity: 0, translateY: JARAK });
 
-    const pengamat = onScroll({ target: wadah, enter: AMBANG_MASUK, repeat: false });
+    const pengamat = pengamatMasuk(wadah);
 
     animate(target, {
       opacity: 1,

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { AngkaNaikSaatTampil } from "@/components/ui/AngkaNaikSaatTampil";
 import { ButtonLink } from "@/components/ui/Button";
 import { IconPanahKanan } from "@/components/ui/icons";
 import { MasukSaatTampil } from "@/components/ui/MasukSaatTampil";
@@ -120,7 +121,7 @@ export function BagianBukti() {
             Terasa di 100 pesanan.
           </JudulBagian>
           <p className="mt-6 mb-3 text-5xl font-semibold tracking-tighter text-primary tabular-nums sm:text-7xl">
-            Rp 150.000
+            <AngkaNaikSaatTampil nilai={150_000} />
           </p>
           <p className="max-w-xl text-lg text-muted-foreground">
             lebih sedikit pada 100 porsi ketika HPP naik Rp 1.500 dan harga jual tetap.
