@@ -7,6 +7,7 @@ import { Banner } from "@/components/ui/Banner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
+import { pesanGalatLogin } from "@/lib/pesanLogin";
 
 /** Pesan yang menunjuk satu kolom tertentu. */
 type GalatKolom = {
@@ -67,15 +68,7 @@ export function FormLogin() {
         return;
       }
 
-      // Sengaja tidak menyebut mana yang salah: menyebutkannya membocorkan email
-      // mana yang terdaftar kepada siapa pun yang mencoba menebak.
-      tampilkanToast({
-        varian: "galat",
-        pesan:
-          hasil?.error === "CredentialsSignin"
-            ? "Email atau kata sandi salah."
-            : "Gagal masuk. Coba lagi sebentar lagi.",
-      });
+      tampilkanToast({ varian: "galat", pesan: pesanGalatLogin(hasil?.error) });
     } catch {
       tampilkanToast({
         varian: "galat",
