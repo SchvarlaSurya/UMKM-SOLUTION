@@ -1,88 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AngkaBergerak } from "@/components/ui/AngkaBergerak";
 import { Button } from "@/components/ui/Button";
 import { InputAngka } from "@/components/ui/InputAngka";
 import { cn } from "@/lib/cn";
 import { formatRupiah } from "@/lib/format";
+import {
+  ALOKASI_TETAP,
+  AYAM_MAKS,
+  AYAM_MIN,
+  ISIAN_AWAL,
+  hitungSimulasi,
+  targetTercapai,
+  type HasilSimulasi,
+  type IsianSimulasi,
+  type KolomSimulasi,
+} from "@/lib/simulasiLanding";
 
 /**
  * Simulasi satu porsi nasi ayam untuk pengunjung yang belum punya akun.
- *
- * Asumsinya dikunci supaya angka di halaman selalu bisa dicocokkan dengan
- * rincian di bawahnya: 100 gram ayam, bahan lain Rp6.500, dan alokasi biaya
- * tetap Rp1.500 per porsi (Rp1.800.000 dibagi 1.200 porsi). Tidak ada yang
- * disimpan ke server.
+ * Rumus dan asumsinya ada di lib/simulasiLanding.ts. Tidak ada yang disimpan
+ * ke server.
  */
 
-const GRAM_AYAM = 0.1;
-const BAHAN_LAIN = 6_500;
-const ALOKASI_TETAP = 1_500;
-const BIAYA_TETAP_BULANAN = 1_800_000;
-const KELIPATAN_HARGA = 500;
+/**
+ * Jeda sebelum hasil dihitung ulang dari ketikan. Tanpa jeda, mengetik
+ * "55000" melewati "5", "55", ... yang semuanya di luar rentang, dan pesan
+ * galat berkedip serta dibacakan ulang di setiap tombol.
+ */
+const JEDA_HITUNG = 150;
 
-const AYAM_MIN = 40_000;
-const AYAM_MAKS = 60_000;
-
-const AWAL = { ayam: "55000", jual: "20000", target: "40" };
-
-type Isian = typeof AWAL;
-
-type Hasil =
-  | { sah: false; pesan: string }
-  | {
-      sah: true;
-      bahan: number;
-      hpp: number;
-      selisih: number;
-      margin: number;
-      target: number;
-      rekomendasi: number;
-      kontribusi: number;
-    };
-
-function hitung(isian: Isian): Hasil {
-  const ayam = Number(isian.ayam);
-  const jual = Number(isian.jual);
-  const target = Number(isian.target);
-
-  if (isian.ayam === "" || ayam < AYAM_MIN || ayam > AYAM_MAKS) {
-    return { sah: false, pesan: "Isi harga ayam antara Rp 40.000 dan Rp 60.000." };
-  }
-  if (isian.jual === "" || jual < 1_000 || jual > 1_000_000) {
-    return { sah: false, pesan: "Isi harga jual antara Rp 1.000 dan Rp 1.000.000." };
-  }
-  if (isian.target === "" || target > 80) {
-    return { sah: false, pesan: "Isi target margin dengan angka bulat dari 0 sampai 80." };
-  }
-
-  const bahan = ayam * GRAM_AYAM + BAHAN_LAIN;
-  const hpp = bahan + ALOKASI_TETAP;
-  const selisih = jual - hpp;
-  // Pengurang kecil menahan galat pembulatan float supaya harga yang tepat di
-  // kelipatan tidak naik satu tingkat.
-  const rekomendasi =
-    Math.ceil((hpp / (1 - target / 100) - 1e-8) / KELIPATAN_HARGA) * KELIPATAN_HARGA;
-
-  return {
-    sah: true,
-    bahan,
-    hpp,
-    selisih,
-    margin: (selisih / jual) * 100,
-    target,
-    rekomendasi,
-    kontribusi: jual - bahan,
-  };
-}
-
-function StatusMargin({ hasil }: { hasil: Extract<Hasil, { sah: true }> }) {
+function StatusMargin({ hasil }: { hasil: Extract<HasilSimulasi, { sah: true }> }) {
   const { margin, target } = hasil;
   const [teks, kelas] =
     margin < 0
       ? ["Harga jual belum menutup HPP", "border-destructive/30 bg-destructive/5 text-destructive"]
-      : margin + 1e-8 >= target
+      : targetTercapai(margin, target)
         ? [`Target ${target}% tercapai`, "border-success-border bg-card text-success"]
         : [`Di bawah target ${target}%`, "border-warning-border bg-warning-bg text-warning"];
 
@@ -99,31 +53,51 @@ function StatusMargin({ hasil }: { hasil: Extract<Hasil, { sah: true }> }) {
 }
 
 export function SimulasiMargin() {
-  const [isian, setIsian] = useState<Isian>(AWAL);
+  // `isian` mengikuti ketikan seketika; `isianHitung` yang dipakai menghitung
+  // hasil dan baru menyusul setelah ketikan berhenti sejenak.
+  const [isian, setIsian] = useState<IsianSimulasi>(ISIAN_AWAL);
+  const [isianHitung, setIsianHitung] = useState<IsianSimulasi>(ISIAN_AWAL);
+  const refJeda = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // InputAngka hanya membaca nilai awalnya sekali. Saat nilai diubah dari luar
   // (geser slider, tombol pakai harga, atau reset), kolomnya dipasang ulang
   // lewat key supaya tampilannya ikut berganti.
   const [versi, setVersi] = useState({ ayam: 0, jual: 0, semua: 0 });
 
-  const hasil = hitung(isian);
+  useEffect(() => () => clearTimeout(refJeda.current), []);
 
-  function ubah(kolom: keyof Isian, nilai: string) {
-    setIsian((lama) => ({ ...lama, [kolom]: nilai }));
+  const hasil = hitungSimulasi(isianHitung);
+
+  function galat(kolom: KolomSimulasi) {
+    return !hasil.sah && hasil.kolom === kolom ? hasil.pesan : undefined;
+  }
+
+  function ketik(kolom: KolomSimulasi, nilai: string) {
+    const baru = { ...isian, [kolom]: nilai };
+    setIsian(baru);
+    clearTimeout(refJeda.current);
+    refJeda.current = setTimeout(() => setIsianHitung(baru), JEDA_HITUNG);
+  }
+
+  /** Perubahan dari slider atau tombol langsung dihitung, tanpa jeda. */
+  function setelLangsung(baru: IsianSimulasi) {
+    clearTimeout(refJeda.current);
+    setIsian(baru);
+    setIsianHitung(baru);
   }
 
   function geserAyam(nilai: string) {
-    ubah("ayam", nilai);
+    setelLangsung({ ...isian, ayam: nilai });
     setVersi((v) => ({ ...v, ayam: v.ayam + 1 }));
   }
 
   function pakaiRekomendasi() {
     if (!hasil.sah) return;
-    ubah("jual", String(hasil.rekomendasi));
+    setelLangsung({ ...isian, jual: String(hasil.rekomendasi) });
     setVersi((v) => ({ ...v, jual: v.jual + 1 }));
   }
 
   function kembalikan() {
-    setIsian(AWAL);
+    setelLangsung(ISIAN_AWAL);
     setVersi((v) => ({ ...v, semua: v.semua + 1 }));
   }
 
@@ -166,8 +140,9 @@ export function SimulasiMargin() {
                   label="Harga ayam per kg"
                   awalan="Rp"
                   nilai={isian.ayam}
-                  onNilaiUbah={(d) => ubah("ayam", d)}
+                  onNilaiUbah={(d) => ketik("ayam", d)}
                   helper="100 gram ayam per porsi. Bahan lain tetap Rp 6.500."
+                  error={galat("ayam")}
                 />
                 <input
                   type="range"
@@ -191,7 +166,8 @@ export function SimulasiMargin() {
                 label="Harga jual per porsi"
                 awalan="Rp"
                 nilai={isian.jual}
-                onNilaiUbah={(d) => ubah("jual", d)}
+                onNilaiUbah={(d) => ketik("jual", d)}
+                error={galat("jual")}
               />
 
               <InputAngka
@@ -200,18 +176,10 @@ export function SimulasiMargin() {
                 label="Target margin"
                 akhiran="%"
                 nilai={isian.target}
-                onNilaiUbah={(d) => ubah("target", d)}
+                onNilaiUbah={(d) => ketik("target", d)}
                 helper="Margin dihitung dari harga jual. Target 0–80%."
+                error={galat("target")}
               />
-
-              {!hasil.sah && (
-                <p
-                  role="alert"
-                  className="rounded-card border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
-                >
-                  {hasil.pesan}
-                </p>
-              )}
 
               <Button type="button" varian="secondary" className="self-start" onClick={kembalikan}>
                 Kembalikan contoh
@@ -225,7 +193,16 @@ export function SimulasiMargin() {
             aria-atomic="true"
           >
             <span className="text-sm text-muted-foreground">
-              {hasil.sah ? "Hasil simulasi per porsi" : "Lengkapi isian untuk menghitung ulang"}
+              {hasil.sah ? (
+                "Hasil simulasi per porsi"
+              ) : (
+                <>
+                  Lengkapi isian untuk menghitung ulang
+                  {/* Pesan yang sama tampil di bawah kolomnya; di sini supaya
+                      ikut diumumkan bersama panel hasil. */}
+                  <span className="sr-only">. {hasil.pesan}</span>
+                </>
+              )}
             </span>
 
             <div className="mt-3 grid grid-cols-2 gap-5 tabular-nums">
@@ -305,9 +282,9 @@ export function SimulasiMargin() {
           <strong className="block text-4xl font-semibold tracking-tighter whitespace-nowrap text-primary sm:text-5xl">
             {!hasil.sah ? (
               "—"
-            ) : hasil.kontribusi > 0 ? (
+            ) : hasil.titikImpas !== null ? (
               <>
-                {Math.ceil(BIAYA_TETAP_BULANAN / hasil.kontribusi).toLocaleString("id-ID")}
+                {hasil.titikImpas.toLocaleString("id-ID")}
                 <span className="ml-2 text-xl tracking-tight text-muted-foreground">porsi</span>
               </>
             ) : (
@@ -318,7 +295,7 @@ export function SimulasiMargin() {
           <p className="mt-2.5 text-sm text-foreground">
             {!hasil.sah
               ? "Periksa kolom yang ditandai."
-              : hasil.kontribusi > 0
+              : hasil.titikImpas !== null
                 ? `Kontribusi setiap porsi: ${formatRupiah(hasil.kontribusi)}.`
                 : "Harga jual harus lebih tinggi dari biaya bahan untuk menutup biaya tetap."}
           </p>
