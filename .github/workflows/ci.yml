@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Push baru ke PR yang sama membatalkan run lama yang masih jalan.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  periksa:
+    name: Lint, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Nilai tiruan: build, lint, dan test tidak menyentuh database, tapi
+      # lib/prisma.ts dan NextAuth membaca variabel ini saat modul dimuat.
+      # Jangan ganti dengan kredensial sungguhan.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      NEXTAUTH_SECRET: ci-bukan-rahasia
+      NEXTAUTH_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: 1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # app/generated/prisma diabaikan Git, jadi klien Prisma dibuat di sini.
+      - name: Prisma generate
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      # Tipe global seperti LayoutProps baru ada setelah Next membuatnya; tanpa
+      # typegen, tsc di checkout bersih gagal "Cannot find name 'LayoutProps'".
+      - name: Typecheck
+        run: npx next typegen && npx tsc --noEmit
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
