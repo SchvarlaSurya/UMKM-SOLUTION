@@ -60,7 +60,7 @@ export function hitungSimulasi(isian: IsianSimulasi): HasilSimulasi {
     };
   }
   if (diLuarRentang(isian.target, 0, TARGET_MAKS)) {
-    return { sah: false, kolom: "target", pesan: "Isi target margin dari 0 sampai 80%." };
+    return { sah: false, kolom: "target", pesan: "Isi target untung dari 0 sampai 80%." };
   }
 
   const jual = Number(isian.jual);

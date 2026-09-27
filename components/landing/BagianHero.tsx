@@ -36,10 +36,10 @@ function VisualMargin() {
   return (
     <figure
       className="w-full rounded-2xl bg-accent p-4 motion-safe:animate-tiba sm:p-7"
-      aria-label="Contoh margin nasi ayam turun dari 40 persen ke 32,5 persen"
+      aria-label="Contoh untung nasi ayam turun dari 40 persen ke 32,5 persen"
     >
       <figcaption className="mb-4 flex justify-between gap-3 text-xs text-primary">
-        <strong className="font-semibold">Satu menu. Biaya yang berubah.</strong>
+        <strong className="font-semibold">Satu menu. Modal yang naik.</strong>
         <span>Simulasi</span>
       </figcaption>
 
@@ -68,7 +68,7 @@ function VisualMargin() {
         </div>
 
         <div className="p-5 tabular-nums">
-          <p className="text-sm text-muted-foreground">Margin setelah harga bahan naik</p>
+          <p className="text-sm text-muted-foreground">Sisa untung setelah harga bahan naik</p>
           <div className="mt-2 mb-2 flex items-baseline gap-3">
             <strong className="text-5xl font-semibold tracking-tighter text-primary sm:text-6xl">
               32,5<span className="text-2xl text-muted-foreground">%</span>
@@ -80,26 +80,26 @@ function VisualMargin() {
           </Badge>
 
           <div className="mt-6 grid gap-3">
-            <BatangMargin label="Sebelum kenaikan" hpp="HPP Rp 12.000" persenBiaya={60} />
-            <BatangMargin label="Sesudah kenaikan" hpp="HPP Rp 13.500" persenBiaya={67.5} tipis />
+            <BatangMargin label="Sebelum harga naik" hpp="Modal Rp 12.000" persenBiaya={60} />
+            <BatangMargin label="Sesudah harga naik" hpp="Modal Rp 13.500" persenBiaya={67.5} tipis />
           </div>
 
           <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <i className="size-2 bg-muted-foreground/60" aria-hidden="true" />
-              Biaya per porsi
+              Modal per porsi
             </span>
             <span className="flex items-center gap-1.5">
               <i className="size-2 bg-primary" aria-hidden="true" />
-              Selisih harga jual dan HPP
+              Sisa untung per porsi
             </span>
           </div>
         </div>
       </div>
 
       <div className="mt-4 rounded-card border border-warning-border bg-warning-bg p-4 text-sm text-warning">
-        <strong className="block font-semibold">Harga ayam berubah. Hitungan ikut berubah.</strong>
-        Rp 40.000 menjadi Rp 55.000/kg berarti tambahan Rp 1.500 untuk setiap porsi.
+        <strong className="block font-semibold">Harga ayam naik. Modal ikut naik.</strong>
+        Dari Rp 40.000 jadi Rp 55.000/kg, modal setiap porsi bertambah Rp 1.500.
       </div>
     </figure>
   );
@@ -113,7 +113,7 @@ export function BagianHero() {
     >
       <div>
         <span className="mb-5 block text-xs font-semibold tracking-widest text-primary">
-          HPP & MARGIN UNTUK USAHA KULINER
+          HITUNG MODAL & UNTUNG USAHA KULINER
         </span>
         <h1
           id="judul-hero"
@@ -121,11 +121,14 @@ export function BagianHero() {
         >
           Harga bahan naik.
           <br />
-          <span className="text-primary">Margin tergerus</span> tanpa terasa.
+          <span className="text-primary">Untung menipis</span> tanpa terasa.
         </h1>
+        {/* Satu-satunya tempat HPP dan margin dijelaskan. Istilahnya dipakai di
+            seluruh aplikasi, jadi tidak diganti — cukup diperkenalkan sekali di
+            sini supaya pembaca yang baru dengar tetap bisa mengikuti. */}
         <p className="mt-6 max-w-xl text-lg text-muted-foreground">
-          Hitung biaya setiap porsi, lihat margin yang tersisa, dan tentukan harga jual sesuai
-          target. Ruang Margin membantumu mengambil keputusan dari angka yang jelas.
+          Hitung modal asli setiap porsi (HPP), lihat sisa untungnya (margin), lalu tentukan harga
+          jual yang pas. Ruang Margin yang menghitung, kamu tinggal baca angkanya.
         </p>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -137,7 +140,7 @@ export function BagianHero() {
           </ButtonLink>
         </div>
         <p className="mt-4 text-sm text-muted-foreground">
-          Simulasi bisa dicoba langsung di halaman ini, tanpa akun.
+          Simulasinya bisa dicoba langsung di halaman ini, tanpa daftar dulu.
         </p>
       </div>
 

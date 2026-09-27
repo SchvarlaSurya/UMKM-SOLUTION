@@ -8,8 +8,8 @@ import { Eyebrow, JudulBagian } from "./BagianStatis";
 const LANGKAH: { ikon: ReactNode; judul: string; deskripsi: string }[] = [
   {
     ikon: <IconToko />,
-    judul: "Buat akun & profil usaha",
-    deskripsi: "Isi nama dan jenis usahamu. Data setiap akun terpisah dari pengguna lain.",
+    judul: "Buat akun & isi profil usaha",
+    deskripsi: "Isi nama dan jenis usahamu. Data tiap akun terpisah, tidak bercampur.",
   },
   {
     ikon: <IconBahan />,
@@ -19,9 +19,9 @@ const LANGKAH: { ikon: ReactNode; judul: string; deskripsi: string }[] = [
   },
   {
     ikon: <IconDashboard />,
-    judul: "Pantau HPP & margin",
+    judul: "Lihat modal & untungnya",
     deskripsi:
-      "HPP dan margin terhitung sendiri. Saat harga bahan diperbarui, angkanya ikut menyesuaikan.",
+      "Angkanya terhitung sendiri. Begitu harga bahan kamu perbarui, hitungannya ikut berubah.",
   },
 ];
 
