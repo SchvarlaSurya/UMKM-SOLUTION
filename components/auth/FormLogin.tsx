@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { pesanGalatLogin } from "@/lib/pesanLogin";
+import { SplashMasuk } from "./SplashMasuk";
 
 /** Pesan yang menunjuk satu kolom tertentu. */
 type GalatKolom = {
@@ -29,6 +30,7 @@ export function FormLogin() {
   // kata sandinya yang bermasalah.
   const [galatKolom, setGalatKolom] = useState<GalatKolom>({});
   const [memproses, setMemproses] = useState(false);
+  const [berhasil, setBerhasil] = useState(false);
   const tampilkanToast = useToast();
   const refFormulir = useRef<HTMLFormElement>(null);
 
@@ -63,18 +65,24 @@ export function FormLogin() {
       const hasil = await signIn("credentials", { email, password, redirect: false });
 
       if (hasil?.ok) {
-        router.push(callbackUrl);
-        router.refresh();
+        // Halaman tujuan mulai diambil sekarang, selagi layar antara tampil.
+        // Jedanya jadi menutupi pengambilan yang memang perlu terjadi, bukan
+        // menambah tunggu baru di atasnya.
+        router.prefetch(callbackUrl);
+        // `memproses` sengaja tidak dikembalikan ke false: tombolnya tetap
+        // mati sampai halaman berpindah, supaya tidak bisa ditekan dua kali
+        // dari balik layar antara.
+        setBerhasil(true);
         return;
       }
 
       tampilkanToast({ varian: "galat", pesan: pesanGalatLogin(hasil?.error) });
+      setMemproses(false);
     } catch {
       tampilkanToast({
         varian: "galat",
         pesan: "Tidak bisa menghubungi server. Periksa koneksimu.",
       });
-    } finally {
       setMemproses(false);
     }
   }
@@ -111,6 +119,16 @@ export function FormLogin() {
       <Button type="submit" varian="primary" disabled={memproses} className="mt-1 w-full">
         {memproses ? "Memproses…" : "Masuk"}
       </Button>
+
+      {berhasil && (
+        <SplashMasuk
+          pesan="Menyiapkan ruang usahamu…"
+          onSelesai={() => {
+            router.push(callbackUrl);
+            router.refresh();
+          }}
+        />
+      )}
     </form>
   );
 }

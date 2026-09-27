@@ -7,6 +7,9 @@ import { Input } from "@/components/ui/Input";
 import { PilihOpsi } from "@/components/ui/PilihOpsi";
 import { useToast } from "@/components/ui/Toast";
 import { JENIS_USAHA_KULINER } from "@/lib/jenisUsaha";
+import { SplashMasuk } from "./SplashMasuk";
+
+const TUJUAN_SETELAH_DAFTAR = "/login?terdaftar=1";
 
 const PANJANG_SANDI_MINIMUM = 8;
 
@@ -29,6 +32,7 @@ export function FormRegister() {
   // kolom yang sama sekali tidak bermasalah.
   const [galatKolom, setGalatKolom] = useState<GalatKolom>({});
   const [memproses, setMemproses] = useState(false);
+  const [berhasil, setBerhasil] = useState(false);
   const tampilkanToast = useToast();
   const refFormulir = useRef<HTMLFormElement>(null);
 
@@ -91,7 +95,11 @@ export function FormRegister() {
         return;
       }
 
-      router.push("/login?terdaftar=1");
+      router.prefetch(TUJUAN_SETELAH_DAFTAR);
+      // `memproses` sengaja dibiarkan true: tombolnya tetap mati sampai
+      // halaman berpindah, supaya akun kedua tidak ikut terbuat dari balik
+      // layar antara.
+      setBerhasil(true);
     } catch {
       setMemproses(false);
       tampilkanToast({
@@ -164,6 +172,13 @@ export function FormRegister() {
       <Button type="submit" varian="primary" disabled={memproses} className="mt-1 w-full">
         {memproses ? "Memproses…" : "Buat akun"}
       </Button>
+
+      {berhasil && (
+        <SplashMasuk
+          pesan="Akun berhasil dibuat. Mengarahkan ke halaman masuk…"
+          onSelesai={() => router.push(TUJUAN_SETELAH_DAFTAR)}
+        />
+      )}
     </form>
   );
 }
