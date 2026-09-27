@@ -16,8 +16,9 @@ const JEDA_ANTAR_ANAK = 60;
  *
  * Elemen pembungkusnya bisa diganti lewat `jenis` karena susunan kartu tidak
  * selalu `div` — daftar langkah memakai `ol` supaya urutannya ikut terbaca
- * oleh pembaca layar, dan itu tidak boleh dibungkus `div` di antara `ol` dan
- * `li`-nya.
+ * oleh pembaca layar, dan rincian biaya memakai `dl` supaya tiap baris tetap
+ * terbaca sebagai pasangan istilah dan nilainya. Keduanya tidak boleh
+ * disisipi `div` di antara daftar dan barisnya.
  *
  * Komponennya klien, tapi `children` tetap dirender di server dan dikirim
  * sebagai payload — pemakainya tidak perlu ikut jadi komponen klien.
@@ -31,7 +32,7 @@ export function MasukBerurutan({
 }: {
   children: ReactNode;
   className?: string;
-  jenis?: "div" | "ol" | "ul";
+  jenis?: "div" | "ol" | "ul" | "dl";
 }) {
   const ref = useMasukGulir<HTMLElement>({ jedaAntarAnak: JEDA_ANTAR_ANAK });
   // Ketiga tag itu punya tipe elemen yang berbeda, jadi tipe gabungannya
