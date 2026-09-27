@@ -72,26 +72,26 @@ model BiayaOperasional {
 }
 
 model Produk {
-  id                 Int                @id @default(autoincrement())
-  nama               String
-  kategori           String             @default("Umum")
-  hargaJual          Float
-  modePenentuanHarga String             @default("manual")
-  targetMarginPersen Float?
+  id                  Int                @id @default(autoincrement())
+  nama                String
+  kategori            String             @default("Umum")
+  hargaJual           Float
+  modePenentuanHarga  String             @default("manual")
+  targetMarginPersen  Float?
   /// Cara pemilik memasukkan takaran resep: "per-porsi" atau "sekali-produksi".
   /// Resep tetap disimpan per porsi; ini hanya supaya form edit bisa dibuka
   /// kembali dengan angka yang sama seperti yang diketik pemiliknya.
-  modeTakaran        String             @default("per-porsi")
+  modeTakaran         String             @default("per-porsi")
   /// Jumlah porsi sekali produksi, hanya terisi kalau modeTakaran memakainya.
   jumlahPorsiProduksi Float?
   /// Kelipatan pembulatan harga jual pada mode target margin: 0, 100, 500,
   /// atau 1000. 0 berarti tanpa pembulatan, dan itu perilaku produk lama.
-  pembulatanHarga    Int                @default(0)
-  userId             Int
-  user               User               @relation(fields: [userId], references: [id])
-  resep              Resep[]
-  snapshot           HppSnapshot[]
-  historiHargaJual   HistoriHargaJual[]
+  pembulatanHarga     Int                @default(0)
+  userId              Int
+  user                User               @relation(fields: [userId], references: [id])
+  resep               Resep[]
+  snapshot            HppSnapshot[]
+  historiHargaJual    HistoriHargaJual[]
 
   @@index([userId])
 }
@@ -124,7 +124,14 @@ model HistoriHargaJual {
   alasan    String
   tanggal   DateTime @default(now())
 
+  // Notifikasi yang mengabarkan perubahan ini. Opsional karena baris yang
+  // sudah ada sebelum kolom ini bernilai null, dan karena perubahan harga
+  // tidak selalu menghasilkan notifikasi.
+  notifikasiId Int?
+  notifikasi   Notifikasi? @relation(fields: [notifikasiId], references: [id], onDelete: SetNull)
+
   @@index([produkId])
+  @@index([notifikasiId])
 }
 
 model Notifikasi {
@@ -135,6 +142,9 @@ model Notifikasi {
   pesan       String
   sudahDibaca Boolean  @default(false)
   tanggal     DateTime @default(now())
+
+  /// Perubahan harga jual yang dikabarkan notifikasi ini.
+  historiHargaJual HistoriHargaJual[]
 
   @@index([userId, sudahDibaca])
 }

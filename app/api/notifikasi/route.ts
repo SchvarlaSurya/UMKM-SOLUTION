@@ -28,9 +28,34 @@ export async function GET(req: Request) {
       },
       omit: { userId: true },
       orderBy: { tanggal: 'desc' },
+      include: {
+        // Perubahan harga yang dikabarkan notifikasi ini. Kosong untuk
+        // notifikasi yang lahir sebelum kolom penghubungnya ada, dan untuk
+        // notifikasi yang memang bukan tentang harga jual.
+        historiHargaJual: {
+          orderBy: { hargaBaru: 'desc' },
+          select: {
+            id: true,
+            hargaLama: true,
+            hargaBaru: true,
+            produk: { select: { id: true, nama: true } },
+          },
+        },
+      },
     })
 
-    return NextResponse.json(notifikasi)
+    // Bentuknya diratakan supaya sisi klien tidak perlu tahu susunan relasinya.
+    const hasil = notifikasi.map(({ historiHargaJual, ...sisa }) => ({
+      ...sisa,
+      produkTerdampak: historiHargaJual.map((baris) => ({
+        id: baris.produk.id,
+        nama: baris.produk.nama,
+        hargaLama: baris.hargaLama,
+        hargaBaru: baris.hargaBaru,
+      })),
+    }))
+
+    return NextResponse.json(hasil)
   } catch (error) {
     return handleError(error, 'Gagal mengambil notifikasi')
   }

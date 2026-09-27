@@ -354,14 +354,30 @@ async function recalculateProduk(
       throw new Error('Sebagian harga jual produk gagal diperbarui')
     }
 
+    // Notifikasinya dibuat lebih dulu supaya id-nya bisa ditempelkan ke tiap
+    // baris histori. Dengan begitu modal pemberitahuan tahu persis produk mana
+    // yang berubah, bukan menebaknya dari kedekatan waktu.
+    const notifikasi = await db.notifikasi.create({
+      data: {
+        userId,
+        judul: 'Harga jual diperbarui otomatis',
+        pesan: `${hargaBerubah.length} produk mengalami perubahan harga jual karena ${alasan}.`,
+      },
+      select: { id: true },
+    })
+
     await db.historiHargaJual.createMany({
       data: hargaBerubah.map((item) => ({
         produkId: item.produk.id,
         hargaLama: item.produk.hargaJual,
         hargaBaru: item.hargaJualBaru,
         alasan,
+        notifikasiId: notifikasi.id,
       })),
     })
+
+    // Tabelnya hanya tumbuh di sini, jadi di sini pula yang lama dibuang.
+    await pangkasNotifikasiTerbaca(db, userId)
   }
 
   if (hasil.length > 0) {
@@ -372,21 +388,6 @@ async function recalculateProduk(
         marginPersen: item.rincian.marginPersen,
       })),
     })
-  }
-
-  if (hargaBerubah.length > 0) {
-    await db.notifikasi.createMany({
-      data: [
-        {
-          userId,
-          judul: 'Harga jual diperbarui otomatis',
-          pesan: `${hargaBerubah.length} produk mengalami perubahan harga jual karena ${alasan}.`,
-        },
-      ],
-    })
-
-    // Tabelnya hanya tumbuh di sini, jadi di sini pula yang lama dibuang.
-    await pangkasNotifikasiTerbaca(db, userId)
   }
 
   return {

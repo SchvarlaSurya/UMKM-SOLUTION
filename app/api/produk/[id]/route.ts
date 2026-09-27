@@ -199,19 +199,24 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
                 ? 'perubahan resep'
                 : 'perhitungan ulang target margin'
 
+        // Notifikasinya dibuat lebih dulu supaya id-nya bisa ditempelkan ke
+        // baris histori. Dengan begitu modal pemberitahuan tahu persis produk
+        // mana yang berubah, bukan menebaknya dari kedekatan waktu.
+        const notifikasi = await tx.notifikasi.create({
+          data: {
+            userId: auth.userId,
+            judul: 'Harga jual diperbarui otomatis',
+            pesan: `1 produk mengalami perubahan harga jual karena ${alasan}.`,
+          },
+          select: { id: true },
+        })
         await tx.historiHargaJual.create({
           data: {
             produkId: id,
             hargaLama: existing.hargaJual,
             hargaBaru: hargaSistem.hargaJual,
             alasan,
-          },
-        })
-        await tx.notifikasi.create({
-          data: {
-            userId: auth.userId,
-            judul: 'Harga jual diperbarui otomatis',
-            pesan: `1 produk mengalami perubahan harga jual karena ${alasan}.`,
+            notifikasiId: notifikasi.id,
           },
         })
 

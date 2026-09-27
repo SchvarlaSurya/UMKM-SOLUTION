@@ -13,7 +13,7 @@ import {
   useNotifikasi,
   type NotifikasiDenganProduk,
 } from "@/components/notifikasi/NotifikasiProvider";
-import { formatTanggal } from "@/lib/format";
+import { formatRupiah, formatTanggal } from "@/lib/format";
 import { kalimatPemicu } from "@/lib/pemicuHargaJual";
 
 type Ringkasan = {
@@ -569,15 +569,34 @@ export function PusatNotifikasi() {
               modalAwal.produkTerdampak.length > 0 && (
                 <div>
                   <h3 className="text-sm font-semibold text-foreground">
-                    Produk terdampak
+                    Produk yang harganya berubah
                   </h3>
-                  <ul className="mt-2 space-y-2">
+                  <ul className="mt-2 divide-y divide-border rounded-card border border-border">
                     {modalAwal.produkTerdampak.map((produk, index) => (
                       <li
                         key={produk.id ?? `${produk.nama}-${index}`}
-                        className="rounded-card border border-border px-3 py-2 text-sm text-foreground"
+                        className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-3 py-2.5 text-sm"
                       >
-                        {produk.nama}
+                        <span className="min-w-0 font-medium text-foreground">
+                          {produk.nama}
+                        </span>
+                        {produk.hargaLama !== undefined &&
+                        produk.hargaBaru !== undefined ? (
+                          <span className="flex items-baseline gap-1.5 tabular-nums whitespace-nowrap">
+                            <span className="text-xs text-muted-foreground line-through">
+                              {formatRupiah(produk.hargaLama)}
+                            </span>
+                            <span
+                              aria-hidden="true"
+                              className="text-xs text-muted-foreground"
+                            >
+                              →
+                            </span>
+                            <span className="font-medium text-foreground">
+                              {formatRupiah(produk.hargaBaru)}
+                            </span>
+                          </span>
+                        ) : null}
                       </li>
                     ))}
                   </ul>

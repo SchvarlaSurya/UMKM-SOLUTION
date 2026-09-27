@@ -12,7 +12,13 @@ import {
 } from "react";
 import type { Notifikasi } from "@/lib/types";
 
-export type ProdukTerdampak = { id?: number; nama: string };
+export type ProdukTerdampak = {
+  id?: number;
+  nama: string;
+  /** Terisi untuk notifikasi perubahan harga jual; tidak untuk jenis lain. */
+  hargaLama?: number;
+  hargaBaru?: number;
+};
 export type NotifikasiDenganProduk = Notifikasi & {
   produkTerdampak?: ProdukTerdampak[];
 };
