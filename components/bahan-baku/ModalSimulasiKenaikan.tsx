@@ -245,7 +245,7 @@ function HasilSimulasi({ status, satuan }: { status: Status; satuan: string }) {
           </p>
 
           <div className="hidden overflow-hidden rounded-card border border-border md:block">
-            <Table>
+            <Table ikutiWadah>
               <THead>
                 <TR className="hover:bg-transparent">
                   <TH>Produk</TH>
