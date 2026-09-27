@@ -12,6 +12,8 @@ Pemilik usaha mencatat bahan bakunya, biaya operasionalnya, dan resep tiap produ
 
 Satu akun mewakili satu usaha. Semua data terikat ke akun pemiliknya dan tidak terlihat oleh akun lain.
 
+**Status per 25 September 2026:** aplikasi baru dijalankan di localhost laptop pengembang. Belum ada deployment ke VPS atau server mana pun. Hal-hal yang wajib dikerjakan sebelum deploy dicatat di [checklist-deploy.md](checklist-deploy.md).
+
 ---
 
 ## 2. Masalah yang diselesaikan
@@ -90,6 +92,16 @@ Margin % = (harga jual − HPP − potongan persentase) ÷ harga jual × 100
 
 ## 4. Fitur per halaman
 
+### Landing page (`/`)
+
+Halaman pertama untuk pengunjung yang belum masuk. Pengunjung yang masih punya sesi langsung dialihkan ke `/dashboard` oleh `proxy.ts`, jadi halaman ini tetap statis.
+
+- **Hero dan penjelasan masalah** — contoh satu menu (nasi ayam) yang marginnya turun dari 40% ke 32,5% karena harga ayam naik, beserta rincian HPP-nya.
+- **Simulasi margin interaktif** — pengunjung bisa mengubah harga ayam, harga jual, dan target margin, lalu melihat HPP, margin, harga jual yang memenuhi target (dibulatkan ke kelipatan Rp500), dan titik impas. Semuanya dihitung di browser dan tidak disimpan. Rumusnya ada di `lib/simulasiLanding.ts` dan punya pengujian sendiri. Hasil dari ketikan dihitung ulang setelah jeda 150 ms, dan kolom yang tidak sah ditandai.
+- **Pratinjau dashboard** — tiruan layar dashboard dengan data demo, dirakit dari komponen dashboard yang asli, sehingga rupanya ikut berubah kalau dashboard berubah.
+- **Contoh hitungan 100 porsi**, **tiga langkah mulai**, dan ajakan untuk daftar atau masuk.
+- Header menempel di atas. Di layar kecil, tautan antarbagian pindah ke menu lipat. Judul dan kartu tiap bagian muncul saat masuk layar, dan semua animasi menghormati `prefers-reduced-motion`.
+
 ### Dashboard (`/dashboard`)
 
 Ringkasan kesehatan usaha dalam satu layar.
@@ -155,6 +167,8 @@ Mengubah nama dan jenis usaha. Nama ini yang tampil di sidebar dan menandai selu
 
 Autentikasi email dan kata sandi. Kata sandi disimpan ter-hash. Pendaftaran membuat akun dan profil usaha sekaligus dalam satu transaksi — kalau salah satunya gagal, tidak ada yang tersimpan. Baris pengaturannya sendiri dibuat belakangan dengan nilai bawaan, saat pertama kali dibutuhkan.
 
+Email tidak peka huruf besar-kecil: `Budi@Mail.com` dan `budi@mail.com` adalah akun yang sama, baik saat daftar maupun masuk. Percobaan masuk dan daftar dibatasi. Rinciannya ada di bagian 6.
+
 ---
 
 ## 5. Fitur lintas halaman
@@ -166,6 +180,8 @@ Mengubah harga bahan, biaya operasional, atau pengaturan tidak hanya menyimpan a
 ### Notifikasi
 
 Saat harga jual sebuah produk berubah otomatis akibat perhitungan ulang, pemiliknya diberi tahu lewat pusat notifikasi di topbar. Notifikasi yang belum dibaca disegarkan berkala dan bisa ditandai terbaca.
+
+Notifikasi yang sudah dibaca bisa dihapus sekaligus. Notifikasi terbaca yang berumur lebih dari 30 hari juga dipangkas otomatis, setiap kali ada notifikasi baru untuk pemilik yang sama (`lib/notifikasi.ts`). Yang belum dibaca tidak pernah ikut terhapus. Jejak perubahan sebenarnya tetap tersimpan di riwayat harga.
 
 ### Riwayat yang tersimpan
 
@@ -182,7 +198,55 @@ Saat harga jual sebuah produk berubah otomatis akibat perhitungan ulang, pemilik
 
 ---
 
-## 6. Model data
+## 6. Keamanan autentikasi
+
+### Pemeriksaan sesi
+
+`proxy.ts` hanya melakukan pemeriksaan awal: pengunjung tanpa token sesi dialihkan dari halaman aplikasi ke `/login`, dan pengunjung yang punya sesi dialihkan dari `/`, `/login`, dan `/register` ke `/dashboard`. Otorisasi yang sebenarnya dilakukan setiap route handler di `app/api/` lewat `requireAuth()` (`lib/auth.ts`), dan setiap query difilter per `userId`. Satu-satunya pengecualian adalah pendaftaran dan route NextAuth itu sendiri.
+
+### Email tidak peka huruf, tanpa wildcard
+
+Email dinormalisasi (`trim` lalu huruf kecil) oleh satu fungsi yang sama untuk daftar dan masuk: `normalisasiEmail()` di `lib/email.ts`. Pencarian akun memakai satu query SQL dengan parameter:
+
+```sql
+WHERE lower(email) = $1  -- perbandingan persis, bukan pola
+```
+
+Sengaja **bukan** `{ equals, mode: 'insensitive' }` milik Prisma. Prisma menerjemahkan bentuk itu ke `ILIKE`, sehingga `%` dan `_` di email menjadi wildcard, dan email `%` cocok dengan akun mana pun. Versi awal perbaikan huruf besar (PR #97) sempat memakainya, lalu diperbaiki di PR #100.
+
+`lower(email)` tetap menjangkau akun lama yang mendaftar sebelum email dinormalisasi (sebelum 10 September 2026) dan mungkin tersimpan dengan huruf besar. Kolom ini belum punya index; untuk jumlah akun sekarang tidak jadi masalah.
+
+### Waktu respons login yang seragam
+
+Login selalu menjalankan tepat satu query dan satu `bcrypt.compare`, ada atau tidak akunnya. Kalau email tidak terdaftar, kata sandi dibandingkan dengan hash dummy ber-cost 10 (sama dengan pendaftaran). Tanpa ini, email yang tidak terdaftar dijawab puluhan milidetik lebih cepat, dan selisih waktu itu bisa dipakai untuk menebak email mana yang terdaftar. Logikanya ada di `lib/verifikasiLogin.ts`.
+
+Pesan galatnya juga seragam ("Email atau kata sandi salah."), tidak menyebut mana yang salah.
+
+Satu kebocoran disengaja tetap ada: form daftar menjawab "Email sudah terdaftar". Rate limiting di bawah hanya memperlambat penebakan lewat jalur itu.
+
+### Rate limiting login dan daftar
+
+| | Login | Daftar |
+|---|---|---|
+| Batas | 5 kali **gagal** per 15 menit | 5 **percobaan** per 15 menit, berhasil atau gagal |
+| Kunci | IP + email (email dinormalisasi) | IP + email |
+| Saat dibatasi | "Terlalu banyak percobaan masuk. Coba lagi dalam N menit." | HTTP 429 dengan `Retry-After` |
+| Reset | login berhasil, atau jendela 15 menit habis | jendela 15 menit habis |
+
+Selama dibatasi, database dan bcrypt tidak disentuh sama sekali.
+
+**Disimpan di memori proses Node, bukan di database** (`lib/batasPercobaan.ts`). Alasannya, target deployment yang direncanakan adalah satu VPS dengan satu proses Node, sama dengan asumsi pool koneksi di `lib/prisma.ts`. Dengan begitu tidak perlu migrasi, dan tidak ada query tambahan di setiap percobaan login.
+
+Konsekuensinya:
+
+- Hitungan hilang setiap kali server dimulai ulang.
+- **Harus diganti ke Redis atau tabel Postgres kalau nanti pindah ke banyak instance, PM2 cluster, atau serverless.** Kalau tidak diganti, setiap proses punya jatah sendiri dan batasnya ikut berlipat.
+- IP dibaca dari `X-Real-IP`, dengan cadangan entri terakhir `X-Forwarded-For`. Itu hanya bisa dipercaya di belakang reverse proxy yang menimpa header tersebut. Tanpa proxy, pembatas bisa dilewati dengan memalsukan header. Lihat [checklist-deploy.md](checklist-deploy.md).
+- Kunci IP+email tidak membatasi satu email yang diserang dari banyak IP, atau banyak email berbeda yang dicoba dari satu IP.
+
+---
+
+## 7. Model data
 
 | Model | Isi |
 |---|---|
@@ -202,7 +266,7 @@ Basis datanya PostgreSQL, diakses lewat Prisma.
 
 ---
 
-## 7. Teknologi
+## 8. Teknologi
 
 | Bagian | Pilihan |
 |---|---|
@@ -212,18 +276,21 @@ Basis datanya PostgreSQL, diakses lewat Prisma.
 | Autentikasi | NextAuth, kata sandi di-hash dengan bcrypt |
 | Grafik | Recharts |
 | Animasi | anime.js v4 |
+| Pengujian | test runner bawaan Node (`node:test`) lewat `tsx` |
+| CI | GitHub Actions: lint, typecheck, test, dan build di setiap PR dan push ke `main` |
 
 Struktur berkas:
 
 - `app/` — halaman App Router. `app/(app)/` untuk layar yang butuh login, `app/api/` untuk endpoint.
 - `components/` — komponen dikelompokkan per fitur; primitif bersama di `components/ui/`.
-- `lib/` — autentikasi, akses data, rumus HPP, analisis tren, konversi satuan, tipe bersama.
+- `lib/` — autentikasi, rate limiting, akses data, rumus HPP, analisis tren, konversi satuan, tipe bersama.
 - `prisma/` — skema dan migrasi.
 - `tests/` — pengujian unit.
+- `.github/workflows/ci.yml` — CI.
 
 ---
 
-## 8. Batas yang disengaja
+## 9. Batas yang disengaja
 
 Hal-hal berikut **bukan** kekurangan yang belum sempat dikerjakan, melainkan keputusan:
 
@@ -234,24 +301,41 @@ Hal-hal berikut **bukan** kekurangan yang belum sempat dikerjakan, melainkan kep
 
 ---
 
-## 9. Menjalankan proyek
+## 10. Menjalankan proyek
+
+Langkah lengkapnya, termasuk isi `.env`, ada di [README](../README.md#menjalankan-secara-lokal). Ringkasnya:
 
 ```bash
-npm ci                # pasang dependensi
-npm run dev           # jalankan di http://localhost:3000
-npm run build         # build produksi
-npm start             # jalankan hasil build
-npm run lint          # ESLint
-npm test              # pengujian unit
-npm run seed          # isi basis data dengan data contoh
+npm ci                                 # pasang dependensi
+npx prisma generate                    # buat klien Prisma (app/generated/prisma diabaikan Git)
+npx prisma migrate deploy              # terapkan migrasi
+npm run dev                            # jalankan di http://localhost:3000
+npm run build                          # build produksi
+npm start                              # jalankan hasil build
+npm run lint                           # ESLint
+npx next typegen && npx tsc --noEmit   # cek tipe
+npm test                               # pengujian unit
+npm run seed                           # isi basis data dengan data contoh
 ```
 
-Butuh `DATABASE_URL` yang menunjuk ke PostgreSQL, ditaruh di berkas `.env` yang tidak ikut Git.
+Butuh `DATABASE_URL`, `NEXTAUTH_SECRET`, dan `NEXTAUTH_URL` di berkas `.env` yang tidak ikut Git.
 
 ---
 
-## 10. Status pengujian
+## 11. Status pengujian
 
-Ada 21 pengujian unit di `tests/`, dijalankan lewat test runner bawaan Node (`node:test`) dengan `tsx`. Cakupannya masih terbatas pada `lib/histori.ts` dan `lib/takaran.ts` — rumus HPP, analisis tren, dan penentuan harga basi belum punya pengujian otomatis.
+Per 25 September 2026 (commit `27ffa17`), `npm test` menjalankan **85 test dalam 20 suite di 8 berkas**, semuanya lulus. Test runner-nya bawaan Node (`node:test`) lewat `tsx`, dan pengujiannya tidak menyentuh database.
 
-Selain itu, verifikasi masih manual: menjalankan lint dan build, lalu memeriksa layar yang terpengaruh beserta hasil perhitungannya.
+| Berkas | Yang diuji |
+|---|---|
+| `hpp.test.ts`, `pembulatan-harga.test.ts` | rumus HPP, margin, harga dari target margin, pembulatan harga jual |
+| `harga-jual.test.ts` | simulasi kenaikan harga bahan |
+| `histori.test.ts` | pencatatan riwayat harga dan analisis tren |
+| `takaran.test.ts` | konversi satuan dan takaran resep |
+| `simulasi-landing.test.ts` | rumus simulasi di landing page |
+| `email.test.ts` | normalisasi email dan pencarian akun tanpa wildcard |
+| `batas-percobaan.test.ts` | rate limiting, pembacaan IP, verifikasi login, dan pesan galat login |
+
+Belum punya pengujian otomatis: penentuan harga basi (`lib/hargaBasi.ts`), route handler API secara utuh (integrasi dengan database), dan tampilan. Bagian-bagian itu masih diperiksa manual: lint dan build, lalu memeriksa layar yang terpengaruh beserta hasil perhitungannya.
+
+Setiap pull request dan push ke `main` menjalankan lint, typecheck, test, dan build di GitHub Actions (`.github/workflows/ci.yml`).

@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { MasukBerurutan } from "@/components/ui/MasukBerurutan";
+import { MasukSaatTampil } from "@/components/ui/MasukSaatTampil";
 import { Eyebrow, JudulBagian } from "./BagianStatis";
 import { SimulasiMargin } from "./SimulasiMargin";
 
@@ -21,7 +23,7 @@ export function BagianFitur() {
       aria-labelledby="judul-fitur"
     >
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
-        <div className="mb-9 max-w-3xl">
+        <MasukSaatTampil className="mb-9 max-w-3xl">
           <Eyebrow>02 / DARI RESEP SAMPAI HARGA</Eyebrow>
           <JudulBagian id="judul-fitur">
             Lima cara menjaga
@@ -32,9 +34,9 @@ export function BagianFitur() {
             Mulai dari biaya bahan, cek harga yang berubah, lalu tentukan harga jual dan berapa
             porsi yang perlu terjual.
           </p>
-        </div>
+        </MasukSaatTampil>
 
-        <div className="mb-8 grid gap-7 md:grid-cols-2 md:gap-10">
+        <MasukBerurutan className="mb-8 grid gap-7 md:grid-cols-2 md:gap-10">
           <article className="py-2">
             <span className="mb-3 inline-block text-xs font-semibold tracking-wider text-primary">
               01 · MODAL TERHITUNG SENDIRI
@@ -74,7 +76,7 @@ export function BagianFitur() {
               bahannya.
             </p>
           </article>
-        </div>
+        </MasukBerurutan>
 
         <SimulasiMargin />
 

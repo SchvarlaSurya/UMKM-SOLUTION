@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { cariUserLewatEmail } from "../lib/email";
 import { prisma } from "../lib/prisma";
 
 /**
@@ -165,7 +166,8 @@ async function tentukanPemilik() {
   const email = process.env.SEED_EMAIL;
 
   if (email) {
-    const user = await prisma.user.findUnique({ where: { email } });
+    // Dicocokkan seperti login: tidak peka huruf besar-kecil dan spasi di tepi.
+    const user = await cariUserLewatEmail(prisma, email);
     if (!user) {
       throw new Error(`Tidak ada akun dengan email "${email}". Daftarkan dulu lewat /register.`);
     }
