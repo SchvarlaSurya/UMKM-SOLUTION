@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { animate, utils } from "animejs";
+import { animate, stagger, utils } from "animejs";
 import { ButtonLink } from "@/components/ui/Button";
 import { useTutupSaatKlikLuar } from "@/components/ui/daftarTurun";
-import { IconChevronKanan, IconMenu, IconTutup } from "@/components/ui/icons";
+import { IconChevronKanan } from "@/components/ui/icons";
 import { useEfekTataLetak } from "@/components/ui/useEfekTataLetak";
 import { durasiGerak } from "@/lib/gerak";
+import { IkonMenuBerubah } from "./IkonMenuBerubah";
 
 /** Masuk sedikit lebih lambat dari keluar: menutup harus terasa langsung. */
 const DURASI_BUKA = 220;
@@ -14,6 +15,15 @@ const DURASI_TUTUP = 160;
 
 /** Jarak geser panel saat muncul dan menyingkir, dalam piksel. */
 const GESER = 8;
+
+/**
+ * Jeda antar baris menu saat panelnya terbuka.
+ *
+ * Hanya saat membuka. Saat menutup barisnya ikut panel begitu saja: menutup
+ * menu adalah tindakan yang sudah selesai di kepala pemakainya, dan menahan
+ * layar demi urutan keluar hanya membuatnya terasa lambat.
+ */
+const JEDA_BARIS = 35;
 
 /**
  * Tautan antarbagian untuk layar kecil, tempat deretan tautan di header
@@ -97,17 +107,39 @@ export function MenuMobile({ tautan }: { tautan: { href: string; label: string }
     sedangMenutup.current = false;
     utils.set(panel, { pointerEvents: "auto" });
 
+    const ms = durasiGerak(DURASI_BUKA);
+
     // Tanpa nilai awal: panelnya bergerak dari posisinya saat ini, jadi
     // membuka kembali di tengah animasi keluar tidak melompat ke atas dulu.
     animate(panel, {
       opacity: 1,
       translateY: 0,
-      duration: durasiGerak(DURASI_BUKA),
+      duration: ms,
       ease: "outQuint",
     });
 
+    // Barisnya menyusul satu per satu. Keadaan awalnya ditulis di sini, bukan
+    // di JSX: kalau animasinya tidak pernah jalan, yang tertinggal daftar menu
+    // utuh, bukan panel kosong yang tidak bisa dipakai.
+    const baris = Array.from(panel.querySelectorAll<HTMLElement>("[data-baris-menu]"));
+    if (ms > 0 && baris.length > 0) {
+      utils.set(baris, { opacity: 0, translateY: -6 });
+      animate(baris, {
+        opacity: 1,
+        translateY: 0,
+        duration: ms,
+        delay: stagger(JEDA_BARIS),
+        ease: "outQuad",
+      });
+    }
+
     return () => {
       utils.remove(panel);
+      utils.remove(baris);
+      // Panelnya tetap ada di DOM setelah ditutup, jadi barisnya dikembalikan
+      // terlihat — kalau tidak, bukaan berikutnya sempat menampilkan sisa
+      // keadaan transparan dari bukaan sebelumnya.
+      utils.set(baris, { opacity: 1, translateY: 0 });
     };
   }, [tampil, sesiBuka]);
 
@@ -137,7 +169,7 @@ export function MenuMobile({ tautan }: { tautan: { href: string; label: string }
         aria-label={buka ? "Tutup menu" : "Buka menu"}
         onClick={() => (buka ? tutupDanKembalikanFokus() : bukaMenu())}
       >
-        {buka ? <IconTutup /> : <IconMenu />}
+        <IkonMenuBerubah terbuka={buka} />
       </button>
 
       <div
@@ -149,7 +181,7 @@ export function MenuMobile({ tautan }: { tautan: { href: string; label: string }
       >
         <ul className="flex flex-col divide-y divide-border">
           {tautan.map((t) => (
-            <li key={t.href}>
+            <li key={t.href} data-baris-menu>
               <a
                 href={t.href}
                 onClick={tutup}
@@ -165,7 +197,7 @@ export function MenuMobile({ tautan }: { tautan: { href: string; label: string }
             </li>
           ))}
         </ul>
-        <div className="px-4 pt-4 sm:hidden">
+        <div data-baris-menu className="px-4 pt-4 sm:hidden">
           <ButtonLink href="/login" varian="secondary" className="h-11 w-full">
             Masuk
           </ButtonLink>

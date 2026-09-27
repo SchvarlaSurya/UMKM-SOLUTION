@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { AngkaNaikSaatTampil } from "@/components/ui/AngkaNaikSaatTampil";
 import { ButtonLink } from "@/components/ui/Button";
 import { IconPanahKanan } from "@/components/ui/icons";
+import { MasukBerurutan } from "@/components/ui/MasukBerurutan";
 import { MasukSaatTampil } from "@/components/ui/MasukSaatTampil";
 import { Merek } from "./Merek";
 
@@ -71,7 +72,7 @@ export function BagianMasalah() {
         </MasukSaatTampil>
 
         <div>
-          <dl className="tabular-nums">
+          <MasukBerurutan jenis="dl" className="tabular-nums">
             {RINCIAN_BIAYA.map((baris) => (
               <div
                 key={baris.nama}
@@ -93,7 +94,7 @@ export function BagianMasalah() {
               <dt>Modal asli per porsi</dt>
               <dd className="text-right">Rp 13.500</dd>
             </div>
-          </dl>
+          </MasukBerurutan>
           <p className="mt-3 text-xs text-muted-foreground">
             Contoh nasi ayam. Harga jual tetap Rp 20.000, tapi untung per porsi berkurang Rp 1.500.
           </p>
@@ -128,7 +129,7 @@ export function BagianBukti() {
           </p>
         </MasukSaatTampil>
 
-        <div>
+        <MasukSaatTampil>
           <div className="rounded-card border border-border bg-card p-5 sm:p-6">
             <table className="w-full border-collapse text-sm tabular-nums">
               <caption className="mb-3 text-left font-semibold text-foreground">
@@ -172,7 +173,7 @@ export function BagianBukti() {
             dari 1.200 porsi. Angkanya juga bukan untung bersih sebulan — hasil usahamu tetap ikut
             biaya dan penjualan yang sebenarnya.
           </p>
-        </div>
+        </MasukSaatTampil>
       </div>
     </section>
   );
