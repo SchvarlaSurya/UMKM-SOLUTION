@@ -33,8 +33,8 @@ const RINCIAN_BIAYA = [
   },
   { nama: "Bahan lainnya", ket: "Beras, bumbu, dan pelengkap", nilai: "Rp 6.500", catatan: "Tetap" },
   {
-    nama: "Alokasi biaya tetap",
-    ket: "Biaya bulanan dibagi estimasi porsi",
+    nama: "Bagian biaya bulanan",
+    ket: "Gas, listrik, sewa — dibagi jumlah porsi",
     nilai: "Rp 1.500",
     catatan: "Per porsi",
   },
@@ -49,15 +49,15 @@ export function BagianMasalah() {
     >
       <div className="mx-auto grid w-full max-w-6xl items-start gap-10 px-4 sm:px-8 lg:grid-cols-2 lg:gap-24">
         <div>
-          <Eyebrow>01 / KENALI YANG TERLEWAT</Eyebrow>
+          <Eyebrow>01 / YANG SERING TERLEWAT</Eyebrow>
           <JudulBagian id="judul-masalah">
             Penjualan tetap ramai.
             <br />
-            Biayanya sudah berbeda.
+            Tapi modalnya sudah naik.
           </JudulBagian>
           <p className="mt-5 max-w-xl text-lg text-muted-foreground">
-            Harga belanja minggu lalu belum tentu sama dengan hari ini. Gas, listrik, dan biaya usaha
-            juga perlu masuk hitungan setiap porsi.
+            Harga belanja minggu lalu belum tentu sama dengan hari ini. Gas, listrik, dan sewa juga
+            perlu ikut dihitung di setiap porsi.
           </p>
           <a
             href="#simulasi"
@@ -88,12 +88,12 @@ export function BagianMasalah() {
               </div>
             ))}
             <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-b-2 border-primary py-5 text-lg font-semibold text-primary">
-              <dt>HPP sebenarnya</dt>
+              <dt>Modal asli per porsi</dt>
               <dd className="text-right">Rp 13.500</dd>
             </div>
           </dl>
           <p className="mt-3 text-xs text-muted-foreground">
-            Contoh simulasi nasi ayam. Harga jual tetap Rp 20.000; selisih per porsi turun Rp 1.500.
+            Contoh nasi ayam. Harga jual tetap Rp 20.000, tapi untung per porsi berkurang Rp 1.500.
           </p>
         </div>
       </div>
@@ -103,8 +103,8 @@ export function BagianMasalah() {
 
 const TABEL_BUKTI = [
   { komponen: "Harga jual / porsi", sebelum: "Rp 20.000", sesudah: "Rp 20.000" },
-  { komponen: "HPP / porsi", sebelum: "Rp 12.000", sesudah: "Rp 13.500" },
-  { komponen: "Margin", sebelum: "40%", sesudah: "32,5%" },
+  { komponen: "Modal / porsi", sebelum: "Rp 12.000", sesudah: "Rp 13.500" },
+  { komponen: "Untung", sebelum: "40%", sesudah: "32,5%" },
 ];
 
 export function BagianBukti() {
@@ -112,7 +112,7 @@ export function BagianBukti() {
     <section id="bukti" className="scroll-mt-20 py-18 lg:py-24" aria-labelledby="judul-bukti">
       <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 sm:px-8 lg:grid-cols-2 lg:gap-24">
         <div>
-          <Eyebrow>04 / ANGKA YANG BISA DIPERIKSA</Eyebrow>
+          <Eyebrow>04 / ANGKA YANG BISA DICEK SENDIRI</Eyebrow>
           <JudulBagian id="judul-bukti">
             Selisih kecil per porsi.
             <br />
@@ -122,7 +122,7 @@ export function BagianBukti() {
             Rp 150.000
           </p>
           <p className="max-w-xl text-lg text-muted-foreground">
-            lebih sedikit pada 100 porsi ketika HPP naik Rp 1.500 dan harga jual tetap.
+            lebih sedikit dari 100 porsi, kalau modal naik Rp 1.500 dan harga jualnya tidak diubah.
           </p>
         </div>
 
@@ -157,7 +157,7 @@ export function BagianBukti() {
                 ))}
                 <tr className="font-semibold text-primary">
                   <th scope="row" className="py-3.5 text-left font-semibold">
-                    Selisih untuk 100 porsi
+                    Untung dari 100 porsi
                   </th>
                   <td className="px-2 py-3.5 text-right">Rp 800.000</td>
                   <td className="py-3.5 pl-2 text-right">Rp 650.000</td>
@@ -166,9 +166,9 @@ export function BagianBukti() {
             </table>
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
-            Ilustrasi perhitungan, bukan hasil pelanggan. HPP memakai alokasi biaya tetap pada estimasi
-            1.200 porsi/bulan. Selisih ini bukan laba bersih bulanan; hasil usaha mengikuti biaya dan
-            volume aktual.
+            Ini contoh hitungan, bukan hasil pengguna. Modalnya sudah termasuk bagian biaya bulanan
+            dari 1.200 porsi. Angkanya juga bukan untung bersih sebulan — hasil usahamu tetap ikut
+            biaya dan penjualan yang sebenarnya.
           </p>
         </div>
       </div>
@@ -185,11 +185,11 @@ export function BagianPenutup() {
           <JudulBagian id="judul-penutup">
             Sebelum menentukan harga,
             <br />
-            kenali dulu marginnya.
+            tahu dulu untungnya.
           </JudulBagian>
           <p className="mt-4 max-w-xl text-muted-foreground">
-            Catat bahan dan biaya sekali, lalu biarkan HPP dan margin tiap produk terhitung sendiri
-            setiap harga bahan berubah.
+            Catat bahan dan biaya sekali saja. Setelah itu modal dan untung tiap menu terhitung
+            sendiri setiap kali harga bahan berubah.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">

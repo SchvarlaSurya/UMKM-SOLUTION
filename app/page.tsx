@@ -12,9 +12,9 @@ import { BagianPratinjau } from "@/components/landing/BagianPratinjau";
 import { HeaderLanding } from "@/components/landing/HeaderLanding";
 
 export const metadata: Metadata = {
-  title: "Ruang Margin — Tahu biaya, jaga laba",
+  title: "Ruang Margin — Tahu modal, jaga untung",
   description:
-    "Hitung HPP, pantau perubahan harga bahan, dan tentukan harga jual sesuai target margin usaha kuliner.",
+    "Hitung modal setiap porsi, pantau harga bahan yang berubah, dan tentukan harga jual yang pas untuk usaha kulinermu.",
 };
 
 /**

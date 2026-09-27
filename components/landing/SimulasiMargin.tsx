@@ -54,7 +54,7 @@ function hitung(isian: Isian): Hasil {
     return { sah: false, pesan: "Isi harga jual antara Rp 1.000 dan Rp 1.000.000." };
   }
   if (isian.target === "" || target > 80) {
-    return { sah: false, pesan: "Isi target margin dengan angka bulat dari 0 sampai 80." };
+    return { sah: false, pesan: "Isi target untung dengan angka 0 sampai 80." };
   }
 
   const bahan = ayam * GRAM_AYAM + BAHAN_LAIN;
@@ -81,7 +81,7 @@ function StatusMargin({ hasil }: { hasil: Extract<Hasil, { sah: true }> }) {
   const { margin, target } = hasil;
   const [teks, kelas] =
     margin < 0
-      ? ["Harga jual belum menutup HPP", "border-destructive/30 bg-destructive/5 text-destructive"]
+      ? ["Harga jual belum menutup modal", "border-destructive/30 bg-destructive/5 text-destructive"]
       : margin + 1e-8 >= target
         ? [`Target ${target}% tercapai`, "border-success-border bg-card text-success"]
         : [`Di bawah target ${target}%`, "border-warning-border bg-warning-bg text-warning"];
@@ -138,13 +138,13 @@ export function SimulasiMargin() {
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-6 sm:p-7">
           <div>
             <span className="mb-3 inline-block text-xs font-semibold tracking-wider text-primary">
-              03 · SIMULASI DAMPAK
+              03 · COBA HITUNG SENDIRI
             </span>
             <h3 className="text-2xl font-semibold tracking-tight text-foreground">
               Kalau harga ayam naik?
             </h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Ubah angkanya. Lihat dampaknya pada satu porsi nasi ayam.
+              Ubah angkanya, lihat apa yang terjadi pada satu porsi nasi ayam.
             </p>
           </div>
           <span className="text-sm text-muted-foreground">Data contoh · tidak disimpan</span>
@@ -197,11 +197,11 @@ export function SimulasiMargin() {
               <InputAngka
                 key={`target-${versi.semua}`}
                 id="sim-target"
-                label="Target margin"
+                label="Target untung"
                 akhiran="%"
                 nilai={isian.target}
                 onNilaiUbah={(d) => ubah("target", d)}
-                helper="Margin dihitung dari harga jual. Target 0–80%."
+                helper="Dihitung dari harga jual. Isi angka 0 sampai 80."
               />
 
               {!hasil.sah && (
@@ -225,18 +225,18 @@ export function SimulasiMargin() {
             aria-atomic="true"
           >
             <span className="text-sm text-muted-foreground">
-              {hasil.sah ? "Hasil simulasi per porsi" : "Lengkapi isian untuk menghitung ulang"}
+              {hasil.sah ? "Hasil simulasi per porsi" : "Lengkapi isiannya dulu"}
             </span>
 
             <div className="mt-3 grid grid-cols-2 gap-5 tabular-nums">
               <div>
-                <small className="mb-1.5 block text-sm text-muted-foreground">HPP terhitung</small>
+                <small className="mb-1.5 block text-sm text-muted-foreground">Modal per porsi</small>
                 <strong className="block text-2xl font-semibold tracking-tight break-words text-primary sm:text-3xl">
                   {hasil.sah ? <AngkaBergerak nilai={hasil.hpp} format="rupiah" /> : "—"}
                 </strong>
               </div>
               <div>
-                <small className="mb-1.5 block text-sm text-muted-foreground">Margin aktual</small>
+                <small className="mb-1.5 block text-sm text-muted-foreground">Untung sekarang</small>
                 <strong className="block text-2xl font-semibold tracking-tight break-words text-primary sm:text-3xl">
                   {hasil.sah ? <AngkaBergerak nilai={hasil.margin} format="persen" /> : "—"}
                 </strong>
@@ -248,8 +248,8 @@ export function SimulasiMargin() {
             <dl className="my-6 text-sm tabular-nums">
               {[
                 ["Total bahan", hasil.sah ? formatRupiah(hasil.bahan) : "—"],
-                ["Alokasi biaya tetap", formatRupiah(ALOKASI_TETAP)],
-                ["Selisih harga jual dan HPP", hasil.sah ? formatRupiah(hasil.selisih) : "—"],
+                ["Bagian biaya bulanan", formatRupiah(ALOKASI_TETAP)],
+                ["Sisa untung per porsi", hasil.sah ? formatRupiah(hasil.selisih) : "—"],
               ].map(([label, nilai]) => (
                 <div
                   key={label}
@@ -263,11 +263,11 @@ export function SimulasiMargin() {
 
             <div className="border-t border-success-border pt-5">
               <span className="mb-2 inline-block text-xs font-semibold tracking-wider text-primary">
-                04 · HARGA DARI TARGET MARGIN
+                04 · HARGA SESUAI TARGET
               </span>
-              <h4 className="font-semibold text-foreground">Harga jual yang memenuhi target</h4>
+              <h4 className="font-semibold text-foreground">Harga jual supaya target tercapai</h4>
               <p className="mt-1 text-sm text-muted-foreground">
-                Mengikuti HPP dan targetmu, dibulatkan ke atas ke kelipatan Rp 500.
+                Dihitung dari modal dan targetmu, dibulatkan ke atas ke kelipatan Rp 500.
               </p>
               <output
                 htmlFor="sim-ayam sim-target"
@@ -291,14 +291,14 @@ export function SimulasiMargin() {
       <div className="mt-7 grid gap-6 border-t border-border pt-8 sm:grid-cols-[1.4fr_1fr] sm:items-center">
         <div>
           <span className="mb-3 inline-block text-xs font-semibold tracking-wider text-primary">
-            05 · KALKULATOR TITIK IMPAS
+            05 · BALIK MODAL
           </span>
           <h3 className="text-2xl font-semibold tracking-tight text-foreground">
             Tahu berapa porsi yang perlu terjual.
           </h3>
           <p className="mt-2.5 text-muted-foreground">
-            Dengan biaya tetap Rp 1.800.000 per bulan, hitung kebutuhan penjualan untuk menutupnya.
-            Hasil mengikuti harga dan biaya pada simulasi di atas.
+            Kalau biaya bulananmu Rp 1.800.000, berapa porsi yang harus terjual supaya tertutup?
+            Angkanya mengikuti simulasi di atas.
           </p>
         </div>
         <div className="rounded-card border border-border bg-card p-6 tabular-nums" aria-live="polite">
@@ -311,16 +311,18 @@ export function SimulasiMargin() {
                 <span className="ml-2 text-xl tracking-tight text-muted-foreground">porsi</span>
               </>
             ) : (
-              <span className="text-2xl tracking-tight">Belum tercapai</span>
+              <span className="text-2xl tracking-tight">Belum bisa tertutup</span>
             )}
           </strong>
-          <span className="text-sm text-muted-foreground">per bulan untuk menutup biaya tetap</span>
+          <span className="text-sm text-muted-foreground">
+            per bulan untuk menutup biaya bulanan
+          </span>
           <p className="mt-2.5 text-sm text-foreground">
             {!hasil.sah
               ? "Periksa kolom yang ditandai."
               : hasil.kontribusi > 0
-                ? `Kontribusi setiap porsi: ${formatRupiah(hasil.kontribusi)}.`
-                : "Harga jual harus lebih tinggi dari biaya bahan untuk menutup biaya tetap."}
+                ? `Setiap porsi menyisakan ${formatRupiah(hasil.kontribusi)} untuk menutup biaya bulanan.`
+                : "Harga jual harus lebih tinggi dari biaya bahan dulu, baru biaya bulanan bisa tertutup."}
           </p>
         </div>
       </div>

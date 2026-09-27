@@ -179,12 +179,12 @@ export function BagianPratinjau() {
             </JudulBagian>
           </div>
           <p className="max-w-xl text-lg text-muted-foreground">
-            Begitu bahan, biaya, dan resep tercatat, dashboard menghitung margin tiap produk dan
-            menandai yang turun di bawah batas amanmu.
+            Setelah bahan, biaya, dan resep tercatat, dashboard langsung menghitung untung tiap menu
+            dan menandai mana yang sudah di bawah batas amanmu.
           </p>
         </div>
 
-        <figure aria-label="Contoh tampilan dashboard Ruang Margin dengan data demo: lima produk, dua di antaranya bermargin di bawah 30 persen">
+        <figure aria-label="Contoh tampilan dashboard Ruang Margin dengan data contoh: lima produk, dua di antaranya untungnya di bawah 30 persen">
           <div className="overflow-hidden rounded-2xl border border-border shadow-[0_24px_60px_rgba(23,99,75,0.10)]">
             {/* Bingkai jendela peramban */}
             <div className="flex items-center gap-3 border-b border-border bg-muted px-4 py-2.5" aria-hidden="true">
@@ -202,8 +202,8 @@ export function BagianPratinjau() {
             </div>
           </div>
           <figcaption className="mt-4 text-xs text-muted-foreground">
-            Contoh tampilan dengan data demo. Isi dashboard mengikuti bahan, biaya, dan produk yang kamu
-            catat.
+            Tampilan contoh dengan data buatan. Isinya nanti mengikuti bahan, biaya, dan menu yang
+            kamu catat sendiri.
           </figcaption>
         </figure>
       </div>
