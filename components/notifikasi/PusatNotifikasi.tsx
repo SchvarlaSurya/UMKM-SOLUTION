@@ -8,12 +8,13 @@ import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { useEfekTataLetak } from "@/components/ui/useEfekTataLetak";
 import { durasiGerak } from "@/lib/gerak";
-import { IconCentang, IconLonceng, IconProduk } from "@/components/ui/icons";
+import { IconCentang, IconLonceng, IconProduk, IconTren } from "@/components/ui/icons";
 import {
   useNotifikasi,
   type NotifikasiDenganProduk,
 } from "@/components/notifikasi/NotifikasiProvider";
 import { formatTanggal } from "@/lib/format";
+import { kalimatPemicu } from "@/lib/pemicuHargaJual";
 
 type Ringkasan = {
   jumlahProduk: number | null;
@@ -527,17 +528,37 @@ export function PusatNotifikasi() {
         >
           <div className="space-y-4">
             {ringkasan?.jumlahProduk !== null && ringkasan?.pemicu ? (
-              <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-card border border-info-border bg-info-bg px-4 py-3">
-                <span className="text-2xl font-semibold text-info">
-                  {ringkasan.jumlahProduk}
-                </span>
-                <span className="self-center text-sm font-medium text-foreground">
-                  produk disesuaikan
-                </span>
-                <span className="col-start-2 text-xs text-muted-foreground">
-                  Pemicu: {ringkasan.pemicu}
-                </span>
-              </div>
+              <>
+                <div className="flex items-start gap-3.5 rounded-card border border-info-border bg-info-bg px-4 py-3.5">
+                  <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-card bg-info/10 text-info">
+                    <IconTren width={18} height={18} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm text-foreground">
+                      <strong className="text-base font-semibold text-info">
+                        {ringkasan.jumlahProduk} produk
+                      </strong>{" "}
+                      harga jualnya disesuaikan
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {kalimatPemicu(ringkasan.pemicu)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Yang paling sering ditakutkan pemilik usaha saat angkanya
+                    berubah sendiri: harga lamanya hilang. Dijawab di sini,
+                    sebelum ia perlu bertanya. */}
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Harga jualnya naik atau turun mengikuti modal terbaru, supaya
+                  persentase untungmu tetap di angka yang kamu tetapkan. Harga
+                  lamanya tidak hilang — tersimpan di riwayat harga tiap produk.
+                </p>
+
+                <p className="text-xs text-muted-foreground">
+                  Disesuaikan {formatTanggal(modalAwal.tanggal)}
+                </p>
+              </>
             ) : (
               <p className="text-sm leading-relaxed text-foreground">
                 {modalAwal.pesan}
