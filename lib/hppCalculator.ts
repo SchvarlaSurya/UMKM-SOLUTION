@@ -435,12 +435,11 @@ async function recalculateProduk(
  * Hitung ulang HPP dan harga target setiap produk milik user yang memakai
  * bahan ini, lalu simpan snapshot barunya.
  *
- * `db` wajib berupa client transaksi yang sama dengan penulisan harga bahan.
- * Dulu fungsi ini membuka transaksinya sendiri setelah harga bahan tersimpan,
- * sehingga rekalkulasi yang gagal meninggalkan bahan berharga baru sementara
- * harga jual produk target margin, snapshot, dan HistoriHargaJual tertinggal.
- * Membaca produk di transaksi yang sama juga menjamin harga bahan yang baru
- * ditulis ikut terbaca.
+ * `db` sebaiknya client transaksi supaya harga jual, snapshot, dan
+ * HistoriHargaJual tertulis utuh atau tidak sama sekali. Transaksi ini
+ * sengaja terpisah dari penulisan harga bahan dan berjalan setelah harga itu
+ * commit (lihat `ubahBahanLaluRekalkulasi`), jadi harga bahan yang baru sudah
+ * terbaca di sini.
  */
 export async function recalculateAllAffectedByBahan(
   bahanBakuId: number,

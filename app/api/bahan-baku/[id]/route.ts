@@ -3,8 +3,11 @@ import { NextResponse } from 'next/server'
 import { PerhitunganHargaTargetError } from '@/lib/hppCalculator'
 import { requireAuth } from '@/lib/auth'
 import { rencanaHistoriHarga } from '@/lib/histori'
-import { simpanPerubahanBahan } from '@/lib/perubahanBahan'
-import { cobaUlangSaatTimeout } from '@/lib/cobaUlangTransaksi'
+import { ubahBahanLaluRekalkulasi } from '@/lib/perubahanBahan'
+import {
+  PESAN_HARGA_TERSIMPAN_REKALKULASI_GAGAL,
+  PESAN_REKALKULASI_TERTUNDA,
+} from '@/lib/cobaUlangTransaksi'
 import {
   errorResponse,
   handleError,
@@ -99,30 +102,34 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       hargaPerSatuan as number | undefined
     )
 
-    // Satu transaksi dengan rekalkulasi produk, sama seperti Server Action-nya.
-    // P2028 membatalkan semuanya, jadi transaksinya diulang utuh.
-    const updated = await cobaUlangSaatTimeout(() =>
-      prisma.$transaction((tx) =>
-        simpanPerubahanBahan(tx, {
-          id,
-          userId: auth.userId,
-          data: {
-            nama: namaBersih,
-            satuan: satuan !== undefined ? (satuan as string).trim() : undefined,
-          },
-          rencana,
-        })
-      )
+    // Harga bahan commit lebih dulu, rekalkulasi produk menyusul di transaksi
+    // terpisah, sama seperti Server Action-nya.
+    const { bahan: updated, rekalkulasi } = await ubahBahanLaluRekalkulasi(
+      (kerja) => prisma.$transaction(kerja),
+      {
+        id,
+        userId: auth.userId,
+        data: {
+          nama: namaBersih,
+          satuan: satuan !== undefined ? (satuan as string).trim() : undefined,
+        },
+        rencana,
+      }
     )
 
+    // Tetap 200: harga bahan sudah tersimpan. Rekalkulasi yang tertunda
+    // ditandai, bukan dilaporkan sebagai kegagalan.
     return NextResponse.json({
       ...updated,
       hargaBerubah: rencana.hargaBerubah,
       historiDicatat: rencana.catatHistori,
+      rekalkulasiTertunda: rekalkulasi === 'tertunda',
+      ...(rekalkulasi === 'tertunda' ? { peringatan: PESAN_REKALKULASI_TERTUNDA } : {}),
     })
   } catch (error) {
     if (error instanceof PerhitunganHargaTargetError) {
-      return errorResponse(error.message, 400)
+      // Hanya bisa datang dari rekalkulasi, jadi harganya sudah tersimpan.
+      return errorResponse(`${PESAN_HARGA_TERSIMPAN_REKALKULASI_GAGAL} ${error.message}`, 400)
     }
     return handleError(error, 'Gagal mengubah bahan baku')
   }

@@ -157,12 +157,16 @@ export function HalamanBahanBaku({
       }
 
       setModalTerbuka(false);
-      tampilkanToast({
-        varian: "sukses",
-        pesan: sedangEdit
-          ? `Harga ${nilai.nama} berhasil diperbarui.`
-          : `${nilai.nama} berhasil ditambahkan.`,
-      });
+      tampilkanToast(
+        hasil.peringatan
+          ? { varian: "galat", pesan: hasil.peringatan }
+          : {
+              varian: "sukses",
+              pesan: sedangEdit
+                ? `Harga ${nilai.nama} berhasil diperbarui.`
+                : `${nilai.nama} berhasil ditambahkan.`,
+            },
+      );
       window.dispatchEvent(new Event("notifikasi:segarkan"));
     });
   }

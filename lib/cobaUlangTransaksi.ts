@@ -63,3 +63,33 @@ export async function cobaUlangSaatTimeout<T>(
     }
   }
 }
+
+export type StatusRekalkulasi = 'selesai' | 'tertunda'
+
+/**
+ * Untuk rekalkulasi yang berjalan SETELAH perubahan sumbernya commit, di
+ * transaksi terpisah. Timeout yang tetap terjadi setelah semua percobaan
+ * dikembalikan sebagai `tertunda`, bukan dilempar: perubahan sumbernya sudah
+ * benar tersimpan, jadi pemanggil perlu memberi tanda, bukan melaporkan
+ * kegagalan total. Galat selain timeout tetap dilempar.
+ */
+export async function jalankanRekalkulasi(
+  jalankan: () => Promise<unknown>,
+  opsi?: OpsiCobaUlang
+): Promise<StatusRekalkulasi> {
+  try {
+    await cobaUlangSaatTimeout(jalankan, opsi)
+    return 'selesai'
+  } catch (galat) {
+    if (isTimeoutTransaksi(galat)) return 'tertunda'
+    throw galat
+  }
+}
+
+/** Satu kalimat yang sama untuk route dan Server Action. */
+export const PESAN_REKALKULASI_TERTUNDA =
+  'Harga bahan tersimpan, tetapi harga jual produk yang memakainya belum ikut dihitung ulang karena koneksi ke database lambat. Periksa harga jual di halaman Produk.'
+
+/** Awalan pesan saat rekalkulasi gagal karena data, setelah harga bahan tersimpan. */
+export const PESAN_HARGA_TERSIMPAN_REKALKULASI_GAGAL =
+  'Harga bahan tersimpan, tetapi harga jual produk yang memakainya gagal dihitung ulang:'

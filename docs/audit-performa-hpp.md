@@ -142,9 +142,10 @@ Ke pooler session mode (port 5432): `SELECT 1` sekitar 350 ms, query aplikasi 60
 ### Keputusan
 
 - Batas bawaan transaksi interaktif dinaikkan sekali di `lib/prisma.ts` (`maxWait` 10 detik, `timeout` 20 detik), bukan per pemanggilan, supaya transaksi baru tidak kembali ke 5 detik. Opsi per pemanggilan yang sama di `lib/actions/biaya-operasional.ts` dihapus.
-- Harga bahan, histori harga bahan, dan rekalkulasi produk kini satu transaksi (`simpanPerubahanBahan` di `lib/perubahanBahan.ts`), dipakai Server Action dan `PUT /api/bahan-baku/[id]`. Target margin yang tidak sah kini membatalkan perubahan harga bahan dan dikembalikan sebagai pesan, bukan galat 500 setelah harga bahan telanjur tersimpan.
+- ~~Harga bahan, histori harga bahan, dan rekalkulasi produk satu transaksi.~~ Diganti di #112: harga bahan dan histori harganya satu transaksi kecil yang commit lebih dulu (`simpanPerubahanBahan`), lalu rekalkulasi produk berjalan di transaksi terpisah (`ubahBahanLaluRekalkulasi` di `lib/perubahanBahan.ts`), dipakai Server Action dan `PUT /api/bahan-baku/[id]`. Harga bahan yang sudah dicek pemilik usaha tidak pernah di-rollback karena rekalkulasi.
+- Transaksi yang gagal P2028 dicoba ulang maksimal 3 kali (jeda 500 ms lalu 1000 ms, `cobaUlangSaatTimeout` di `lib/cobaUlangTransaksi.ts`). Kalau rekalkulasi harga bahan tetap timeout, respons tetap sukses dengan `rekalkulasiTertunda: true` dan pesan peringatan, dan halaman Bahan Baku menampilkan toast peringatan. Target margin yang tidak sah tetap dilaporkan sebagai galat, dengan pesan bahwa harga bahan sudah tersimpan.
 - Pencarian resep terkait digabung ke query produk (`resep: { some: ... }`): satu round trip lebih sedikit di dalam transaksi.
 - `PUT /api/produk/[id]` menghitung harga target sebelum transaksi dibuka. Bacaannya tidak bergantung pada tulisan di transaksi, jadi di luar transaksi ketiganya berjalan paralel di pool.
-- Baca pada rekalkulasi harga bahan sengaja tetap di dalam transaksi, setelah harga bahan ditulis, supaya harga baru pasti terbaca tanpa menambal data di memori.
+- Rekalkulasi harga bahan membaca produk di transaksinya sendiri, setelah harga bahan commit, jadi harga baru pasti terbaca tanpa menambal data di memori.
 
 Pengurangan round trip berikutnya yang masih tersedia: memuat produk, resep, dan bahan dalam satu query (`relationLoadStrategy: "join"` membutuhkan preview feature `relationJoins` di generator schema, atau satu `$queryRaw`), yang memangkas dua round trip dari setiap rekalkulasi.

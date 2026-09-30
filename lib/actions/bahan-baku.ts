@@ -5,8 +5,12 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { PerhitunganHargaTargetError } from "@/lib/hppCalculator";
 import { rencanaHistoriHarga } from "@/lib/histori";
-import { simpanPerubahanBahan } from "@/lib/perubahanBahan";
-import { cobaUlangSaatTimeout } from "@/lib/cobaUlangTransaksi";
+import { ubahBahanLaluRekalkulasi } from "@/lib/perubahanBahan";
+import {
+  PESAN_HARGA_TERSIMPAN_REKALKULASI_GAGAL,
+  PESAN_REKALKULASI_TERTUNDA,
+  type StatusRekalkulasi,
+} from "@/lib/cobaUlangTransaksi";
 
 /**
  * Server Action untuk halaman Bahan Baku.
@@ -17,7 +21,11 @@ import { cobaUlangSaatTimeout } from "@/lib/cobaUlangTransaksi";
  * app/api/bahan-baku supaya kedua jalur menolak masukan yang sama.
  */
 
-export type HasilAksi = { ok: true } | { ok: false; error: string };
+/**
+ * `peringatan` berarti datanya tersimpan tetapi ada langkah lanjutan yang
+ * tertunda, misalnya rekalkulasi harga jual produk.
+ */
+export type HasilAksi = { ok: true; peringatan?: string } | { ok: false; error: string };
 
 const HALAMAN_DAFTAR_BAHAN = ["/bahan-baku", "/dashboard", "/produk"] as const;
 const HALAMAN_HARGA_BAHAN = [...HALAMAN_DAFTAR_BAHAN, "/tren-harga"] as const;
@@ -121,24 +129,28 @@ export async function perbaruiBahan(
   // tetap — itu catatan yang layak masuk histori, bukan galat.
   const rencana = rencanaHistoriHarga(bahan.hargaPerSatuan, masukan.hargaPerSatuan);
 
-  // Harga bahan dan rekalkulasi produknya satu transaksi: kalau harga target
-  // salah satu produk tidak bisa dihitung, harga bahannya juga tidak tersimpan.
-  // P2028 membatalkan semuanya, jadi transaksinya diulang utuh.
+  // Harga bahan commit lebih dulu di transaksinya sendiri, rekalkulasi produk
+  // menyusul di transaksi terpisah. Rekalkulasi yang lambat atau gagal tidak
+  // pernah membatalkan harga yang sudah dicek pemilik usaha.
+  let rekalkulasi: StatusRekalkulasi;
   try {
-    await cobaUlangSaatTimeout(() =>
-      prisma.$transaction((tx) =>
-        simpanPerubahanBahan(tx, { id, userId: auth.userId, data: { nama }, rencana }),
-      ),
-    );
+    ({ rekalkulasi } = await ubahBahanLaluRekalkulasi(
+      (kerja) => prisma.$transaction(kerja),
+      { id, userId: auth.userId, data: { nama }, rencana },
+    ));
   } catch (error) {
     if (error instanceof PerhitunganHargaTargetError) {
-      return { ok: false, error: error.message };
+      // Hanya bisa datang dari rekalkulasi, jadi harganya sudah tersimpan.
+      segarkan(HALAMAN_HARGA_BAHAN);
+      return { ok: false, error: `${PESAN_HARGA_TERSIMPAN_REKALKULASI_GAGAL} ${error.message}` };
     }
     throw error;
   }
 
   segarkan(HALAMAN_HARGA_BAHAN);
-  return { ok: true };
+  return rekalkulasi === "tertunda"
+    ? { ok: true, peringatan: PESAN_REKALKULASI_TERTUNDA }
+    : { ok: true };
 }
 
 /**

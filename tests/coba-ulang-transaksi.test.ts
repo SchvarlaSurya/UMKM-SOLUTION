@@ -1,6 +1,10 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { cobaUlangSaatTimeout, isTimeoutTransaksi } from "../lib/cobaUlangTransaksi";
+import {
+  cobaUlangSaatTimeout,
+  isTimeoutTransaksi,
+  jalankanRekalkulasi,
+} from "../lib/cobaUlangTransaksi";
 
 /** Bentuk galat P2028 yang terukur dari Prisma 7 + adapter pg. */
 function galatP2028() {
@@ -78,5 +82,24 @@ describe("cobaUlangSaatTimeout", () => {
     const s = skenario([galatP2028(), galatData]);
     await assert.rejects(cobaUlangSaatTimeout(s.jalankan, { tunggu: s.tunggu }), (e) => e === galatData);
     assert.equal(s.jumlahPanggilan(), 2);
+  });
+});
+
+describe("jalankanRekalkulasi", () => {
+  it("selesai kalau salah satu percobaan berhasil", async () => {
+    const s = skenario([galatP2028()]);
+    assert.equal(await jalankanRekalkulasi(s.jalankan, { tunggu: s.tunggu }), "selesai");
+  });
+
+  it("tertunda, bukan melempar, kalau semua percobaan timeout", async () => {
+    const s = skenario([galatP2028(), galatP2028(), galatP2028()]);
+    assert.equal(await jalankanRekalkulasi(s.jalankan, { tunggu: s.tunggu }), "tertunda");
+    assert.equal(s.jumlahPanggilan(), 3);
+  });
+
+  it("galat selain timeout tetap dilempar", async () => {
+    const galatData = new Error("Produk tidak ditemukan");
+    const s = skenario([galatData]);
+    await assert.rejects(jalankanRekalkulasi(s.jalankan, { tunggu: s.tunggu }), (e) => e === galatData);
   });
 });
