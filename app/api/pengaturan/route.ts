@@ -2,6 +2,10 @@ import { prisma } from '@/lib/prisma'
 import { Prisma } from '@/app/generated/prisma/client'
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
+import {
+  PerhitunganHargaTargetError,
+  recalculateAllByBiayaOperasional,
+} from '@/lib/hppCalculator'
 import { errorResponse, handleError, readJsonBody, unauthorizedResponse } from '@/lib/apiHelpers'
 
 /**
@@ -75,13 +79,25 @@ export async function PUT(req: Request) {
     }
 
     const existing = await getOrCreatePengaturan(auth.userId)
-    const updated = await prisma.pengaturan.update({
-      where: { id: existing.id, userId: auth.userId },
-      data: { estimasiPorsiPerBulan, batasMarginAman },
-      omit: { userId: true },
+    // Estimasi porsi membagi biaya tetap per porsi, jadi HPP dan harga jual
+    // produk target margin ikut berubah. Simpan pengaturan dan rekalkulasi
+    // dalam satu transaksi, sama seperti Server Action simpanPengaturan,
+    // supaya kegagalan rekalkulasi tidak meninggalkan pengaturan baru dengan
+    // harga jual lama.
+    const updated = await prisma.$transaction(async (tx) => {
+      const pengaturan = await tx.pengaturan.update({
+        where: { id: existing.id, userId: auth.userId },
+        data: { estimasiPorsiPerBulan, batasMarginAman },
+        omit: { userId: true },
+      })
+      await recalculateAllByBiayaOperasional(auth.userId, tx)
+      return pengaturan
     })
     return NextResponse.json(updated)
   } catch (error) {
+    if (error instanceof PerhitunganHargaTargetError) {
+      return errorResponse(error.message, 400)
+    }
     return handleError(error, 'Gagal mengubah pengaturan')
   }
 }
