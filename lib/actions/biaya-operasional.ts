@@ -67,8 +67,7 @@ export async function tambahBiaya(masukan: MasukanBiaya): Promise<HasilAksi> {
           },
         });
         await recalculateAllByBiayaOperasional(auth.userId, tx);
-      },
-      { maxWait: 10000, timeout: 20000 }
+      }
     );
   } catch (error) {
     const hasil = galatPerhitungan(error);
@@ -105,8 +104,7 @@ export async function perbaruiBiaya(id: number, masukan: MasukanBiaya): Promise<
           data: { nama: masukan.nama.trim(), jenis: masukan.jenis, nilai: masukan.nilai },
         });
         await recalculateAllByBiayaOperasional(auth.userId, tx);
-      },
-      { maxWait: 10000, timeout: 20000 }
+      }
     );
   } catch (error) {
     const hasil = galatPerhitungan(error);
@@ -149,8 +147,7 @@ export async function simpanPengaturan(masukan: {
           create: { ...masukan, userId: auth.userId },
         });
         await recalculateAllByBiayaOperasional(auth.userId, tx);
-      },
-      { maxWait: 10000, timeout: 20000 }
+      }
     );
   } catch (error) {
     const hasil = galatPerhitungan(error);
@@ -176,8 +173,7 @@ export async function hapusBiaya(id: number): Promise<HasilAksi> {
       async (tx) => {
         await tx.biayaOperasional.delete({ where: { id, userId: auth.userId } });
         await recalculateAllByBiayaOperasional(auth.userId, tx);
-      },
-      { maxWait: 10000, timeout: 20000 }
+      }
     );
   } catch (error) {
     const hasil = galatPerhitungan(error);

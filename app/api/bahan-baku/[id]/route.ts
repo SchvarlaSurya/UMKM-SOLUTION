@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
-import { recalculateAllAffectedByBahan } from '@/lib/hppCalculator'
+import { PerhitunganHargaTargetError } from '@/lib/hppCalculator'
 import { requireAuth } from '@/lib/auth'
 import { rencanaHistoriHarga } from '@/lib/histori'
+import { simpanPerubahanBahan } from '@/lib/perubahanBahan'
 import {
   errorResponse,
   handleError,
@@ -97,31 +98,18 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       hargaPerSatuan as number | undefined
     )
 
-    if (rencana.catatHistori) {
-      await prisma.historiHarga.create({
+    // Satu transaksi dengan rekalkulasi produk, sama seperti Server Action-nya.
+    const updated = await prisma.$transaction((tx) =>
+      simpanPerubahanBahan(tx, {
+        id,
+        userId: auth.userId,
         data: {
-          bahanBakuId: id,
-          hargaLama: rencana.hargaLama,
-          hargaBaru: rencana.hargaBaru,
+          nama: namaBersih,
+          satuan: satuan !== undefined ? (satuan as string).trim() : undefined,
         },
+        rencana,
       })
-    }
-
-    const updated = await prisma.bahanBaku.update({
-      where: { id, userId: auth.userId },
-      data: {
-        ...(namaBersih !== undefined ? { nama: namaBersih } : {}),
-        ...(satuan !== undefined ? { satuan: (satuan as string).trim() } : {}),
-        ...(rencana.hargaBerubah ? { hargaPerSatuan: rencana.hargaBaru } : {}),
-      },
-      omit: { userId: true },
-    })
-
-    // Nominal yang sama menghasilkan HPP yang sama, jadi tidak perlu dihitung
-    // ulang meski historinya tetap dicatat.
-    if (rencana.hargaBerubah) {
-      await recalculateAllAffectedByBahan(id, auth.userId)
-    }
+    )
 
     return NextResponse.json({
       ...updated,
@@ -129,6 +117,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       historiDicatat: rencana.catatHistori,
     })
   } catch (error) {
+    if (error instanceof PerhitunganHargaTargetError) {
+      return errorResponse(error.message, 400)
+    }
     return handleError(error, 'Gagal mengubah bahan baku')
   }
 }

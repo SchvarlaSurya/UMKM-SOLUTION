@@ -72,8 +72,30 @@ const prismaClientSingleton = () => {
     keepAliveInitialDelayMillis: 10_000,
   })
 
-  return new PrismaClient({ adapter })
+  return new PrismaClient({ adapter, transactionOptions: OPSI_TRANSAKSI })
 }
+
+/**
+ * Batas waktu bawaan untuk setiap `prisma.$transaction(async (tx) => ...)`.
+ *
+ * Bawaan Prisma (maxWait 2 detik, timeout 5 detik) mengandaikan database di
+ * jaringan yang sama. Ke pooler Supabase dari dev lokal (30 September 2026,
+ * session mode), `SELECT 1` butuh ~350 ms, query aplikasi 600-750 ms, dan
+ * membuka koneksi baru hampir 5 detik. Transaksi terpanjang aplikasi — ubah
+ * harga bahan beserta rekalkulasi produknya — berisi 12 query dan terukur
+ * ~9 detik, jadi 5 detik habis di tengah jalan dan commit ditolak P2028
+ * "A commit cannot be executed on an expired transaction".
+ *
+ * - `maxWait` mencakup menunggu koneksi dari pool, termasuk membuka yang baru.
+ * - `timeout` sekitar dua kali transaksi terpanjang itu, supaya lonjakan
+ *   latensi tidak langsung menggagalkan simpan.
+ *
+ * Dipasang di klien, bukan per pemanggilan, supaya transaksi baru tidak
+ * diam-diam kembali ke bawaan 5 detik. Batas ini menahan satu koneksi dan
+ * kunci baris selama transaksi berjalan, jadi mengurangi round trip di dalam
+ * transaksi tetap lebih penting daripada menaikkan angkanya.
+ */
+const OPSI_TRANSAKSI = { maxWait: 10_000, timeout: 20_000 }
 
 declare global {
   var prismaGlobal: ReturnType<typeof prismaClientSingleton> | undefined

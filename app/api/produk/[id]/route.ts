@@ -144,21 +144,27 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       resepBaru = cekResep.data
     }
 
+    // Harga target dihitung sebelum transaksi dibuka. Isinya murni baca (harga
+    // bahan, pengaturan, biaya) yang tidak bergantung pada tulisan di bawah,
+    // jadi di luar transaksi ketiganya berjalan paralel di pool alih-alih
+    // antre satu per satu di satu koneksi transaksi — dan target margin yang
+    // tidak sah ditolak tanpa sempat membuka transaksi. Di isolasi READ
+    // COMMITTED bawaan Postgres, membacanya di dalam transaksi pun tidak
+    // mengunci harga bahan sampai commit.
+    const hargaSistem =
+      modeHarga === 'targetMargin'
+        ? await calculateHargaJualTargetMarginDariResep(
+            resepBaru ?? existing.resep,
+            auth.userId,
+            targetMarginTersimpan as number,
+            prisma,
+            pembulatanTersimpan
+          )
+        : null
+
     // Ganti resep dan update produk dalam satu transaksi, supaya produk tidak
     // pernah tertinggal dalam keadaan resepnya sudah terhapus tapi belum diisi.
     const updated = await prisma.$transaction(async (tx) => {
-      const resepUntukHarga = resepBaru ?? existing.resep
-      const hargaSistem =
-        modeHarga === 'targetMargin'
-          ? await calculateHargaJualTargetMarginDariResep(
-              resepUntukHarga,
-              auth.userId,
-              targetMarginTersimpan as number,
-              tx,
-              pembulatanTersimpan
-            )
-          : null
-
       if (resepBaru !== null) {
         await tx.resep.deleteMany({ where: { produkId: id } })
         await tx.resep.createMany({
