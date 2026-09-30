@@ -219,7 +219,8 @@ export async function perbaruiProduk(
 }
 
 /**
- * Menghapus produk beserta resep dan snapshot HPP-nya.
+ * Menghapus produk beserta resep, snapshot HPP, dan histori harga jualnya.
+ * Urutannya sama dengan DELETE di app/api/produk/[id]/route.ts.
  * Bahan baku tidak ikut terhapus, hanya kaitannya di resep.
  */
 export async function hapusProduk(id: number): Promise<HasilAksi> {
@@ -235,6 +236,7 @@ export async function hapusProduk(id: number): Promise<HasilAksi> {
   await prisma.$transaction([
     prisma.resep.deleteMany({ where: { produkId: id } }),
     prisma.hppSnapshot.deleteMany({ where: { produkId: id } }),
+    prisma.historiHargaJual.deleteMany({ where: { produkId: id } }),
     prisma.produk.delete({ where: { id, userId: auth.userId } }),
   ]);
 
