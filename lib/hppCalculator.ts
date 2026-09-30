@@ -5,6 +5,8 @@ import {
   hitungHpp,
   hitungTitikImpas,
   komponenBiaya,
+  type KomponenBiaya,
+  type MasukanProduk,
 } from '@/lib/hpp'
 import { pangkasNotifikasiTerbaca } from '@/lib/notifikasi'
 import { Prisma } from '@/app/generated/prisma/client'
@@ -275,27 +277,82 @@ export async function calculateHpp(
   }
 }
 
-type HasilRecalculate = {
+export type HasilRecalculate = {
   jumlahProdukDihitung: number
   jumlahHargaBerubah: number
 }
 
+/** Bentuk produk yang dibutuhkan rekalkulasi; baris Prisma memenuhinya apa adanya. */
+export type ProdukRekalkulasi = MasukanProduk & {
+  id: number
+  modePenentuanHarga: string
+  targetMarginPersen: number | null
+  pembulatanHarga: number
+}
+
+export type HasilRekalkulasiProduk = {
+  produkId: number
+  hargaJualLama: number
+  hargaJualBaru: number
+  hppTerhitung: number
+  marginPersen: number
+}
+
+/**
+ * Bagian murni rekalkulasi: harga jual baru dan snapshot HPP tiap produk,
+ * tanpa menyentuh database. Produk mode target margin mengikuti HPP terbaru;
+ * produk manual mempertahankan harganya dan hanya marginnya yang bergeser.
+ *
+ * Seluruh produk dihitung sebelum apa pun ditulis, supaya satu target margin
+ * yang tidak sah (melempar PerhitunganHargaTargetError) membatalkan pemicu
+ * secara utuh.
+ */
+export function rencanakanRekalkulasi(
+  semuaProduk: readonly ProdukRekalkulasi[],
+  komponen: KomponenBiaya,
+  batasMarginAman: number
+): HasilRekalkulasiProduk[] {
+  return semuaProduk.map((produk) => {
+    const biayaBahan = biayaBahanProduk(produk)
+    const hppTerhitung = biayaBahan + komponen.biayaTetapPerPorsi
+    const hargaJualBaru =
+      produk.modePenentuanHarga === 'targetMargin'
+        ? hitungHargaJualTargetMargin(
+            hppTerhitung,
+            komponen.persenKomisi,
+            produk.targetMarginPersen ?? Number.NaN,
+            produk.pembulatanHarga
+          )
+        : produk.hargaJual
+    const rincian = hitungHpp(biayaBahan, hargaJualBaru, komponen, batasMarginAman)
+
+    return {
+      produkId: produk.id,
+      hargaJualLama: produk.hargaJual,
+      hargaJualBaru,
+      hppTerhitung: rincian.hppTerhitung,
+      marginPersen: rincian.marginPersen,
+    }
+  })
+}
+
+/**
+ * Baca, hitung, lalu tulis turunan HPP untuk produk milik user yang cocok
+ * dengan `filterProduk` (semua produk kalau tidak diisi).
+ *
+ * Dijalankan di dalam transaksi pemicunya, jadi jumlah round trip di sini
+ * langsung menentukan berapa lama transaksi itu menahan koneksi: 5 baca
+ * (produk, resep, bahan, pengaturan, biaya) dan paling banyak 5 tulis.
+ */
 async function recalculateProduk(
   userId: number,
   alasan: string,
   db: DatabaseClient,
-  produkIds?: readonly number[]
+  filterProduk: Prisma.ProdukWhereInput = {}
 ): Promise<HasilRecalculate> {
-  if (produkIds && produkIds.length === 0) {
-    return { jumlahProdukDihitung: 0, jumlahHargaBerubah: 0 }
-  }
-
   const [semuaProduk, konteks] = await Promise.all([
     db.produk.findMany({
-      where: {
-        userId,
-        ...(produkIds ? { id: { in: [...produkIds] } } : {}),
-      },
+      where: { ...filterProduk, userId },
       include: {
         resep: {
           where: { bahanBaku: { userId } },
@@ -306,40 +363,19 @@ async function recalculateProduk(
     getKonteksBiaya(userId, db),
   ])
 
-  // Selesaikan seluruh validasi sebelum menulis, supaya satu target margin
-  // yang tidak sah membatalkan pemicu secara utuh.
-  const hasil = semuaProduk.map((produk) => {
-    const biayaBahan = biayaBahanProduk(produk)
-    const hppTerhitung = biayaBahan + konteks.komponen.biayaTetapPerPorsi
-    const hargaJualBaru =
-      produk.modePenentuanHarga === 'targetMargin'
-        ? hitungHargaJualTargetMargin(
-            hppTerhitung,
-            konteks.komponen.persenKomisi,
-            produk.targetMarginPersen ?? Number.NaN,
-            produk.pembulatanHarga
-          )
-        : produk.hargaJual
-    const rincian = hitungHpp(
-      biayaBahan,
-      hargaJualBaru,
-      konteks.komponen,
-      konteks.pengaturan.batasMarginAman
-    )
-
-    return { produk, hargaJualBaru, rincian }
-  })
-
-  const hargaBerubah = hasil.filter(
-    (item) => item.hargaJualBaru !== item.produk.hargaJual
+  const hasil = rencanakanRekalkulasi(
+    semuaProduk,
+    konteks.komponen,
+    konteks.pengaturan.batasMarginAman
   )
+  const hargaBerubah = hasil.filter((item) => item.hargaJualBaru !== item.hargaJualLama)
 
   if (hargaBerubah.length > 0) {
     // Setiap produk mempunyai harga baru yang berbeda, jadi updateMany() tidak
     // cukup. UPDATE ... FROM VALUES mempertahankan satu nilai per produk tetapi
     // mengirim seluruh perubahan dalam satu round-trip yang tetap terparameter.
     const pasanganHarga = hargaBerubah.map((item) =>
-      Prisma.sql`(${item.produk.id}::integer, ${item.hargaJualBaru}::double precision)`
+      Prisma.sql`(${item.produkId}::integer, ${item.hargaJualBaru}::double precision)`
     )
     const jumlahDiperbarui = await db.$executeRaw(
       Prisma.sql`
@@ -356,8 +392,8 @@ async function recalculateProduk(
 
     await db.historiHargaJual.createMany({
       data: hargaBerubah.map((item) => ({
-        produkId: item.produk.id,
-        hargaLama: item.produk.hargaJual,
+        produkId: item.produkId,
+        hargaLama: item.hargaJualLama,
         hargaBaru: item.hargaJualBaru,
         alasan,
       })),
@@ -367,9 +403,9 @@ async function recalculateProduk(
   if (hasil.length > 0) {
     await db.hppSnapshot.createMany({
       data: hasil.map((item) => ({
-        produkId: item.produk.id,
-        hppTerhitung: item.rincian.hppTerhitung,
-        marginPersen: item.rincian.marginPersen,
+        produkId: item.produkId,
+        hppTerhitung: item.hppTerhitung,
+        marginPersen: item.marginPersen,
       })),
     })
   }
@@ -396,23 +432,25 @@ async function recalculateProduk(
 }
 
 /**
- * Dipanggil setelah harga bahan baku berubah dan menyimpan snapshot baru untuk
- * setiap produk milik user yang memakai bahan tersebut.
+ * Hitung ulang HPP dan harga target setiap produk milik user yang memakai
+ * bahan ini, lalu simpan snapshot barunya.
+ *
+ * `db` wajib berupa client transaksi yang sama dengan penulisan harga bahan.
+ * Dulu fungsi ini membuka transaksinya sendiri setelah harga bahan tersimpan,
+ * sehingga rekalkulasi yang gagal meninggalkan bahan berharga baru sementara
+ * harga jual produk target margin, snapshot, dan HistoriHargaJual tertinggal.
+ * Membaca produk di transaksi yang sama juga menjamin harga bahan yang baru
+ * ditulis ikut terbaca.
  */
 export async function recalculateAllAffectedByBahan(
   bahanBakuId: number,
-  userId: number
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    const resepTerkait = await tx.resep.findMany({
-      where: {
-        bahanBakuId,
-        bahanBaku: { userId },
-        produk: { userId },
-      },
-    })
-    const produkIdUnik = [...new Set(resepTerkait.map((r) => r.produkId))]
-    await recalculateProduk(userId, 'perubahan harga bahan', tx, produkIdUnik)
+  userId: number,
+  db: DatabaseClient
+): Promise<HasilRecalculate> {
+  // Syarat resep digabung ke query produk, bukan dicari dulu lewat
+  // resep.findMany: satu round trip lebih sedikit di dalam transaksi.
+  return recalculateProduk(userId, 'perubahan harga bahan', db, {
+    resep: { some: { bahanBakuId, bahanBaku: { userId } } },
   })
 }
 

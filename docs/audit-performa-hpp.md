@@ -128,3 +128,23 @@ Jika pengukuran pada deployment nyata kelak kembali melewati batas yang menggang
 3. **Produk**, prioritas terakhir karena validasi resep dan mode target margin membuat rollback serta rekonsiliasi lebih rumit, sementara mutasinya umumnya hanya menyentuh satu produk.
 
 Sebelum sampai ke optimistic UI penuh, peningkatan yang lebih aman adalah status pending yang lebih spesifik seperti “Menyimpan dan menghitung 10 produk…”, tanpa mengaku bahwa data baru sudah final.
+
+## Tugas 4 — transaksi kedaluwarsa P2028 (30 September 2026)
+
+### Gejala
+
+Dari `npm run dev` ke database dev Supabase, edit harga bahan dan edit produk gagal dengan P2028 "A commit cannot be executed on an expired transaction. The timeout for this transaction was 5000 ms, however 6040 ms passed". Pada edit harga bahan, harga bahan baru sudah tersimpan sebelum transaksi rekalkulasi dibuka, sehingga kegagalan meninggalkan harga jual produk target margin yang basi, tanpa snapshot HPP dan tanpa baris HistoriHargaJual.
+
+### Pengukuran
+
+Ke pooler session mode (port 5432): `SELECT 1` sekitar 350 ms, query aplikasi 600–750 ms, koneksi baru hampir 5 detik. Simpan harga bahan dengan 3 produk terdampak berisi 12 query — 2 tulis bahan, 5 baca (Pengaturan, BiayaOperasional, Produk, Resep, BahanBaku), 5 tulis turunan — dan terukur ~8,9 detik di dalam transaksi. Batas bawaan Prisma 5 detik tidak mungkin cukup.
+
+### Keputusan
+
+- Batas bawaan transaksi interaktif dinaikkan sekali di `lib/prisma.ts` (`maxWait` 10 detik, `timeout` 20 detik), bukan per pemanggilan, supaya transaksi baru tidak kembali ke 5 detik. Opsi per pemanggilan yang sama di `lib/actions/biaya-operasional.ts` dihapus.
+- Harga bahan, histori harga bahan, dan rekalkulasi produk kini satu transaksi (`simpanPerubahanBahan` di `lib/perubahanBahan.ts`), dipakai Server Action dan `PUT /api/bahan-baku/[id]`. Target margin yang tidak sah kini membatalkan perubahan harga bahan dan dikembalikan sebagai pesan, bukan galat 500 setelah harga bahan telanjur tersimpan.
+- Pencarian resep terkait digabung ke query produk (`resep: { some: ... }`): satu round trip lebih sedikit di dalam transaksi.
+- `PUT /api/produk/[id]` menghitung harga target sebelum transaksi dibuka. Bacaannya tidak bergantung pada tulisan di transaksi, jadi di luar transaksi ketiganya berjalan paralel di pool.
+- Baca pada rekalkulasi harga bahan sengaja tetap di dalam transaksi, setelah harga bahan ditulis, supaya harga baru pasti terbaca tanpa menambal data di memori.
+
+Pengurangan round trip berikutnya yang masih tersedia: memuat produk, resep, dan bahan dalam satu query (`relationLoadStrategy: "join"` membutuhkan preview feature `relationJoins` di generator schema, atau satu `$queryRaw`), yang memangkas dua round trip dari setiap rekalkulasi.

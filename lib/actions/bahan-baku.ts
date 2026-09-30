@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
-import { recalculateAllAffectedByBahan } from "@/lib/hppCalculator";
+import { PerhitunganHargaTargetError } from "@/lib/hppCalculator";
 import { rencanaHistoriHarga } from "@/lib/histori";
+import { simpanPerubahanBahan } from "@/lib/perubahanBahan";
 
 /**
  * Server Action untuk halaman Bahan Baku.
@@ -119,28 +120,17 @@ export async function perbaruiBahan(
   // tetap — itu catatan yang layak masuk histori, bukan galat.
   const rencana = rencanaHistoriHarga(bahan.hargaPerSatuan, masukan.hargaPerSatuan);
 
-  if (rencana.catatHistori) {
-    await prisma.historiHarga.create({
-      data: {
-        bahanBakuId: id,
-        hargaLama: rencana.hargaLama,
-        hargaBaru: rencana.hargaBaru,
-      },
-    });
-  }
-
-  await prisma.bahanBaku.update({
-    where: { id, userId: auth.userId },
-    data: {
-      nama,
-      ...(rencana.hargaBerubah ? { hargaPerSatuan: rencana.hargaBaru } : {}),
-    },
-  });
-
-  // HPP hanya bergeser kalau nominalnya bergeser; ganti nama tidak mengubah
-  // angka apa pun.
-  if (rencana.hargaBerubah) {
-    await recalculateAllAffectedByBahan(id, auth.userId);
+  // Harga bahan dan rekalkulasi produknya satu transaksi: kalau harga target
+  // salah satu produk tidak bisa dihitung, harga bahannya juga tidak tersimpan.
+  try {
+    await prisma.$transaction((tx) =>
+      simpanPerubahanBahan(tx, { id, userId: auth.userId, data: { nama }, rencana }),
+    );
+  } catch (error) {
+    if (error instanceof PerhitunganHargaTargetError) {
+      return { ok: false, error: error.message };
+    }
+    throw error;
   }
 
   segarkan(HALAMAN_HARGA_BAHAN);
