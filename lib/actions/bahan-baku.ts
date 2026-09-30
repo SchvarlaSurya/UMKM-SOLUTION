@@ -6,6 +6,7 @@ import { requireAuth } from "@/lib/auth";
 import { PerhitunganHargaTargetError } from "@/lib/hppCalculator";
 import { rencanaHistoriHarga } from "@/lib/histori";
 import { simpanPerubahanBahan } from "@/lib/perubahanBahan";
+import { cobaUlangSaatTimeout } from "@/lib/cobaUlangTransaksi";
 
 /**
  * Server Action untuk halaman Bahan Baku.
@@ -122,9 +123,12 @@ export async function perbaruiBahan(
 
   // Harga bahan dan rekalkulasi produknya satu transaksi: kalau harga target
   // salah satu produk tidak bisa dihitung, harga bahannya juga tidak tersimpan.
+  // P2028 membatalkan semuanya, jadi transaksinya diulang utuh.
   try {
-    await prisma.$transaction((tx) =>
-      simpanPerubahanBahan(tx, { id, userId: auth.userId, data: { nama }, rencana }),
+    await cobaUlangSaatTimeout(() =>
+      prisma.$transaction((tx) =>
+        simpanPerubahanBahan(tx, { id, userId: auth.userId, data: { nama }, rencana }),
+      ),
     );
   } catch (error) {
     if (error instanceof PerhitunganHargaTargetError) {

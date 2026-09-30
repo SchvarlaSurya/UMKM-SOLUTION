@@ -6,6 +6,7 @@ import {
   PerhitunganHargaTargetError,
   recalculateAllByBiayaOperasional,
 } from '@/lib/hppCalculator'
+import { cobaUlangSaatTimeout } from '@/lib/cobaUlangTransaksi'
 import { errorResponse, handleError, readJsonBody, unauthorizedResponse } from '@/lib/apiHelpers'
 
 /**
@@ -83,16 +84,18 @@ export async function PUT(req: Request) {
     // produk target margin ikut berubah. Simpan pengaturan dan rekalkulasi
     // dalam satu transaksi, sama seperti Server Action simpanPengaturan,
     // supaya kegagalan rekalkulasi tidak meninggalkan pengaturan baru dengan
-    // harga jual lama.
-    const updated = await prisma.$transaction(async (tx) => {
-      const pengaturan = await tx.pengaturan.update({
-        where: { id: existing.id, userId: auth.userId },
-        data: { estimasiPorsiPerBulan, batasMarginAman },
-        omit: { userId: true },
+    // harga jual lama. P2028 membatalkan semuanya, jadi transaksinya diulang utuh.
+    const updated = await cobaUlangSaatTimeout(() =>
+      prisma.$transaction(async (tx) => {
+        const pengaturan = await tx.pengaturan.update({
+          where: { id: existing.id, userId: auth.userId },
+          data: { estimasiPorsiPerBulan, batasMarginAman },
+          omit: { userId: true },
+        })
+        await recalculateAllByBiayaOperasional(auth.userId, tx)
+        return pengaturan
       })
-      await recalculateAllByBiayaOperasional(auth.userId, tx)
-      return pengaturan
-    })
+    )
     return NextResponse.json(updated)
   } catch (error) {
     if (error instanceof PerhitunganHargaTargetError) {
