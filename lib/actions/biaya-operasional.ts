@@ -7,6 +7,7 @@ import {
   PerhitunganHargaTargetError,
   recalculateAllByBiayaOperasional,
 } from "@/lib/hppCalculator";
+import { cobaUlangSaatTimeout } from "@/lib/cobaUlangTransaksi";
 import type { JenisBiaya } from "@/lib/types";
 
 export type HasilAksi = { ok: true } | { ok: false; error: string };
@@ -56,8 +57,8 @@ export async function tambahBiaya(masukan: MasukanBiaya): Promise<HasilAksi> {
   if (galat) return { ok: false, error: galat };
 
   try {
-    await prisma.$transaction(
-      async (tx) => {
+    await cobaUlangSaatTimeout(() =>
+      prisma.$transaction(async (tx) => {
         await tx.biayaOperasional.create({
           data: {
             nama: masukan.nama.trim(),
@@ -67,7 +68,7 @@ export async function tambahBiaya(masukan: MasukanBiaya): Promise<HasilAksi> {
           },
         });
         await recalculateAllByBiayaOperasional(auth.userId, tx);
-      }
+      })
     );
   } catch (error) {
     const hasil = galatPerhitungan(error);
@@ -97,14 +98,14 @@ export async function perbaruiBiaya(id: number, masukan: MasukanBiaya): Promise<
     ada.jenis !== masukan.jenis || ada.nilai !== masukan.nilai;
 
   try {
-    await prisma.$transaction(
-      async (tx) => {
+    await cobaUlangSaatTimeout(() =>
+      prisma.$transaction(async (tx) => {
         await tx.biayaOperasional.update({
           where: { id, userId: auth.userId },
           data: { nama: masukan.nama.trim(), jenis: masukan.jenis, nilai: masukan.nilai },
         });
         await recalculateAllByBiayaOperasional(auth.userId, tx);
-      }
+      })
     );
   } catch (error) {
     const hasil = galatPerhitungan(error);
@@ -139,15 +140,15 @@ export async function simpanPengaturan(masukan: {
   }
 
   try {
-    await prisma.$transaction(
-      async (tx) => {
+    await cobaUlangSaatTimeout(() =>
+      prisma.$transaction(async (tx) => {
         await tx.pengaturan.upsert({
           where: { userId: auth.userId },
           update: masukan,
           create: { ...masukan, userId: auth.userId },
         });
         await recalculateAllByBiayaOperasional(auth.userId, tx);
-      }
+      })
     );
   } catch (error) {
     const hasil = galatPerhitungan(error);
@@ -169,11 +170,11 @@ export async function hapusBiaya(id: number): Promise<HasilAksi> {
   if (!ada) return { ok: false, error: "Biaya tidak ditemukan." };
 
   try {
-    await prisma.$transaction(
-      async (tx) => {
+    await cobaUlangSaatTimeout(() =>
+      prisma.$transaction(async (tx) => {
         await tx.biayaOperasional.delete({ where: { id, userId: auth.userId } });
         await recalculateAllByBiayaOperasional(auth.userId, tx);
-      }
+      })
     );
   } catch (error) {
     const hasil = galatPerhitungan(error);

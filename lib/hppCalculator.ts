@@ -455,8 +455,10 @@ export async function recalculateAllAffectedByBahan(
 }
 
 /**
- * Dipanggil setelah POST/PUT/DELETE biaya operasional, idealnya dengan client
- * transaksi yang sama agar perubahan biaya dan seluruh turunannya atomik.
+ * Dipanggil setelah POST/PUT/DELETE biaya operasional dan perubahan
+ * pengaturan, idealnya dengan client transaksi yang sama agar perubahan dan
+ * seluruh turunannya atomik. Karena atomik, P2028 membatalkan perubahannya
+ * juga, jadi pemanggil mengulang transaksinya utuh lewat `cobaUlangSaatTimeout`.
  */
 export async function recalculateAllByBiayaOperasional(
   userId: number,

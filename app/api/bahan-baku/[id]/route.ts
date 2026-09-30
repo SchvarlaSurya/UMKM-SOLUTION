@@ -4,6 +4,7 @@ import { PerhitunganHargaTargetError } from '@/lib/hppCalculator'
 import { requireAuth } from '@/lib/auth'
 import { rencanaHistoriHarga } from '@/lib/histori'
 import { simpanPerubahanBahan } from '@/lib/perubahanBahan'
+import { cobaUlangSaatTimeout } from '@/lib/cobaUlangTransaksi'
 import {
   errorResponse,
   handleError,
@@ -99,16 +100,19 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     )
 
     // Satu transaksi dengan rekalkulasi produk, sama seperti Server Action-nya.
-    const updated = await prisma.$transaction((tx) =>
-      simpanPerubahanBahan(tx, {
-        id,
-        userId: auth.userId,
-        data: {
-          nama: namaBersih,
-          satuan: satuan !== undefined ? (satuan as string).trim() : undefined,
-        },
-        rencana,
-      })
+    // P2028 membatalkan semuanya, jadi transaksinya diulang utuh.
+    const updated = await cobaUlangSaatTimeout(() =>
+      prisma.$transaction((tx) =>
+        simpanPerubahanBahan(tx, {
+          id,
+          userId: auth.userId,
+          data: {
+            nama: namaBersih,
+            satuan: satuan !== undefined ? (satuan as string).trim() : undefined,
+          },
+          rencana,
+        })
+      )
     )
 
     return NextResponse.json({

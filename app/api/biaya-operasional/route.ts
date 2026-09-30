@@ -5,6 +5,7 @@ import {
   PerhitunganHargaTargetError,
   recalculateAllByBiayaOperasional,
 } from '@/lib/hppCalculator'
+import { cobaUlangSaatTimeout } from '@/lib/cobaUlangTransaksi'
 import {
   errorResponse,
   handleError,
@@ -49,14 +50,16 @@ export async function POST(req: Request) {
       return errorResponse('Nilai persentase tidak boleh lebih dari 100', 400)
     }
 
-    const data = await prisma.$transaction(async (tx) => {
-      const biaya = await tx.biayaOperasional.create({
-        data: { nama: nama.trim(), jenis, nilai, userId: auth.userId },
-        omit: { userId: true },
+    const data = await cobaUlangSaatTimeout(() =>
+      prisma.$transaction(async (tx) => {
+        const biaya = await tx.biayaOperasional.create({
+          data: { nama: nama.trim(), jenis, nilai, userId: auth.userId },
+          omit: { userId: true },
+        })
+        await recalculateAllByBiayaOperasional(auth.userId, tx)
+        return biaya
       })
-      await recalculateAllByBiayaOperasional(auth.userId, tx)
-      return biaya
-    })
+    )
     return NextResponse.json(data, { status: 201 })
   } catch (error) {
     if (error instanceof PerhitunganHargaTargetError) {
