@@ -358,8 +358,15 @@ export function PusatNotifikasi() {
             data-open={belumDibaca.length > 0}
             aria-hidden="true"
           >
-            <span className="t-badge-dot flex min-h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[0.625rem] font-semibold leading-none text-white">
-              {angkaLencana > 99 ? "99+" : angkaLencana}
+            {/* Pil angkanya di span dalam: `.t-badge-dot` di globals.css
+                memaksa `display: block` dan menang atas kelas `flex`
+                Tailwind, jadi angkanya tidak bisa ditengahkan di sana.
+                `pt-px` mengimbangi ruang descender Inter yang membuat
+                angka tampak sedikit naik dari tengah. */}
+            <span className="t-badge-dot">
+              <span className="flex min-h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 pt-px text-[0.625rem] font-semibold leading-none text-white">
+                {angkaLencana > 99 ? "99+" : angkaLencana}
+              </span>
             </span>
           </span>
         </Button>
