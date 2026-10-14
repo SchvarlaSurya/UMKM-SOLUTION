@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Worktree Claude Code berisi salinan repo lengkap dengan `.next`-nya
+    // sendiri. Tanpa ini, `npm run lint` lokal ikut memindai build output di
+    // sana dan gagal dengan ribuan galat. Folder ini tidak ada di CI.
+    ".claude/**",
   ]),
 ]);
 
