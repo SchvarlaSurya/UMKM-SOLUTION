@@ -72,6 +72,12 @@ export function PusatNotifikasi() {
   const sedangMenutup = useRef(false);
   const jumlahSebelumnya = useRef(belumDibaca.length);
   const daftarSebelumnya = useRef(daftar);
+  // Angka terakhir yang bukan 0: saat semua ditandai dibaca, titiknya masih
+  // mengecil keluar beberapa ratus milidetik dan tidak boleh sempat tertulis "0".
+  const [angkaLencana, setAngkaLencana] = useState(belumDibaca.length);
+  if (belumDibaca.length > 0 && belumDibaca.length !== angkaLencana) {
+    setAngkaLencana(belumDibaca.length);
+  }
 
   // Dihitung dari daftar panel, bukan dari provider: provider hanya memegang
   // yang belum dibaca, sedangkan yang bisa dihapus justru kebalikannya.
@@ -118,11 +124,15 @@ export function PusatNotifikasi() {
   }, [dropdownTerbuka, sesiBuka]);
 
   /**
-   * Lencana jumlah belum dibaca berdenyut saat angkanya naik.
+   * Lencana jumlah belum dibaca meluncur masuk lagi saat angkanya naik.
    *
    * Ini satu-satunya tempat di aplikasi yang datanya berubah tanpa pengguna
    * melakukan apa-apa: NotifikasiProvider menariknya ulang tiap menit. Kalau
    * angkanya berganti diam-diam, kedatangannya terlewat begitu saja.
+   *
+   * Dari 0 ke atas sudah ditangani CSS lewat `data-open`; di sini hanya kasus
+   * lencana yang sudah tampil lalu angkanya bertambah. Animasi keyframe-nya
+   * diputar ulang dengan melepasnya, memaksa reflow, lalu memasangnya lagi.
    */
   useEfekTataLetak(() => {
     const jumlah = belumDibaca.length;
@@ -130,21 +140,11 @@ export function PusatNotifikasi() {
     jumlahSebelumnya.current = jumlah;
 
     const lencana = refLencana.current;
-    if (!lencana || jumlah <= sebelumnya) return;
+    if (!lencana || sebelumnya === 0 || jumlah <= sebelumnya) return;
 
-    const ms = durasiGerak(420);
-    if (ms === 0) return;
-
-    utils.remove(lencana);
-    animate(lencana, {
-      scale: sebelumnya === 0 ? [0.4, 1.18, 1] : [1, 1.18, 1],
-      duration: ms,
-      ease: "outQuad",
-    });
-
-    return () => {
-      utils.remove(lencana);
-    };
+    lencana.style.animation = "none";
+    void lencana.offsetWidth;
+    lencana.style.animation = "";
   }, [belumDibaca.length]);
 
   /** Isi panel muncul begitu permintaannya selesai, bukan berkedip berganti. */
@@ -350,14 +350,25 @@ export function PusatNotifikasi() {
           className="relative px-2"
         >
           <IconLonceng width={18} height={18} />
-          {belumDibaca.length > 0 && (
-            <span
-              ref={refLencana}
-              className="absolute -top-1 -right-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[0.625rem] font-semibold leading-none text-white"
-            >
-              {belumDibaca.length > 99 ? "99+" : belumDibaca.length}
+          {/* Selalu terpasang supaya titiknya bisa mengecil keluar saat
+              angkanya jadi 0, bukan langsung lenyap. */}
+          <span
+            ref={refLencana}
+            className="t-badge"
+            data-open={belumDibaca.length > 0}
+            aria-hidden="true"
+          >
+            {/* Pil angkanya di span dalam: `.t-badge-dot` di globals.css
+                memaksa `display: block` dan menang atas kelas `flex`
+                Tailwind, jadi angkanya tidak bisa ditengahkan di sana.
+                `pt-px` mengimbangi ruang descender Inter yang membuat
+                angka tampak sedikit naik dari tengah. */}
+            <span className="t-badge-dot">
+              <span className="flex min-h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 pt-px text-[0.625rem] font-semibold leading-none text-white">
+                {angkaLencana > 99 ? "99+" : angkaLencana}
+              </span>
             </span>
-          )}
+          </span>
         </Button>
 
         {dropdownTerbuka && (
