@@ -149,8 +149,8 @@ dialog::backdrop {
   to   { transform: translate(0, 0); }
 }
 
-/* .t-badge is the absolutely-positioned wrapper for the dot.
-   Adjust top/right (or left/bottom) to anchor it on your trigger. */
+/* Pembungkus titik lencana, diposisikan absolut di pojok kanan atas tombol
+   lonceng. Geser lewat top/right kalau letaknya perlu disesuaikan. */
 .t-badge {
   position: absolute;
   top: -4px;
