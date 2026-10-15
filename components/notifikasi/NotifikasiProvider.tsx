@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { JUDUL_HARGA_JUAL_OTOMATIS } from "@/lib/notifikasi";
 import type { Notifikasi } from "@/lib/types";
 
 export type ProdukTerdampak = { id?: number; nama: string };
@@ -64,8 +65,14 @@ export function NotifikasiProvider({ children }: { children: ReactNode }) {
           : [];
         setBelumDibaca(notifikasi);
         setGalatSinkronisasi(null);
-        if (tampilkanModal && notifikasi.length > 0) {
-          setModalAwal((saatIni) => saatIni ?? notifikasi[0]);
+        // Modalnya dirancang khusus untuk harga jual yang berubah sendiri
+        // (subjudul, produk terdampak). Notifikasi jenis lain cukup tampil
+        // di lonceng, jangan dipaksa masuk ke modal dengan teks yang salah.
+        const hargaOtomatis = notifikasi.find(
+          (item) => item.judul === JUDUL_HARGA_JUAL_OTOMATIS,
+        );
+        if (tampilkanModal && hargaOtomatis) {
+          setModalAwal((saatIni) => saatIni ?? hargaOtomatis);
         }
       } catch (error) {
         setGalatSinkronisasi(

@@ -8,7 +8,7 @@ import {
   type KomponenBiaya,
   type MasukanProduk,
 } from '@/lib/hpp'
-import { pangkasNotifikasiTerbaca } from '@/lib/notifikasi'
+import { JUDUL_HARGA_JUAL_OTOMATIS, pangkasNotifikasiTerbaca } from '@/lib/notifikasi'
 import { Prisma } from '@/app/generated/prisma/client'
 
 export type HppResult = {
@@ -415,7 +415,7 @@ async function recalculateProduk(
       data: [
         {
           userId,
-          judul: 'Harga jual diperbarui otomatis',
+          judul: JUDUL_HARGA_JUAL_OTOMATIS,
           pesan: `${hargaBerubah.length} produk mengalami perubahan harga jual karena ${alasan}.`,
         },
       ],
