@@ -176,8 +176,12 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     }
 
     // HistoriHarga tidak punya onDelete cascade di schema, hapus manual dulu.
-    await prisma.historiHarga.deleteMany({ where: { bahanBakuId: id } })
-    await prisma.bahanBaku.delete({ where: { id, userId: auth.userId } })
+    // Satu transaksi, sama dengan Server Action hapusBahanBaku: kalau hapus
+    // bahannya gagal, historinya tidak boleh sudah terlanjur hilang.
+    await prisma.$transaction([
+      prisma.historiHarga.deleteMany({ where: { bahanBakuId: id } }),
+      prisma.bahanBaku.delete({ where: { id, userId: auth.userId } }),
+    ])
 
     return NextResponse.json({ success: true })
   } catch (error) {

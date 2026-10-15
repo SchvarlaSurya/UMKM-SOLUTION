@@ -58,8 +58,7 @@ export type MasukanTambahProduk = MasukanProduk & {
   pembulatanHarga?: number;
 };
 
-const HALAMAN_DATA_PRODUK = ["/produk", "/dashboard"] as const;
-const HALAMAN_RELASI_RESEP = [...HALAMAN_DATA_PRODUK, "/bahan-baku"] as const;
+const HALAMAN_RELASI_RESEP = ["/produk", "/dashboard", "/bahan-baku"] as const;
 
 function segarkan(halamanTerdampak: readonly string[]) {
   // revalidatePath sinkron; panggilan ini tidak saling menunggu secara async.
@@ -78,7 +77,7 @@ async function periksaMasukan(
   masukan: MasukanProduk,
   userId: number,
   // Di mode target margin harga dihitung server, jadi angka dari klien diabaikan.
-  hargaWajib = true,
+  hargaWajib: boolean,
 ): Promise<string | null> {
   if (!isObjek(masukan)) return PESAN_MASUKAN_RUSAK;
   const nama = bacaTeks(masukan.nama);
@@ -210,59 +209,6 @@ export async function tambahProduk(masukan: MasukanTambahProduk): Promise<HasilA
   }
 
   segarkan(HALAMAN_RELASI_RESEP);
-  return { ok: true };
-}
-
-export async function perbaruiProduk(
-  id: number,
-  masukan: MasukanProduk,
-): Promise<HasilAksi> {
-  const auth = await requireAuth();
-  if (!auth.authorized) {
-    return { ok: false, error: "Sesi berakhir. Masuk lagi untuk menyimpan." };
-  }
-
-  if (!isIdSah(id)) return { ok: false, error: PESAN_MASUKAN_RUSAK };
-  const galat = await periksaMasukan(masukan, auth.userId);
-  if (galat) return { ok: false, error: galat };
-
-  const ada = await prisma.produk.findFirst({
-    where: { id, userId: auth.userId },
-    include: { resep: { select: { bahanBakuId: true } } },
-  });
-  if (!ada) return { ok: false, error: "Produk tidak ditemukan." };
-
-  const bahanLama = new Set(ada.resep.map((item) => item.bahanBakuId));
-  const bahanBaru = new Set(masukan.resep.map((item) => item.bahanBakuId));
-  const relasiBahanBerubah =
-    bahanLama.size !== bahanBaru.size ||
-    [...bahanLama].some((bahanBakuId) => !bahanBaru.has(bahanBakuId));
-
-  // Resep lama dihapus lalu ditulis ulang. Dibungkus transaksi supaya produk
-  // tidak pernah tertinggal tanpa resep kalau penulisan gagal di tengah jalan.
-  await prisma.$transaction([
-    prisma.resep.deleteMany({ where: { produkId: id } }),
-    prisma.resep.createMany({
-      data: masukan.resep.map((r) => ({
-        produkId: id,
-        bahanBakuId: r.bahanBakuId,
-        jumlahDipakai: r.jumlahDipakai,
-      })),
-    }),
-    prisma.produk.update({
-      where: { id, userId: auth.userId },
-      data: {
-        nama: masukan.nama.trim(),
-        kategori: masukan.kategori?.trim() || ada.kategori,
-        hargaJual: masukan.hargaJual,
-        ...bacaCaraTakaran(masukan.modeTakaran, masukan.jumlahPorsiProduksi),
-      },
-    }),
-  ]);
-
-  // Halaman bahan baku hanya menampilkan jumlah produk pemakai. Perubahan
-  // nama, harga jual, kategori, atau takaran tidak mengubah angka tersebut.
-  segarkan(relasiBahanBerubah ? HALAMAN_RELASI_RESEP : HALAMAN_DATA_PRODUK);
   return { ok: true };
 }
 
