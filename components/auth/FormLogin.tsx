@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { pesanGalatLogin } from "@/lib/pesanLogin";
+import { tujuanSetelahMasuk } from "@/lib/tujuanLogin";
 import { SplashMasuk } from "./SplashMasuk";
 
 /** Pesan yang menunjuk satu kolom tertentu. */
@@ -19,7 +20,8 @@ type GalatKolom = {
 export function FormLogin() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
+  // Disaring: callbackUrl bisa diisi siapa saja lewat tautan, lihat lib/tujuanLogin.ts.
+  const callbackUrl = tujuanSetelahMasuk(searchParams.get("callbackUrl"));
   const baruTerdaftar = searchParams.get("terdaftar") === "1";
 
   // Dua jenis pesan, dipisah karena tempat tampilnya berbeda: yang menyangkut
