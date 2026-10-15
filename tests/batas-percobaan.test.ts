@@ -1,6 +1,11 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { buatPembatas, ipDariHeader, kunciPercobaan } from "../lib/batasPercobaan";
+import {
+  buatPembatas,
+  ipDariHeader,
+  kunciPercobaan,
+  periksaDanCatatDaftar,
+} from "../lib/batasPercobaan";
 import { KODE_LOGIN_DIBATASI, pesanGalatLogin } from "../lib/pesanLogin";
 import { LoginDibatasiError, verifikasiLogin } from "../lib/verifikasiLogin";
 
@@ -87,6 +92,71 @@ describe("buatPembatas", () => {
     p.catat("c");
     assert.equal(p.periksa("b").diizinkan, false, "b masih berlaku, tidak ikut dibuang");
     assert.equal(p.periksa("c").diizinkan, false);
+  });
+});
+
+describe("periksaDanCatatDaftar", () => {
+  /** Pembatas dengan angka yang sama seperti production, memakai jam tiruan. */
+  function pembatasDaftar() {
+    const jam = jamTiruan();
+    return {
+      jam,
+      pembatas: {
+        perIp: buatPembatas({ maks: 20, jendelaMs: 60 * MENIT, sekarang: jam.sekarang }),
+        perEmail: buatPembatas({ maks: 5, jendelaMs: 15 * MENIT, sekarang: jam.sekarang }),
+      },
+    };
+  }
+
+  it("mengganti email tidak memberi jatah baru tanpa batas untuk IP yang sama", () => {
+    const { pembatas } = pembatasDaftar();
+    for (let i = 0; i < 20; i += 1) {
+      const hasil = periksaDanCatatDaftar("1.2.3.4", `akun${i}@contoh.test`, pembatas);
+      assert.equal(hasil.diizinkan, true, `pendaftaran ke-${i + 1}`);
+    }
+    const hasil = periksaDanCatatDaftar("1.2.3.4", "akun-ke-21@contoh.test", pembatas);
+    assert.equal(hasil.diizinkan, false);
+    if (!hasil.diizinkan) assert.equal(hasil.cobaLagiDetik, 60 * 60);
+  });
+
+  it("IP lain tetap boleh mendaftar saat satu IP diblokir", () => {
+    const { pembatas } = pembatasDaftar();
+    for (let i = 0; i < 20; i += 1) {
+      periksaDanCatatDaftar("1.2.3.4", `akun${i}@contoh.test`, pembatas);
+    }
+    assert.equal(periksaDanCatatDaftar("5.6.7.8", "lain@contoh.test", pembatas).diizinkan, true);
+  });
+
+  it("batas 5 per IP + email tetap berlaku", () => {
+    const { pembatas } = pembatasDaftar();
+    for (let i = 0; i < 5; i += 1) {
+      assert.equal(periksaDanCatatDaftar("1.2.3.4", "sama@contoh.test", pembatas).diizinkan, true);
+    }
+    const hasil = periksaDanCatatDaftar("1.2.3.4", "sama@contoh.test", pembatas);
+    assert.equal(hasil.diizinkan, false);
+    if (!hasil.diizinkan) assert.equal(hasil.cobaLagiDetik, 15 * 60);
+  });
+
+  it("percobaan yang ditolak batas email tidak memakan jatah IP", () => {
+    const { pembatas } = pembatasDaftar();
+    for (let i = 0; i < 10; i += 1) {
+      periksaDanCatatDaftar("1.2.3.4", "sama@contoh.test", pembatas);
+    }
+    // 5 tercatat, 5 ditolak. Sisa jatah IP: 15 email lain.
+    for (let i = 0; i < 15; i += 1) {
+      const hasil = periksaDanCatatDaftar("1.2.3.4", `akun${i}@contoh.test`, pembatas);
+      assert.equal(hasil.diizinkan, true, `email lain ke-${i + 1}`);
+    }
+    assert.equal(periksaDanCatatDaftar("1.2.3.4", "akhir@contoh.test", pembatas).diizinkan, false);
+  });
+
+  it("jatah IP kembali setelah satu jam", () => {
+    const { jam, pembatas } = pembatasDaftar();
+    for (let i = 0; i < 20; i += 1) {
+      periksaDanCatatDaftar("1.2.3.4", `akun${i}@contoh.test`, pembatas);
+    }
+    jam.maju(60 * MENIT);
+    assert.equal(periksaDanCatatDaftar("1.2.3.4", "baru@contoh.test", pembatas).diizinkan, true);
   });
 });
 
