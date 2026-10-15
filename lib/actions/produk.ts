@@ -4,6 +4,15 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { isPembulatanHarga } from "@/lib/hpp";
+import {
+  BATAS_MASUKAN,
+  bacaAngka,
+  bacaTeks,
+  isIdSah,
+  isObjek,
+  periksaMaksimum,
+  periksaPanjang,
+} from "@/lib/batasMasukan";
 import { bacaCaraTakaran, type ModeTakaran } from "@/lib/takaran";
 import {
   calculateHargaJualTargetMarginDariResep,
@@ -57,23 +66,60 @@ function segarkan(halamanTerdampak: readonly string[]) {
   for (const halaman of halamanTerdampak) revalidatePath(halaman);
 }
 
+const PESAN_MASUKAN_RUSAK = "Data yang dikirim tidak valid. Muat ulang halaman lalu coba lagi.";
+
+/**
+ * Server Action bisa dipanggil lewat POST buatan, jadi bentuk dan tipe
+ * `masukan` diperiksa di sini, bukan dipercaya dari tipe TypeScript-nya.
+ * Lolos dari sini berarti `nama` string terisi, `kategori` string atau
+ * kosong, dan setiap baris resep berisi id dan takaran yang sah.
+ */
 async function periksaMasukan(
   masukan: MasukanProduk,
   userId: number,
   // Di mode target margin harga dihitung server, jadi angka dari klien diabaikan.
   hargaWajib = true,
 ): Promise<string | null> {
-  const nama = masukan.nama?.trim() ?? "";
+  if (!isObjek(masukan)) return PESAN_MASUKAN_RUSAK;
+  const nama = bacaTeks(masukan.nama);
   if (nama === "") return "Nama produk wajib diisi.";
-  if (hargaWajib && (!Number.isFinite(masukan.hargaJual) || masukan.hargaJual <= 0)) {
+  if (
+    masukan.kategori !== undefined &&
+    masukan.kategori !== null &&
+    typeof masukan.kategori !== "string"
+  ) {
+    return PESAN_MASUKAN_RUSAK;
+  }
+  const hargaJual = bacaAngka(masukan.hargaJual);
+  if (hargaWajib && (!Number.isFinite(hargaJual) || hargaJual <= 0)) {
     return "Harga jual harus lebih dari 0.";
   }
+  const galatBatas =
+    periksaPanjang(nama, "Nama produk", BATAS_MASUKAN.panjangNama) ??
+    periksaPanjang(bacaTeks(masukan.kategori), "Kategori", BATAS_MASUKAN.panjangKategori) ??
+    (hargaWajib ? periksaMaksimum(hargaJual, "Harga jual", BATAS_MASUKAN.rupiah) : null);
+  if (galatBatas) return `${galatBatas}.`;
+
   if (!Array.isArray(masukan.resep) || masukan.resep.length === 0) {
     return "Produk harus punya minimal 1 bahan baku di resep.";
   }
-  if (masukan.resep.some((r) => !Number.isFinite(r.jumlahDipakai) || r.jumlahDipakai <= 0)) {
+  if (masukan.resep.length > BATAS_MASUKAN.barisResep) {
+    return `Resep paling banyak ${BATAS_MASUKAN.barisResep} bahan.`;
+  }
+  if (masukan.resep.some((r) => !isObjek(r) || !isIdSah(r.bahanBakuId))) {
+    return PESAN_MASUKAN_RUSAK;
+  }
+  if (
+    masukan.resep.some((r) => {
+      const takaran = bacaAngka(r.jumlahDipakai);
+      return !Number.isFinite(takaran) || takaran <= 0;
+    })
+  ) {
     return "Setiap bahan wajib punya takaran lebih dari 0.";
   }
+  const takaranTerbesar = Math.max(...masukan.resep.map((r) => r.jumlahDipakai));
+  const galatTakaran = periksaMaksimum(takaranTerbesar, "Takaran bahan", BATAS_MASUKAN.takaran);
+  if (galatTakaran) return `${galatTakaran}.`;
 
   const idBahan = masukan.resep.map((r) => r.bahanBakuId);
   if (new Set(idBahan).size !== idBahan.length) {
@@ -103,6 +149,7 @@ export async function tambahProduk(masukan: MasukanTambahProduk): Promise<HasilA
     return { ok: false, error: "Sesi berakhir. Masuk lagi untuk menyimpan." };
   }
 
+  if (!isObjek(masukan)) return { ok: false, error: PESAN_MASUKAN_RUSAK };
   const modeHarga = masukan.modePenentuanHarga ?? "manual";
   if (!isModePenentuanHarga(modeHarga)) {
     return { ok: false, error: "Mode penentuan harga tidak dikenal." };
@@ -175,6 +222,7 @@ export async function perbaruiProduk(
     return { ok: false, error: "Sesi berakhir. Masuk lagi untuk menyimpan." };
   }
 
+  if (!isIdSah(id)) return { ok: false, error: PESAN_MASUKAN_RUSAK };
   const galat = await periksaMasukan(masukan, auth.userId);
   if (galat) return { ok: false, error: galat };
 
@@ -228,6 +276,7 @@ export async function hapusProduk(id: number): Promise<HasilAksi> {
   if (!auth.authorized) {
     return { ok: false, error: "Sesi berakhir. Masuk lagi untuk menghapus." };
   }
+  if (!isIdSah(id)) return { ok: false, error: PESAN_MASUKAN_RUSAK };
 
   const ada = await prisma.produk.findFirst({ where: { id, userId: auth.userId } });
   if (!ada) return { ok: false, error: "Produk tidak ditemukan." };
