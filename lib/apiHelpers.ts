@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { Prisma } from '@/app/generated/prisma/client'
+import { pesanGalatTakTerduga } from '@/lib/pesanGalatServer'
 
 /**
  * Helper bersama untuk semua route di `app/api/*`.
@@ -55,13 +56,13 @@ export function handleError(error: unknown, konteks: string) {
     return errorResponse(`${konteks}: tidak bisa terhubung ke database`, 503)
   }
 
-  if (error instanceof Error) {
-    console.error(`[api] ${konteks}:`, error)
-    return errorResponse(`${konteks}: ${error.message}`, 500)
-  }
-
-  console.error(`[api] ${konteks}: error tidak dikenal`, error)
-  return errorResponse(`${konteks}: terjadi kesalahan tidak terduga`, 500)
+  // Detail lengkapnya hanya di log server; klien menerima pesan umum, kecuali
+  // di `next dev` supaya galat tetap mudah dilacak saat mengembangkan.
+  console.error(`[api] ${konteks}:`, error)
+  return errorResponse(
+    pesanGalatTakTerduga(konteks, error, process.env.NODE_ENV === 'development'),
+    500
+  )
 }
 
 /** Angka positif (boleh desimal) untuk harga, nilai biaya, jumlah dipakai. */
