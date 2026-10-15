@@ -1,6 +1,7 @@
 import type { Prisma } from '@/app/generated/prisma/client'
 import type { RencanaHistori } from '@/lib/histori'
-import { recalculateAllAffectedByBahan } from '@/lib/hppCalculator'
+import { PerhitunganHargaTargetError, recalculateAllAffectedByBahan } from '@/lib/hppCalculator'
+import { JUDUL_REKALKULASI_TERTUNDA, pangkasNotifikasiTerbaca } from '@/lib/notifikasi'
 import {
   cobaUlangSaatTimeout,
   jalankanRekalkulasi,
@@ -64,6 +65,10 @@ export type JalankanTransaksi = <T>(
  * dicoba ulang saat P2028; kalau tetap timeout, hasilnya `tertunda` dan
  * pemanggil memberi tanda ke pengguna. Galat rekalkulasi lain (target margin
  * yang tidak sah) tetap dilempar, meski harga bahannya sudah tersimpan.
+ *
+ * Dalam kedua kasus itu satu notifikasi juga ditulis. Pesan di respons hanya
+ * terlihat sekali, di layar yang mungkin langsung ditutup, padahal harga jual
+ * produk mode target margin tetap salah sampai dihitung ulang.
  */
 export async function ubahBahanLaluRekalkulasi(
   jalankanTransaksi: JalankanTransaksi,
@@ -75,21 +80,72 @@ export async function ubahBahanLaluRekalkulasi(
     opsi
   )
 
-  // Nominal yang sama menghasilkan HPP yang sama, jadi tidak perlu dihitung
-  // ulang meski historinya tetap dicatat. Ganti nama juga tidak mengubah angka.
-  if (!perubahan.rencana.hargaBerubah) return { bahan, rekalkulasi: 'selesai' }
+  // Tanpa harga, misalnya ganti nama saja, angka HPP tidak mungkin berubah.
+  // Harga yang dikirim ulang dengan nominal sama tetap dihitung ulang: itu
+  // satu-satunya jalan pemilik usaha mengulang rekalkulasi yang dulu tertunda,
+  // dan notifikasinya memang menyuruh menyimpan ulang harga bahan.
+  if (!perubahan.rencana.catatHistori) return { bahan, rekalkulasi: 'selesai' }
 
-  const rekalkulasi = await jalankanRekalkulasi(
-    () =>
-      jalankanTransaksi((tx) =>
-        recalculateAllAffectedByBahan(perubahan.id, perubahan.userId, tx)
-      ),
-    opsi
-  )
+  let rekalkulasi: StatusRekalkulasi
+  try {
+    rekalkulasi = await jalankanRekalkulasi(
+      () =>
+        jalankanTransaksi((tx) =>
+          recalculateAllAffectedByBahan(perubahan.id, perubahan.userId, tx)
+        ),
+      opsi
+    )
+  } catch (galat) {
+    if (galat instanceof PerhitunganHargaTargetError) {
+      await kabarkanRekalkulasiGagal(
+        jalankanTransaksi,
+        perubahan.userId,
+        `Harga ${bahan.nama} sudah tersimpan, tetapi harga jual produk yang memakainya gagal dihitung ulang: ${galat.message}. Periksa target margin produknya, lalu simpan ulang harga ${bahan.nama} di halaman Bahan baku.`,
+        opsi
+      )
+    }
+    throw galat
+  }
+
   if (rekalkulasi === 'tertunda') {
     console.error(
       `[hpp] Rekalkulasi bahan ${perubahan.id} milik user ${perubahan.userId} tertunda: masih P2028 setelah dicoba ulang`
     )
+    await kabarkanRekalkulasiGagal(
+      jalankanTransaksi,
+      perubahan.userId,
+      `Harga ${bahan.nama} sudah tersimpan, tetapi harga jual produk yang memakainya belum ikut dihitung ulang karena koneksi ke database lambat. Simpan ulang harga ${bahan.nama} di halaman Bahan baku untuk menghitungnya lagi.`,
+      opsi
+    )
   }
   return { bahan, rekalkulasi }
+}
+
+/**
+ * Tulis notifikasi bahwa harga jual belum mengikuti harga bahan terbaru.
+ *
+ * Usaha terbaik: kalau database masih tersendat sampai notifikasinya pun
+ * gagal ditulis, galatnya dicatat di log dan tidak dilempar. Harga bahannya
+ * sudah tersimpan, dan pemanggil tetap menerima status atau galat aslinya.
+ */
+async function kabarkanRekalkulasiGagal(
+  jalankanTransaksi: JalankanTransaksi,
+  userId: number,
+  pesan: string,
+  opsi?: OpsiCobaUlang
+) {
+  try {
+    await cobaUlangSaatTimeout(
+      () =>
+        jalankanTransaksi(async (tx) => {
+          await tx.notifikasi.createMany({
+            data: [{ userId, judul: JUDUL_REKALKULASI_TERTUNDA, pesan }],
+          })
+          await pangkasNotifikasiTerbaca(tx, userId)
+        }),
+      opsi
+    )
+  } catch (galat) {
+    console.error(`[hpp] Notifikasi rekalkulasi tertunda untuk user ${userId} gagal ditulis`, galat)
+  }
 }
