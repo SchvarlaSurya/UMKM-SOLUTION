@@ -8,6 +8,15 @@ import {
   recalculateAllByBiayaOperasional,
 } from "@/lib/hppCalculator";
 import { cobaUlangSaatTimeout } from "@/lib/cobaUlangTransaksi";
+import {
+  BATAS_MASUKAN,
+  bacaAngka,
+  bacaTeks,
+  isIdSah,
+  isObjek,
+  periksaMaksimum,
+  periksaPanjang,
+} from "@/lib/batasMasukan";
 import type { JenisBiaya } from "@/lib/types";
 
 export type HasilAksi = { ok: true } | { ok: false; error: string };
@@ -32,19 +41,33 @@ type MasukanBiaya = {
   nilai: number;
 };
 
+const PESAN_MASUKAN_RUSAK = "Data yang dikirim tidak valid. Muat ulang halaman lalu coba lagi.";
+
+/**
+ * Server Action bisa dipanggil lewat POST buatan, jadi bentuk dan tipe
+ * `masukan` diperiksa di sini, bukan dipercaya dari tipe TypeScript-nya.
+ * Lolos dari sini berarti `nama` string terisi dan `nilai` angka sah.
+ */
 function periksaMasukan(masukan: MasukanBiaya): string | null {
-  const nama = masukan.nama?.trim() ?? "";
+  if (!isObjek(masukan)) return PESAN_MASUKAN_RUSAK;
+  const nama = bacaTeks(masukan.nama);
+  const nilai = bacaAngka(masukan.nilai);
   if (nama === "") return "Nama biaya wajib diisi.";
   if (masukan.jenis !== "tetap" && masukan.jenis !== "persentase") {
     return 'Jenis biaya harus "tetap" atau "persentase".';
   }
-  if (!Number.isFinite(masukan.nilai) || masukan.nilai <= 0) {
+  if (!Number.isFinite(nilai) || nilai <= 0) {
     return "Nilai harus lebih dari 0.";
   }
-  if (masukan.jenis === "persentase" && masukan.nilai > 100) {
+  if (masukan.jenis === "persentase" && nilai > 100) {
     return "Persentase tidak boleh lebih dari 100.";
   }
-  return null;
+  const galatBatas =
+    periksaPanjang(nama, "Nama biaya", BATAS_MASUKAN.panjangNama) ??
+    (masukan.jenis === "tetap"
+      ? periksaMaksimum(nilai, "Nilai biaya", BATAS_MASUKAN.rupiah)
+      : null);
+  return galatBatas ? `${galatBatas}.` : null;
 }
 
 export async function tambahBiaya(masukan: MasukanBiaya): Promise<HasilAksi> {
@@ -86,6 +109,7 @@ export async function perbaruiBiaya(id: number, masukan: MasukanBiaya): Promise<
     return { ok: false, error: "Sesi berakhir. Masuk lagi untuk menyimpan." };
   }
 
+  if (!isIdSah(id)) return { ok: false, error: PESAN_MASUKAN_RUSAK };
   const galat = periksaMasukan(masukan);
   if (galat) return { ok: false, error: galat };
 
@@ -128,24 +152,34 @@ export async function simpanPengaturan(masukan: {
     return { ok: false, error: "Sesi berakhir. Masuk lagi untuk menyimpan." };
   }
 
-  if (!Number.isInteger(masukan.estimasiPorsiPerBulan) || masukan.estimasiPorsiPerBulan <= 0) {
+  if (!isObjek(masukan)) return { ok: false, error: PESAN_MASUKAN_RUSAK };
+  const estimasiPorsiPerBulan = bacaAngka(masukan.estimasiPorsiPerBulan);
+  const batasMarginAman = bacaAngka(masukan.batasMarginAman);
+
+  if (!Number.isSafeInteger(estimasiPorsiPerBulan) || estimasiPorsiPerBulan <= 0) {
     return { ok: false, error: "Estimasi porsi per bulan harus bilangan bulat lebih dari 0." };
   }
-  if (
-    !Number.isFinite(masukan.batasMarginAman) ||
-    masukan.batasMarginAman < 0 ||
-    masukan.batasMarginAman > 100
-  ) {
+  const galatPorsi = periksaMaksimum(
+    estimasiPorsiPerBulan,
+    "Estimasi porsi per bulan",
+    BATAS_MASUKAN.estimasiPorsiPerBulan,
+  );
+  if (galatPorsi) return { ok: false, error: `${galatPorsi}.` };
+  if (!Number.isFinite(batasMarginAman) || batasMarginAman < 0 || batasMarginAman > 100) {
     return { ok: false, error: "Batas margin aman harus antara 0 dan 100." };
   }
+
+  // Disusun ulang, jangan meneruskan `masukan` apa adanya: field tambahan dari
+  // POST buatan (misalnya `userId`) akan ikut tertulis ke baris pengaturan.
+  const data = { estimasiPorsiPerBulan, batasMarginAman };
 
   try {
     await cobaUlangSaatTimeout(() =>
       prisma.$transaction(async (tx) => {
         await tx.pengaturan.upsert({
           where: { userId: auth.userId },
-          update: masukan,
-          create: { ...masukan, userId: auth.userId },
+          update: data,
+          create: { ...data, userId: auth.userId },
         });
         await recalculateAllByBiayaOperasional(auth.userId, tx);
       })
@@ -165,6 +199,7 @@ export async function hapusBiaya(id: number): Promise<HasilAksi> {
   if (!auth.authorized) {
     return { ok: false, error: "Sesi berakhir. Masuk lagi untuk menghapus." };
   }
+  if (!isIdSah(id)) return { ok: false, error: PESAN_MASUKAN_RUSAK };
 
   const ada = await prisma.biayaOperasional.findFirst({ where: { id, userId: auth.userId } });
   if (!ada) return { ok: false, error: "Biaya tidak ditemukan." };

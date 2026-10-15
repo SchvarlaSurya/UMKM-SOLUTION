@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { BATAS_MASUKAN } from "@/lib/batasMasukan";
 import { PilihOpsi } from "@/components/ui/PilihOpsi";
 import { InputAngka } from "@/components/ui/InputAngka";
 import { Modal } from "@/components/ui/Modal";
@@ -114,6 +115,7 @@ function FormBiaya({
     <form id={ID_FORM} onSubmit={kirim} className="flex flex-col gap-4">
       <Input
         id="nama-biaya"
+        maxLength={BATAS_MASUKAN.panjangNama}
         name="nama"
         label="Nama biaya"
         defaultValue={biaya?.nama ?? ""}

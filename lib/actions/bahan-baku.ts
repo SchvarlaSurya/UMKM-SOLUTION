@@ -5,6 +5,15 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { PerhitunganHargaTargetError } from "@/lib/hppCalculator";
 import { rencanaHistoriHarga } from "@/lib/histori";
+import {
+  BATAS_MASUKAN,
+  bacaAngka,
+  bacaTeks,
+  isIdSah,
+  isObjek,
+  periksaMaksimum,
+  periksaPanjang,
+} from "@/lib/batasMasukan";
 import { ubahBahanLaluRekalkulasi } from "@/lib/perubahanBahan";
 import {
   PESAN_HARGA_TERSIMPAN_REKALKULASI_GAGAL,
@@ -36,6 +45,20 @@ function segarkan(halamanTerdampak: readonly string[]) {
   for (const halaman of halamanTerdampak) revalidatePath(halaman);
 }
 
+const GALAT_MASUKAN_RUSAK: HasilAksi = {
+  ok: false,
+  error: "Data yang dikirim tidak valid. Muat ulang halaman lalu coba lagi.",
+};
+
+/** Batas panjang dan nominal, sama dengan route di app/api/bahan-baku. */
+function periksaBatas(nama: string, satuan: string | null, harga: number): string | null {
+  const galat =
+    periksaPanjang(nama, "Nama bahan", BATAS_MASUKAN.panjangNama) ??
+    (satuan !== null ? periksaPanjang(satuan, "Satuan", BATAS_MASUKAN.panjangSatuan) : null) ??
+    periksaMaksimum(harga, "Harga per satuan", BATAS_MASUKAN.rupiah);
+  return galat ? `${galat}.` : null;
+}
+
 export async function tambahBahanBaku(masukan: {
   nama: string;
   satuan: string;
@@ -46,15 +69,19 @@ export async function tambahBahanBaku(masukan: {
     return { ok: false, error: "Sesi berakhir. Masuk lagi untuk menyimpan." };
   }
 
-  const nama = masukan.nama?.trim() ?? "";
-  const satuan = masukan.satuan?.trim() ?? "";
+  if (!isObjek(masukan)) return GALAT_MASUKAN_RUSAK;
+  const nama = bacaTeks(masukan.nama);
+  const satuan = bacaTeks(masukan.satuan);
+  const hargaPerSatuan = bacaAngka(masukan.hargaPerSatuan);
 
   if (nama === "" || satuan === "") {
     return { ok: false, error: "Nama dan satuan bahan wajib diisi." };
   }
-  if (!Number.isFinite(masukan.hargaPerSatuan) || masukan.hargaPerSatuan <= 0) {
+  if (!Number.isFinite(hargaPerSatuan) || hargaPerSatuan <= 0) {
     return { ok: false, error: "Harga per satuan harus lebih dari 0." };
   }
+  const galatBatas = periksaBatas(nama, satuan, hargaPerSatuan);
+  if (galatBatas) return { ok: false, error: galatBatas };
 
   const kembar = await prisma.bahanBaku.findFirst({
     where: {
@@ -67,7 +94,7 @@ export async function tambahBahanBaku(masukan: {
   }
 
   await prisma.bahanBaku.create({
-    data: { nama, satuan, hargaPerSatuan: masukan.hargaPerSatuan, userId: auth.userId },
+    data: { nama, satuan, hargaPerSatuan, userId: auth.userId },
   });
 
   // Bahan baru belum punya histori harga, jadi belum muncul di tren harga.
@@ -98,13 +125,17 @@ export async function perbaruiBahan(
     return { ok: false, error: "Sesi berakhir. Masuk lagi untuk menyimpan." };
   }
 
-  const nama = masukan.nama?.trim() ?? "";
+  if (!isIdSah(id) || !isObjek(masukan)) return GALAT_MASUKAN_RUSAK;
+  const nama = bacaTeks(masukan.nama);
+  const hargaPerSatuan = bacaAngka(masukan.hargaPerSatuan);
   if (nama === "") {
     return { ok: false, error: "Nama bahan wajib diisi." };
   }
-  if (!Number.isFinite(masukan.hargaPerSatuan) || masukan.hargaPerSatuan <= 0) {
+  if (!Number.isFinite(hargaPerSatuan) || hargaPerSatuan <= 0) {
     return { ok: false, error: "Harga per satuan harus lebih dari 0." };
   }
+  const galatBatas = periksaBatas(nama, null, hargaPerSatuan);
+  if (galatBatas) return { ok: false, error: galatBatas };
 
   const bahan = await prisma.bahanBaku.findFirst({ where: { id, userId: auth.userId } });
   if (!bahan) return { ok: false, error: "Bahan tidak ditemukan." };
@@ -127,7 +158,7 @@ export async function perbaruiBahan(
   // Harga yang sama dulu ditolak di sini. Padahal menyimpan ulang nilai yang
   // sama berarti pemilik usaha sudah mengecek ke pemasok dan harganya memang
   // tetap — itu catatan yang layak masuk histori, bukan galat.
-  const rencana = rencanaHistoriHarga(bahan.hargaPerSatuan, masukan.hargaPerSatuan);
+  const rencana = rencanaHistoriHarga(bahan.hargaPerSatuan, hargaPerSatuan);
 
   // Harga bahan commit lebih dulu di transaksinya sendiri, rekalkulasi produk
   // menyusul di transaksi terpisah. Rekalkulasi yang lambat atau gagal tidak
@@ -165,6 +196,7 @@ export async function hapusBahanBaku(id: number): Promise<HasilAksi> {
   if (!auth.authorized) {
     return { ok: false, error: "Sesi berakhir. Masuk lagi untuk menghapus." };
   }
+  if (!isIdSah(id)) return GALAT_MASUKAN_RUSAK;
 
   const bahan = await prisma.bahanBaku.findFirst({
     where: { id, userId: auth.userId },

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { cegahScrollUbahAngka, Input } from "@/components/ui/Input";
+import { BATAS_MASUKAN } from "@/lib/batasMasukan";
 import { PilihOpsi } from "@/components/ui/PilihOpsi";
 import { InputAngka } from "@/components/ui/InputAngka";
 import { Modal } from "@/components/ui/Modal";
@@ -491,6 +492,7 @@ function FormProduk({
       <div className="grid gap-4 sm:grid-cols-2">
         <Input
           id="nama-produk"
+          maxLength={BATAS_MASUKAN.panjangNama}
           name="nama"
           label="Nama produk"
           defaultValue={produk?.nama ?? ""}

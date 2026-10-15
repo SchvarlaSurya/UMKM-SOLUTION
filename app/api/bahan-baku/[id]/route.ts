@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { PerhitunganHargaTargetError } from '@/lib/hppCalculator'
 import { requireAuth } from '@/lib/auth'
+import { BATAS_MASUKAN, periksaMaksimum, periksaPanjang } from '@/lib/batasMasukan'
 import { rencanaHistoriHarga } from '@/lib/histori'
 import { ubahBahanLaluRekalkulasi } from '@/lib/perubahanBahan'
 import {
@@ -73,6 +74,17 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (hargaPerSatuan !== undefined && !isAngkaPositif(hargaPerSatuan)) {
       return errorResponse('Harga per satuan harus angka lebih dari 0', 400)
     }
+    const galatBatas =
+      (nama !== undefined
+        ? periksaPanjang(nama as string, 'Nama bahan baku', BATAS_MASUKAN.panjangNama)
+        : null) ??
+      (satuan !== undefined
+        ? periksaPanjang(satuan as string, 'Satuan', BATAS_MASUKAN.panjangSatuan)
+        : null) ??
+      (hargaPerSatuan !== undefined
+        ? periksaMaksimum(hargaPerSatuan as number, 'Harga per satuan', BATAS_MASUKAN.rupiah)
+        : null)
+    if (galatBatas) return errorResponse(galatBatas, 400)
     if (nama === undefined && satuan === undefined && hargaPerSatuan === undefined) {
       return errorResponse('Tidak ada data yang diubah', 400)
     }
