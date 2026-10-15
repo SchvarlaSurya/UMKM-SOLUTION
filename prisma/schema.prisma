@@ -58,6 +58,10 @@ model HistoriHarga {
   hargaLama   Float
   hargaBaru   Float
   tanggal     DateTime  @default(now())
+
+  /// Grafik tren menyaring per bahan lalu mengurutkan menurut tanggal; satu
+  /// index gabungan melayani keduanya. Postgres tidak mengindeks FK sendiri.
+  @@index([bahanBakuId, tanggal])
 }
 
 model BiayaOperasional {
@@ -104,6 +108,10 @@ model Resep {
   bahanBaku     BahanBaku @relation(fields: [bahanBakuId], references: [id])
 
   @@id([produkId, bahanBakuId])
+  /// Primary key diawali produkId, jadi tidak terpakai untuk mencari produk
+  /// yang memakai satu bahan: rekalkulasi setelah ubah harga bahan, cek
+  /// sebelum hapus bahan, dan jumlah pemakai di halaman Bahan baku.
+  @@index([bahanBakuId])
 }
 
 model HppSnapshot {
@@ -113,6 +121,8 @@ model HppSnapshot {
   hppTerhitung Float
   marginPersen Float
   dihitungPada DateTime @default(now())
+
+  @@index([produkId])
 }
 
 model HistoriHargaJual {
