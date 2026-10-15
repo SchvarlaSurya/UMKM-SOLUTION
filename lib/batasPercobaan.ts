@@ -9,7 +9,7 @@
  * tidak, setiap instance punya jatah sendiri dan batasnya ikut berlipat.
  *
  * Jendela tetap: hitungan dimulai pada percobaan pertama dan kembali ke nol
- * setelah jendela habis. Kunci dipilih pemanggil (saat ini IP + email).
+ * setelah jendela habis. Kunci dipilih pemanggil (IP + email, atau IP saja).
  */
 
 export type HasilPeriksa =
@@ -104,6 +104,42 @@ export const pembatasLogin = buatPembatas({ maks: 5, jendelaMs: LIMA_BELAS_MENIT
 
 /** Daftar: 5 percobaan per 15 menit per IP + email, berhasil atau tidak. */
 export const pembatasDaftar = buatPembatas({ maks: 5, jendelaMs: LIMA_BELAS_MENIT });
+
+/**
+ * Daftar: 20 percobaan per jam per IP saja, berapa pun emailnya.
+ *
+ * Kunci IP + email saja bisa dilewati dengan mengganti email di setiap
+ * percobaan: satu IP lalu bisa membuat akun tanpa batas. Dua puluh per jam
+ * masih longgar untuk satu kantor atau satu warnet yang berbagi IP.
+ */
+export const pembatasDaftarPerIp = buatPembatas({ maks: 20, jendelaMs: 60 * 60 * 1000 });
+
+/**
+ * Periksa kedua batas daftar, lalu catat percobaannya ke keduanya.
+ *
+ * Percobaan yang ditolak tidak dicatat, sama seperti sebelumnya: menunggu
+ * jendela habis cukup, tanpa hukuman tambahan karena terus mencoba.
+ * Pembatasnya bisa diganti di pengujian.
+ */
+export function periksaDanCatatDaftar(
+  ip: string,
+  emailBaku: string,
+  pembatas: { perIp: Pembatas; perEmail: Pembatas } = {
+    perIp: pembatasDaftarPerIp,
+    perEmail: pembatasDaftar,
+  }
+): HasilPeriksa {
+  const kunciEmail = kunciPercobaan(ip, emailBaku);
+
+  const cekIp = pembatas.perIp.periksa(ip);
+  if (!cekIp.diizinkan) return cekIp;
+  const cekEmail = pembatas.perEmail.periksa(kunciEmail);
+  if (!cekEmail.diizinkan) return cekEmail;
+
+  pembatas.perIp.catat(ip);
+  pembatas.perEmail.catat(kunciEmail);
+  return { diizinkan: true };
+}
 
 /** Kunci pembatas: IP dan email bentuk baku, dipisah karakter yang tak ada di email. */
 export function kunciPercobaan(ip: string, emailBaku: string): string {
