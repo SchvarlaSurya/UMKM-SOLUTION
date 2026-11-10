@@ -16,7 +16,7 @@ Dokumen ini mencatat **apa yang sudah benar, apa yang diketahui belum benar, dan
 
 ## 2. Yang diketahui belum benar: pembatas percobaan masuk
 
-`lib/batasPercobaan.ts` menyimpan hitungan **di memori proses Node**. Di serverless, tiap instans punya hitungannya sendiri dan hilang saat instans dimatikan, sehingga batas 5 percobaan per 15 menit **praktis tidak berlaku** di Vercel. Pembatasan ini tidak boleh dianggap sebagai perlindungan yang aktif.
+`lib/batasPercobaan.ts` menyimpan hitungan **di memori proses Node**. Di serverless, tiap instans punya hitungannya sendiri dan hilang saat instans dimatikan, sehingga batas 5 percobaan per 15 menit **praktis tidak berlaku** di Vercel. Hal yang sama berlaku untuk batas daftar 20 per jam per IP (`pembatasDaftarPerIp`). Pembatasan ini tidak boleh dianggap sebagai perlindungan yang aktif.
 
 Yang masih bekerja di sana: kata sandi di-hash dengan bcrypt, pesan galat login seragam, waktu respons login diseragamkan (satu query dan satu `bcrypt.compare`, ada atau tidak akunnya), dan setiap query difilter per `userId`.
 
@@ -24,6 +24,7 @@ Yang masih bekerja di sana: kata sandi di-hash dengan bcrypt, pesan galat login 
 
 - [ ] Penyimpanan pembatas dipindah ke Redis atau Postgres.
 - [ ] Setelah dipindah: kirim 6 percobaan login gagal untuk email yang sama dan pastikan percobaan ke-6 ditolak dengan "Terlalu banyak percobaan masuk".
+- [ ] Setelah dipindah: kirim 21 percobaan daftar dengan email berbeda dari IP yang sama dan pastikan yang ke-21 mendapat status 429.
 
 ## 3. Yang belum diverifikasi: asal alamat IP
 
@@ -79,3 +80,30 @@ Halaman masuk menampilkan kotak akun demo dengan tombol isi-otomatis. Nilainya a
 - [ ] CI hijau untuk commit yang akan di-deploy.
 - [ ] `NEXTAUTH_URL` dan `NEXTAUTH_SECRET` di Vercel berisi nilai production.
 - [x] HTTPS aktif.
+- [ ] Bagian 8: `next` bebas advisory keamanan.
+- [ ] Bagian 9: header keamanan terkirim di production.
+
+## 8. Wajib segera: Next.js bebas advisory keamanan
+
+Per 14 Oktober 2026, `next` 16.3.4 terkena beberapa advisory `npm audit`, di antaranya SSRF di Image Optimization (high) dan cache poisoning SSG/ISR untuk aplikasi self-hosted (moderate). Upgrade-nya dulu ditunda karena aplikasi dikira hanya berjalan di localhost; sekarang aplikasi sudah publik.
+
+- [ ] Naikkan `next` dan `eslint-config-next` ke versi yang menutup advisory itu (16.3.8 atau lebih baru saat ditulis), lalu uji ulang semua halaman.
+- [ ] `npm audit --omit=dev` tidak menyisakan temuan high atau critical di paket runtime. Temuan di CLI `prisma` (`deepmerge-ts`, `mysql2`) tidak ikut berjalan di server; **jangan** jalankan `npm audit fix --force`, karena itu menurunkan Prisma ke 6.
+
+## 9. Header keamanan
+
+`next.config.ts` memasang Content-Security-Policy (termasuk `frame-ancestors 'none'` terhadap clickjacking), `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, dan `Permissions-Policy`, serta mematikan `X-Powered-By`.
+
+Dua hal belum diputuskan atau belum diverifikasi:
+
+- **HSTS** (`Strict-Transport-Security`) tidak dipasang di kode. Belum diperiksa apakah Vercel sudah mengirimnya untuk domain ini.
+- **`upgrade-insecure-requests`** tidak ada di CSP. Semua aset sudah dari asal yang sama lewat HTTPS, jadi dampaknya kecil.
+
+Cara memeriksa:
+
+```bash
+curl -sI https://umkm-solution.vercel.app/ | grep -iE "content-security|x-frame|strict-transport|x-powered"
+```
+
+- [ ] Header dari `next.config.ts` muncul, dan `x-powered-by` tidak.
+- [ ] `strict-transport-security` muncul. Kalau tidak, tambahkan di `next.config.ts`.
