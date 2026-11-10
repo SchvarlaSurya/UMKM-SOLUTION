@@ -12,7 +12,7 @@ Pemilik usaha mencatat bahan bakunya, biaya operasionalnya, dan resep tiap produ
 
 Satu akun mewakili satu usaha. Semua data terikat ke akun pemiliknya dan tidak terlihat oleh akun lain.
 
-**Status per 25 September 2026:** aplikasi baru dijalankan di localhost laptop pengembang. Belum ada deployment ke VPS atau server mana pun. Hal-hal yang wajib dikerjakan sebelum deploy dicatat di [checklist-deploy.md](checklist-deploy.md).
+**Status per 10 November 2026:** aplikasi sudah live di Vercel (https://umkm-solution.vercel.app), dengan basis data PostgreSQL di Supabase. Halaman masuk punya akun demo untuk juri. Keterbatasan deployment yang diketahui, terutama pembatas percobaan masuk yang tidak efektif di serverless, dicatat di [checklist-deploy.md](checklist-deploy.md).
 
 ---
 
@@ -100,7 +100,9 @@ Halaman pertama untuk pengunjung yang belum masuk. Pengunjung yang masih punya s
 - **Simulasi margin interaktif** — pengunjung bisa mengubah harga ayam, harga jual, dan target margin, lalu melihat HPP, margin, harga jual yang memenuhi target (dibulatkan ke kelipatan Rp500), dan titik impas. Semuanya dihitung di browser dan tidak disimpan. Rumusnya ada di `lib/simulasiLanding.ts` dan punya pengujian sendiri. Hasil dari ketikan dihitung ulang setelah jeda 150 ms, dan kolom yang tidak sah ditandai.
 - **Pratinjau dashboard** — tiruan layar dashboard dengan data demo, dirakit dari komponen dashboard yang asli, sehingga rupanya ikut berubah kalau dashboard berubah.
 - **Contoh hitungan 100 porsi**, **tiga langkah mulai**, dan ajakan untuk daftar atau masuk.
-- Header menempel di atas. Di layar kecil, tautan antarbagian pindah ke menu lipat. Judul dan kartu tiap bagian muncul saat masuk layar, dan semua animasi menghormati `prefers-reduced-motion`.
+- **Bahasa sehari-hari.** Istilah akuntansi diganti kata yang dipakai pemilik warung: "alokasi biaya tetap" jadi "bagian biaya bulanan", "titik impas" jadi "balik modal", "kontribusi per porsi" jadi "sisa yang menutup biaya bulanan". HPP dan margin sengaja tidak dihapus karena dipakai di seluruh aplikasi — keduanya diperkenalkan sekali di paragraf hero ("modal asli setiap porsi (HPP)", "sisa untungnya (margin)"), lalu bagian lain memakai kata biasa. Label di pratinjau dashboard dibiarkan apa adanya supaya pratinjaunya tetap jujur terhadap aplikasi.
+- Header menempel di atas. Di layar kecil, tautan antarbagian pindah ke menu lipat: panelnya memudar masuk dan keluar, barisnya menyusul satu per satu, dan ikon tiga garisnya berubah bentuk jadi silang — bukan bertukar ikon seketika.
+- Judul, kartu, rincian biaya, dan angka bukti tiap bagian muncul saat masuk layar. Semua animasi menghormati `prefers-reduced-motion` lewat `lib/gerak.ts`.
 
 ### Dashboard (`/dashboard`)
 
@@ -123,7 +125,8 @@ Daftar bahan beserta harga per satuannya.
 - Tambah, ubah, dan hapus bahan. Nama bahan unik per akun.
 - Tiap baris menampilkan kapan terakhir diperbarui dan dipakai di berapa produk.
 - Bahan yang belum dicek 30 hari atau lebih diberi lencana `Belum dicek N hari`, dengan tombol saring `N perlu dicek` untuk menampilkan hanya yang itu.
-- Setiap perubahan harga tercatat di riwayat dan langsung menghitung ulang HPP semua produk yang memakai bahan tersebut.
+- Setiap perubahan harga tercatat di riwayat dan langsung menghitung ulang HPP semua produk yang memakai bahan tersebut. Penyimpanan harga dan perhitungan ulangnya berjalan sebagai dua transaksi terpisah — lihat bagian 5.
+- Kalau perhitungan ulangnya gagal, harga bahannya **tetap tersimpan** dan halaman menampilkan toast peringatan, bukan toast berhasil. Harga yang sudah dicek pemilik ke pemasok tidak ikut batal hanya karena perhitungan turunannya kehabisan waktu.
 - Satuan terkunci saat mengubah bahan, karena takaran resep yang sudah tersimpan tidak ikut dikonversi.
 - Bahan yang masih dipakai resep tidak bisa dihapus sebelum dilepas dari resepnya.
 
@@ -147,7 +150,7 @@ Daftar produk beserta resep dan marginnya.
 Daftar biaya di luar bahan baku, beserta pengaturan yang memengaruhi seluruh perhitungan.
 
 - Tambah, ubah, hapus biaya, masing-masing berjenis tetap atau persentase.
-- Mengatur estimasi porsi per bulan dan batas margin aman.
+- Mengatur estimasi porsi per bulan dan batas margin aman. Mengubah pengaturan ini juga memicu perhitungan ulang, sama seperti mengubah biayanya.
 - Perubahan di halaman ini menggeser HPP **seluruh** produk sekaligus, karena biaya operasional dibagi rata.
 
 ### Tren harga bahan (`/tren-harga`)
@@ -167,6 +170,10 @@ Mengubah nama dan jenis usaha. Nama ini yang tampil di sidebar dan menandai selu
 
 Autentikasi email dan kata sandi. Kata sandi disimpan ter-hash. Pendaftaran membuat akun dan profil usaha sekaligus dalam satu transaksi — kalau salah satunya gagal, tidak ada yang tersimpan. Baris pengaturannya sendiri dibuat belakangan dengan nilai bawaan, saat pertama kali dibutuhkan.
 
+Setelah berhasil, layar antara menutupi perpindahan halaman selama 900 ms: lambang usaha, satu kalimat keadaan, dan batang tipis yang terisi. Halaman tujuannya mulai diambil lewat `router.prefetch` tepat saat layar itu muncul, jadi jedanya menutupi pengambilan yang memang perlu terjadi. Tombol kirimnya tetap mati sampai halaman berpindah supaya tidak tertekan dua kali dari balik layar antara. Alur daftar berakhir di `/login`, bukan `/dashboard`, dan kalimatnya mengikuti tujuan yang sebenarnya.
+
+**Akun demo untuk juri.** Halaman masuk menampilkan kotak dengan email dan kata sandi akun demo serta tombol **Isi otomatis** yang mengisi kedua kolom. Tombolnya tidak login otomatis; yang masuk tetap tombol Masuk. Nilainya ada di satu tempat, `lib/akunDemo.ts`, dipakai bersama oleh tombol itu dan oleh `npm run seed:demo` yang membuat akunnya. Kata sandinya sengaja publik, jadi akun ini tidak boleh berisi data sungguhan.
+
 Email tidak peka huruf besar-kecil: `Budi@Mail.com` dan `budi@mail.com` adalah akun yang sama, baik saat daftar maupun masuk. Percobaan masuk dan daftar dibatasi. Rinciannya ada di bagian 6.
 
 ---
@@ -177,9 +184,18 @@ Email tidak peka huruf besar-kecil: `Budi@Mail.com` dan `budi@mail.com` adalah a
 
 Mengubah harga bahan, biaya operasional, atau pengaturan tidak hanya menyimpan angka — seluruh HPP dan margin yang terpengaruh ikut dihitung ulang. Produk yang memakai mode target margin juga ikut menyesuaikan harga jualnya, dan perubahan itu tercatat di riwayat harga jual beserta alasannya.
 
+**Dua transaksi, bukan satu.** Perhitungan ulang bisa menyentuh puluhan produk sekaligus dan pernah melewati batas waktu transaksi Prisma (`P2028`), terutama lewat pooler. Kalau penyimpanan harga dan perhitungan ulangnya disatukan, satu timeout membatalkan dua-duanya — termasuk harga bahan yang sudah benar. Karena itu alurnya dipisah di `lib/perubahanBahan.ts`:
+
+1. Transaksi kecil menulis harga bahan dan `HistoriHarga`, lalu commit.
+2. Transaksi kedua menjalankan perhitungan ulangnya.
+
+Keduanya dicoba ulang saat `P2028` (`lib/cobaUlangTransaksi.ts`). Kalau perhitungan ulangnya tetap gagal, hasilnya ditandai **tertunda**: API menjawab `200` dengan `rekalkulasiTertunda`, pemiliknya melihat peringatan, dan kegagalannya tercatat di log server. Harga bahannya sudah aman tersimpan, dan perhitungan ulang berikutnya akan menyusulkan angkanya.
+
 ### Notifikasi
 
 Saat harga jual sebuah produk berubah otomatis akibat perhitungan ulang, pemiliknya diberi tahu lewat pusat notifikasi di topbar. Notifikasi yang belum dibaca disegarkan berkala dan bisa ditandai terbaca.
+
+Notifikasi pertama yang belum dibaca ditampilkan sebagai modal: jumlah produk yang disesuaikan, penyebabnya sebagai kalimat utuh ("Target margin yang kamu ubah dipakai menghitung ulang harga jualnya", bukan "Pemicu: perubahan target margin"), keterangan bahwa harga lamanya tersimpan di riwayat, dan tanggal penyesuaiannya. Pemetaan penyebab ke kalimat ada di `lib/pemicuHargaJual.ts`; daftarnya tertutup karena alasan perubahan hanya ditulis di `recalculateProduk` dan handler `PUT /api/produk/[id]`.
 
 Notifikasi yang sudah dibaca bisa dihapus sekaligus. Notifikasi terbaca yang berumur lebih dari 30 hari juga dipangkas otomatis, setiap kali ada notifikasi baru untuk pemilik yang sama (`lib/notifikasi.ts`). Yang belum dibaca tidak pernah ikut terhapus. Jejak perubahan sebenarnya tetap tersimpan di riwayat harga.
 
@@ -235,13 +251,13 @@ Satu kebocoran disengaja tetap ada: form daftar menjawab "Email sudah terdaftar"
 
 Selama dibatasi, database dan bcrypt tidak disentuh sama sekali.
 
-**Disimpan di memori proses Node, bukan di database** (`lib/batasPercobaan.ts`). Alasannya, target deployment yang direncanakan adalah satu VPS dengan satu proses Node, sama dengan asumsi pool koneksi di `lib/prisma.ts`. Dengan begitu tidak perlu migrasi, dan tidak ada query tambahan di setiap percobaan login.
+**Disimpan di memori proses Node, bukan di database** (`lib/batasPercobaan.ts`). Rancangan awalnya untuk satu VPS dengan satu proses Node, sehingga tidak perlu migrasi dan tidak ada query tambahan di setiap percobaan login. Aplikasi ternyata di-deploy ke Vercel (serverless), yang tidak sesuai dengan asumsi itu.
 
 Konsekuensinya:
 
-- Hitungan hilang setiap kali server dimulai ulang.
-- **Harus diganti ke Redis atau tabel Postgres kalau nanti pindah ke banyak instance, PM2 cluster, atau serverless.** Kalau tidak diganti, setiap proses punya jatah sendiri dan batasnya ikut berlipat.
-- IP dibaca dari `X-Real-IP`, dengan cadangan entri terakhir `X-Forwarded-For`. Itu hanya bisa dipercaya di belakang reverse proxy yang menimpa header tersebut. Tanpa proxy, pembatas bisa dilewati dengan memalsukan header. Lihat [checklist-deploy.md](checklist-deploy.md).
+- Hitungan hilang setiap kali instans dimulai ulang.
+- **Di Vercel, tiap instans punya hitungannya sendiri, jadi batas 5 percobaan per 15 menit praktis tidak berlaku.** Penyimpanannya harus dipindah ke Redis atau tabel Postgres. Sampai itu dikerjakan, pembatas ini bukan perlindungan yang aktif.
+- IP dibaca dari `X-Real-IP`, dengan cadangan entri terakhir `X-Forwarded-For`. Itu hanya bisa dipercaya kalau ada proxy yang menimpa header tersebut. Belum diverifikasi apakah Vercel melakukannya. Lihat [checklist-deploy.md](checklist-deploy.md).
 - Kunci IP+email tidak membatasi satu email yang diserang dari banyak IP, atau banyak email berbeda yang dicoba dari satu IP.
 
 ---
@@ -278,6 +294,7 @@ Basis datanya PostgreSQL, diakses lewat Prisma.
 | Animasi | anime.js v4 |
 | Pengujian | test runner bawaan Node (`node:test`) lewat `tsx` |
 | CI | GitHub Actions: lint, typecheck, test, dan build di setiap PR dan push ke `main` |
+| Hosting | Vercel (aplikasi), Supabase (basis data) |
 
 Struktur berkas:
 
@@ -286,6 +303,7 @@ Struktur berkas:
 - `lib/` — autentikasi, rate limiting, akses data, rumus HPP, analisis tren, konversi satuan, tipe bersama.
 - `prisma/` — skema dan migrasi.
 - `tests/` — pengujian unit.
+- `docs/` — dokumentasi proyek: dokumen ini, [checklist-deploy.md](checklist-deploy.md), serta dua catatan pengukuran — [audit-performa-hpp.md](audit-performa-hpp.md) dan [audit-revalidasi.md](audit-revalidasi.md).
 - `.github/workflows/ci.yml` — CI.
 
 ---
@@ -315,7 +333,8 @@ npm start                              # jalankan hasil build
 npm run lint                           # ESLint
 npx next typegen && npx tsc --noEmit   # cek tipe
 npm test                               # pengujian unit
-npm run seed                           # isi basis data dengan data contoh
+npm run seed                           # isi data contoh ke akun yang sudah ada
+npm run seed:demo                      # buat atau segarkan akun demo juri beserta datanya
 ```
 
 Butuh `DATABASE_URL`, `NEXTAUTH_SECRET`, dan `NEXTAUTH_URL` di berkas `.env` yang tidak ikut Git.
@@ -324,7 +343,7 @@ Butuh `DATABASE_URL`, `NEXTAUTH_SECRET`, dan `NEXTAUTH_URL` di berkas `.env` yan
 
 ## 11. Status pengujian
 
-Per 25 September 2026 (commit `27ffa17`), `npm test` menjalankan **85 test dalam 20 suite di 8 berkas**, semuanya lulus. Test runner-nya bawaan Node (`node:test`) lewat `tsx`, dan pengujiannya tidak menyentuh database.
+Per 10 November 2026, `npm test` menjalankan **118 test dalam 29 suite di 12 berkas**, semuanya lulus. Test runner-nya bawaan Node (`node:test`) lewat `tsx`, dan pengujiannya tidak menyentuh database — logika yang perlu diuji ditaruh sebagai fungsi murni di `lib/`, atau diberi klien Prisma tiruan.
 
 | Berkas | Yang diuji |
 |---|---|
@@ -335,6 +354,10 @@ Per 25 September 2026 (commit `27ffa17`), `npm test` menjalankan **85 test dalam
 | `simulasi-landing.test.ts` | rumus simulasi di landing page |
 | `email.test.ts` | normalisasi email dan pencarian akun tanpa wildcard |
 | `batas-percobaan.test.ts` | rate limiting, pembacaan IP, verifikasi login, dan pesan galat login |
+| `rekalkulasi-bahan.test.ts` | pemisahan simpan harga dan perhitungan ulang, penandaan tertunda |
+| `coba-ulang-transaksi.test.ts` | percobaan ulang transaksi saat `P2028` |
+| `pemicu-harga-jual.test.ts` | kalimat penjelas untuk tiap alasan perubahan harga jual |
+| `akun-demo.test.ts` | email akun demo tetap normal dan berdomain `.test`, kata sandinya memenuhi batas pendaftaran |
 
 Belum punya pengujian otomatis: penentuan harga basi (`lib/hargaBasi.ts`), route handler API secara utuh (integrasi dengan database), dan tampilan. Bagian-bagian itu masih diperiksa manual: lint dan build, lalu memeriksa layar yang terpengaruh beserta hasil perhitungannya.
 

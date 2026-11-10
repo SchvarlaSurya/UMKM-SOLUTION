@@ -1,12 +1,12 @@
 /**
  * Pembatas percobaan login dan daftar, disimpan di memori proses (in-process).
  *
- * PERINGATAN — hanya benar untuk SATU proses Node. Target deployment saat ini
- * VPS dengan satu proses, sama seperti asumsi pool koneksi di lib/prisma.ts.
- * Hitungan hilang saat server dimulai ulang, dan tidak dibagi antarproses.
- * Kalau nanti pindah ke banyak instance, cluster/PM2 multi-proses, atau
- * serverless, ganti penyimpanan di sini ke Redis atau tabel Postgres; kalau
- * tidak, setiap instance punya jatah sendiri dan batasnya ikut berlipat.
+ * PERINGATAN — hanya benar untuk SATU proses Node. Rancangan awalnya untuk satu
+ * VPS dengan satu proses, tetapi aplikasi di-deploy ke Vercel (serverless),
+ * tempat tiap instans punya hitungannya sendiri. Di sana batas ini praktis
+ * tidak berlaku. Hitungan juga hilang saat instans dimulai ulang. Ganti
+ * penyimpanan di sini ke Redis atau tabel Postgres; lihat
+ * docs/checklist-deploy.md.
  *
  * Jendela tetap: hitungan dimulai pada percobaan pertama dan kembali ke nol
  * setelah jendela habis. Kunci dipilih pemanggil (saat ini IP + email).
@@ -113,9 +113,10 @@ export function kunciPercobaan(ip: string, emailBaku: string): string {
 /**
  * IP klien dari header yang dipasang reverse proxy.
  *
- * Mengandalkan satu reverse proxy (nginx) di depan Node yang MENIMPA
- * `X-Real-IP` dengan `$remote_addr`. Tanpa proxy, header ini bisa diisi
+ * Mengandalkan proxy di depan Node yang MENIMPA `X-Real-IP` (di VPS: nginx
+ * dengan `$remote_addr`). Tanpa proxy yang menimpa, header ini bisa diisi
  * sesuka pengirim, dan pembatas bisa dilewati dengan mengganti nilainya.
+ * Belum diverifikasi apakah Vercel menimpanya; lihat docs/checklist-deploy.md.
  *
  * Cadangannya entri TERAKHIR `X-Forwarded-For`, yaitu yang ditambahkan proxy
  * kita sendiri; entri pertama berasal dari klien dan bisa dipalsukan.
