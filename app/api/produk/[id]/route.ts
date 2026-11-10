@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
+import { BATAS_MASUKAN, periksaMaksimum, periksaPanjang } from '@/lib/batasMasukan'
 import { isPembulatanHarga } from '@/lib/hpp'
 import { pangkasNotifikasiTerbaca } from '@/lib/notifikasi'
 import { bacaCaraTakaran } from '@/lib/takaran'
@@ -80,6 +81,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (kategori !== undefined && kategori !== null && !isTeksTerisi(kategori)) {
       return errorResponse('Kategori tidak boleh kosong', 400)
     }
+    const galatTeks =
+      periksaPanjang(nama, 'Nama produk', BATAS_MASUKAN.panjangNama) ??
+      (isTeksTerisi(kategori)
+        ? periksaPanjang(kategori, 'Kategori', BATAS_MASUKAN.panjangKategori)
+        : null)
+    if (galatTeks) return errorResponse(galatTeks, 400)
     if (modePenentuanHarga !== undefined && !isModePenentuanHarga(modePenentuanHarga)) {
       return errorResponse('Mode penentuan harga harus "manual" atau "targetMargin"', 400)
     }
@@ -103,6 +110,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       targetMarginPersen === undefined ? existing.targetMarginPersen : targetMarginPersen
     if (modeHarga === 'manual' && !isAngkaPositif(hargaJual)) {
       return errorResponse('Harga jual harus angka lebih dari 0', 400)
+    }
+    if (modeHarga === 'manual') {
+      const galatHarga = periksaMaksimum(hargaJual as number, 'Harga jual', BATAS_MASUKAN.rupiah)
+      if (galatHarga) return errorResponse(galatHarga, 400)
     }
     let targetMarginTersimpan: number | null = null
     if (modeHarga === 'targetMargin') {

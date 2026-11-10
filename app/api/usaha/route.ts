@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { BATAS_MASUKAN, periksaPanjang } from '@/lib/batasMasukan'
 import {
   errorResponse,
   handleError,
@@ -38,6 +39,8 @@ export async function PUT(req: Request) {
     if (!isTeksTerisi(namaUsaha)) {
       return errorResponse('Nama usaha wajib diisi', 400)
     }
+    const galatNama = periksaPanjang(namaUsaha, 'Nama usaha', BATAS_MASUKAN.panjangNama)
+    if (galatNama) return errorResponse(galatNama, 400)
     if (!isTeksTerisi(jenisUsaha)) {
       return errorResponse('Jenis usaha wajib dipilih', 400)
     }

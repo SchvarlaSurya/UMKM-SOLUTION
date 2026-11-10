@@ -1,4 +1,5 @@
 import { isAngkaPositif } from '@/lib/apiHelpers'
+import { BATAS_MASUKAN, periksaMaksimum } from '@/lib/batasMasukan'
 
 export type ResepInput = { bahanBakuId: number; jumlahDipakai: number }
 
@@ -11,6 +12,9 @@ export function validasiResep(
 ): { ok: true; data: ResepInput[] } | { ok: false; error: string } {
   if (!Array.isArray(resep) || resep.length === 0) {
     return { ok: false, error: 'Produk harus punya minimal 1 bahan baku di resep' }
+  }
+  if (resep.length > BATAS_MASUKAN.barisResep) {
+    return { ok: false, error: `Resep paling banyak ${BATAS_MASUKAN.barisResep} bahan` }
   }
 
   const hasil: ResepInput[] = []
@@ -28,6 +32,8 @@ export function validasiResep(
     if (!isAngkaPositif(jumlahDipakai)) {
       return { ok: false, error: 'jumlahDipakai harus angka lebih dari 0' }
     }
+    const takaranBerlebih = periksaMaksimum(jumlahDipakai, 'Takaran bahan', BATAS_MASUKAN.takaran)
+    if (takaranBerlebih) return { ok: false, error: takaranBerlebih }
     if (idTerpakai.has(bahanBakuId as number)) {
       return { ok: false, error: `Bahan baku id ${bahanBakuId} ditulis dua kali di resep` }
     }

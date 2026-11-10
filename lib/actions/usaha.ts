@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { adalahJenisUsaha } from "@/lib/jenisUsaha";
+import { BATAS_MASUKAN, bacaTeks, isObjek, periksaPanjang } from "@/lib/batasMasukan";
 
 /**
  * Server Action untuk halaman Profil Usaha.
@@ -23,12 +24,17 @@ export async function simpanProfilUsaha(masukan: {
     return { ok: false, error: "Sesi berakhir. Masuk lagi untuk menyimpan." };
   }
 
-  const namaUsaha = masukan.namaUsaha?.trim() ?? "";
-  const jenisUsaha = masukan.jenisUsaha?.trim() ?? "";
+  if (!isObjek(masukan)) {
+    return { ok: false, error: "Data yang dikirim tidak valid. Muat ulang halaman lalu coba lagi." };
+  }
+  const namaUsaha = bacaTeks(masukan.namaUsaha);
+  const jenisUsaha = bacaTeks(masukan.jenisUsaha);
 
   if (namaUsaha === "") {
     return { ok: false, error: "Nama usaha wajib diisi." };
   }
+  const galatNama = periksaPanjang(namaUsaha, "Nama usaha", BATAS_MASUKAN.panjangNama);
+  if (galatNama) return { ok: false, error: `${galatNama}.` };
   if (!adalahJenisUsaha(jenisUsaha)) {
     return { ok: false, error: "Jenis usaha harus termasuk kategori usaha kuliner." };
   }

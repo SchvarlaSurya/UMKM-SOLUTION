@@ -5,6 +5,7 @@ import { errorResponse, handleError, isTeksTerisi, readJsonBody } from '@/lib/ap
 import { ipDariHeader, kunciPercobaan, pembatasDaftar } from '@/lib/batasPercobaan'
 import { cariUserLewatEmail, normalisasiEmail } from '@/lib/email'
 import { adalahJenisUsaha } from '@/lib/jenisUsaha'
+import { BATAS_MASUKAN, byteUtf8, periksaPanjang } from '@/lib/batasMasukan'
 
 const PANJANG_PASSWORD_MINIMAL = 8
 
@@ -42,6 +43,19 @@ export async function POST(req: Request) {
     if (!isTeksTerisi(namaUsaha)) return errorResponse('Nama usaha wajib diisi', 400)
     if (!isTeksTerisi(jenisUsaha) || !adalahJenisUsaha(jenisUsaha.trim())) {
       return errorResponse('Jenis usaha harus termasuk kategori usaha kuliner', 400)
+    }
+    const galatPanjang =
+      periksaPanjang(email, 'Email', BATAS_MASUKAN.panjangEmail) ??
+      periksaPanjang(nama, 'Nama', BATAS_MASUKAN.panjangNama) ??
+      periksaPanjang(namaUsaha, 'Nama usaha', BATAS_MASUKAN.panjangNama)
+    if (galatPanjang) return errorResponse(galatPanjang, 400)
+    // Diukur dalam byte, bukan karakter: huruf beraksen dan emoji memakan
+    // lebih dari satu byte, dan bcrypt memotong sesudah byte ke-72.
+    if (byteUtf8(password) > BATAS_MASUKAN.byteKataSandi) {
+      return errorResponse(
+        `Password terlalu panjang, paling banyak ${BATAS_MASUKAN.byteKataSandi} karakter`,
+        400
+      )
     }
 
     const emailBersih = normalisasiEmail(email)

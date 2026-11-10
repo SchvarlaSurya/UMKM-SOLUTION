@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { Prisma } from '@/app/generated/prisma/client'
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
+import { BATAS_MASUKAN, periksaMaksimum } from '@/lib/batasMasukan'
 import {
   PerhitunganHargaTargetError,
   recalculateAllByBiayaOperasional,
@@ -70,6 +71,12 @@ export async function PUT(req: Request) {
     ) {
       return errorResponse('Estimasi porsi per bulan harus bilangan bulat lebih dari 0', 400)
     }
+    const galatPorsi = periksaMaksimum(
+      estimasiPorsiPerBulan,
+      'Estimasi porsi per bulan',
+      BATAS_MASUKAN.estimasiPorsiPerBulan
+    )
+    if (galatPorsi) return errorResponse(galatPorsi, 400)
     if (
       typeof batasMarginAman !== 'number' ||
       !Number.isFinite(batasMarginAman) ||

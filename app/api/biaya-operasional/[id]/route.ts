@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
+import { BATAS_MASUKAN, periksaMaksimum, periksaPanjang } from '@/lib/batasMasukan'
 import {
   PerhitunganHargaTargetError,
   recalculateAllByBiayaOperasional,
@@ -38,6 +39,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (jenis === 'persentase' && nilai > 100) {
       return errorResponse('Nilai persentase tidak boleh lebih dari 100', 400)
     }
+    const galatBatas =
+      periksaPanjang(nama, 'Nama biaya', BATAS_MASUKAN.panjangNama) ??
+      (jenis === 'tetap' ? periksaMaksimum(nilai, 'Nilai biaya', BATAS_MASUKAN.rupiah) : null)
+    if (galatBatas) return errorResponse(galatBatas, 400)
 
     const existing = await prisma.biayaOperasional.findFirst({
       where: { id, userId: auth.userId },

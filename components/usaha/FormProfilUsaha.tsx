@@ -7,6 +7,7 @@ import { Banner } from "@/components/ui/Banner";
 import { Button } from "@/components/ui/Button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { BATAS_MASUKAN } from "@/lib/batasMasukan";
 import { PilihOpsi } from "@/components/ui/PilihOpsi";
 import { JENIS_USAHA_KULINER } from "@/lib/jenisUsaha";
 
@@ -69,6 +70,7 @@ export function FormProfilUsaha({
         <div className="grid gap-5 px-5 py-5 sm:grid-cols-2">
           <Input
             id="nama-usaha"
+            maxLength={BATAS_MASUKAN.panjangNama}
             label="Nama usaha"
             value={namaUsaha}
             onChange={(e) => setNamaUsaha(e.target.value)}

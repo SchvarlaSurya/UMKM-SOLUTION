@@ -12,6 +12,8 @@
  * tertinggal saat diperbarui.
  */
 
+import { BATAS_MASUKAN } from "./batasMasukan";
+
 export type ModeTakaran = "per-porsi" | "sekali-produksi";
 
 export type CaraTakaran = {
@@ -37,7 +39,8 @@ export function bacaCaraTakaran(mode: unknown, jumlahPorsi: unknown): CaraTakara
   }
 
   const jumlah = typeof jumlahPorsi === "number" ? jumlahPorsi : Number(jumlahPorsi);
-  const jumlahValid = Number.isFinite(jumlah) && jumlah > 0;
+  const jumlahValid =
+    Number.isFinite(jumlah) && jumlah > 0 && jumlah <= BATAS_MASUKAN.porsiProduksi;
 
   // Mode sekali produksi tanpa jumlah porsi tidak bisa dipulihkan jadi angka
   // aslinya, jadi diperlakukan seperti per porsi daripada menyimpan setengah.

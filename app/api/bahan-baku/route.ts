@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
+import { BATAS_MASUKAN, periksaMaksimum, periksaPanjang } from '@/lib/batasMasukan'
 import {
   errorResponse,
   handleError,
@@ -54,6 +55,11 @@ export async function POST(req: Request) {
     if (!isAngkaPositif(hargaPerSatuan)) {
       return errorResponse('Harga per satuan harus angka lebih dari 0', 400)
     }
+    const galatBatas =
+      periksaPanjang(nama, 'Nama bahan baku', BATAS_MASUKAN.panjangNama) ??
+      periksaPanjang(satuan, 'Satuan', BATAS_MASUKAN.panjangSatuan) ??
+      periksaMaksimum(hargaPerSatuan, 'Harga per satuan', BATAS_MASUKAN.rupiah)
+    if (galatBatas) return errorResponse(galatBatas, 400)
 
     const namaBersih = nama.trim()
 

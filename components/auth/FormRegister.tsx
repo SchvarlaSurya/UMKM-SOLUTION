@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { BATAS_MASUKAN } from "@/lib/batasMasukan";
 import { PilihOpsi } from "@/components/ui/PilihOpsi";
 import { useToast } from "@/components/ui/Toast";
 import { JENIS_USAHA_KULINER } from "@/lib/jenisUsaha";
@@ -113,6 +114,7 @@ export function FormRegister() {
     <form ref={refFormulir} onSubmit={kirim} className="flex flex-col gap-4" noValidate>
       <Input
         id="nama"
+        maxLength={BATAS_MASUKAN.panjangNama}
         name="nama"
         label="Nama pemilik usaha"
         autoComplete="name"
@@ -122,6 +124,7 @@ export function FormRegister() {
 
       <Input
         id="nama-usaha"
+        maxLength={BATAS_MASUKAN.panjangNama}
         name="namaUsaha"
         label="Nama usaha"
         autoComplete="organization"
@@ -140,6 +143,7 @@ export function FormRegister() {
 
       <Input
         id="email"
+        maxLength={BATAS_MASUKAN.panjangEmail}
         name="email"
         type="email"
         label="Email"
