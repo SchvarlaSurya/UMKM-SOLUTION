@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { pesanGalatLogin } from "@/lib/pesanLogin";
+import { AkunDemoJuri } from "./AkunDemoJuri";
 import { SplashMasuk } from "./SplashMasuk";
 
 /** Pesan yang menunjuk satu kolom tertentu. */
@@ -31,6 +32,10 @@ export function FormLogin() {
   const [galatKolom, setGalatKolom] = useState<GalatKolom>({});
   const [memproses, setMemproses] = useState(false);
   const [berhasil, setBerhasil] = useState(false);
+  // Kolom email dan kata sandi tidak dikendalikan state (nilainya dibaca lewat
+  // FormData saat dikirim). Untuk mengisinya dari luar, nilai awalnya diganti
+  // dan `versi` dinaikkan supaya kolomnya dipasang ulang dengan nilai itu.
+  const [isianAwal, setIsianAwal] = useState({ email: "", password: "", versi: 0 });
   const tampilkanToast = useToast();
   const refFormulir = useRef<HTMLFormElement>(null);
 
@@ -96,7 +101,16 @@ export function FormLogin() {
         <Banner varian="info">Akun berhasil dibuat. Masuk dengan email dan kata sandimu.</Banner>
       )}
 
+      <AkunDemoJuri
+        onPakai={(email, password) => {
+          setGalatKolom({});
+          setIsianAwal((lama) => ({ email, password, versi: lama.versi + 1 }));
+        }}
+      />
+
       <Input
+        key={`email-${isianAwal.versi}`}
+        defaultValue={isianAwal.email}
         id="email"
         name="email"
         type="email"
@@ -107,6 +121,8 @@ export function FormLogin() {
       />
 
       <Input
+        key={`password-${isianAwal.versi}`}
+        defaultValue={isianAwal.password}
         id="password"
         name="password"
         type="password"

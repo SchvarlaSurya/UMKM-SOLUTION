@@ -8,7 +8,7 @@
 - `prisma/` holds the PostgreSQL schema and migrations. `app/generated/prisma/` is generated and ignored by Git.
 - `public/` stores static assets.
 - `tests/` holds unit tests (`*.test.ts`); `.github/workflows/ci.yml` is the CI pipeline.
-- `docs/` holds project documentation; `docs/checklist-deploy.md` lists what must be done before any production deploy (the app currently runs only on localhost).
+- `docs/` holds project documentation; `docs/checklist-deploy.md` records the known gaps of the production deployment (the app is live on Vercel with a Supabase database).
 
 ## Build, Test, and Development Commands
 
@@ -27,7 +27,7 @@ Use strict TypeScript, two-space indentation, and `@/` imports for repository-ro
 
 ## Testing Guidelines
 
-`npm test` runs `tsx --test tests/*.test.ts` using Node's built-in runner (`node:test` with `node:assert/strict`). As of commit `27ffa17` (2026-09-25) there are 85 tests in 20 suites across 8 files; trust the runner output over this number. There is no coverage threshold.
+`npm test` runs `tsx --test tests/*.test.ts` using Node's built-in runner (`node:test` with `node:assert/strict`). As of 2026-11-09 there are 118 tests in 29 suites across 12 files; trust the runner output over this number. There is no coverage threshold.
 
 - Name test files `tests/<topic>.test.ts` (kebab-case) and import from `../lib/...`. Write `describe`/`it` names in Indonesian, matching existing tests.
 - Tests must not touch the database. Keep logic in pure functions in `lib/` and inject dependencies (see `lib/verifikasiLogin.ts`), or pass a minimal fake Prisma client (see `tests/email.test.ts`).

@@ -1,16 +1,43 @@
-# Checklist sebelum deploy production
+# Catatan deployment dan checklist production
 
-> **Belum relevan sekarang.** Per 15 Oktober 2026, Ruang Margin hanya dijalankan di localhost laptop pengembang. Belum ada VPS, domain, atau server production. Dokumen ini untuk dibaca **sebelum deploy sungguhan nanti**. Butir yang sudah ditangani di kode (header keamanan di `next.config.ts`, batas daftar per IP) disebut di bagiannya masing-masing; selebihnya belum dikerjakan.
+> **Status per 10 November 2026:** Ruang Margin sudah live di **Vercel** (https://umkm-solution.vercel.app) dengan basis data PostgreSQL di **Supabase**. Dokumen ini dulu ditulis untuk rencana VPS dengan satu proses Node di belakang nginx. Rencana itu tidak jadi dipakai, jadi isinya disesuaikan dengan keadaan sebenarnya.
 
-Rencana yang diasumsikan kode saat ini: **satu VPS, satu proses Node, di belakang satu reverse proxy nginx.** Asumsi ini dipakai oleh rate limiting (`lib/batasPercobaan.ts`) dan oleh pengaturan pool koneksi (`lib/prisma.ts`). Kalau rencananya berubah, baca bagian 5 dulu.
+Dokumen ini mencatat **apa yang sudah benar, apa yang diketahui belum benar, dan apa yang belum diverifikasi**. Tidak ada butir yang dicentang kecuali sudah benar-benar diperiksa.
 
-## 1. Wajib: nginx menimpa `X-Real-IP`
+## 1. Keadaan sekarang
 
-Rate limiting login dan daftar memakai kunci **IP + email**, dan daftar juga dibatasi **20 per jam per IP** berapa pun emailnya. IP-nya dibaca dari header `X-Real-IP`, dengan cadangan entri terakhir `X-Forwarded-For` (lihat `ipDariHeader()` di `lib/batasPercobaan.ts`).
+| Bagian | Keadaan |
+|---|---|
+| Hosting aplikasi | Vercel (serverless: tiap permintaan bisa dilayani instans yang berbeda) |
+| Basis data | PostgreSQL di Supabase |
+| HTTPS | Aktif (dari Vercel); cookie sesi NextAuth ditandai `Secure` karena `NEXTAUTH_URL` memakai `https://` |
+| CI | GitHub Actions: lint, typecheck, test, build di setiap PR dan push ke `main` |
+| Akun demo juri | Ada, publik, dan dipakai bersama (lihat bagian 5) |
 
-Tanpa reverse proxy, termasuk saat `npm run dev` di localhost, kedua header itu kosong dan semua permintaan berbagi kunci `tanpa-ip`. Akibatnya batas 20 pendaftaran per jam berlaku untuk seluruh server sekaligus. Itu wajar untuk pengembangan, tetapi jadi alasan tambahan butir ini wajib di production.
+## 2. Yang diketahui belum benar: pembatas percobaan masuk
 
-Header itu hanya bisa dipercaya kalau nginx **menimpanya** dengan alamat asli koneksi:
+`lib/batasPercobaan.ts` menyimpan hitungan **di memori proses Node**. Di serverless, tiap instans punya hitungannya sendiri dan hilang saat instans dimatikan, sehingga batas 5 percobaan per 15 menit **praktis tidak berlaku** di Vercel. Hal yang sama berlaku untuk batas daftar 20 per jam per IP (`pembatasDaftarPerIp`). Pembatasan ini tidak boleh dianggap sebagai perlindungan yang aktif.
+
+Yang masih bekerja di sana: kata sandi di-hash dengan bcrypt, pesan galat login seragam, waktu respons login diseragamkan (satu query dan satu `bcrypt.compare`, ada atau tidak akunnya), dan setiap query difilter per `userId`.
+
+**Perbaikannya:** ganti penyimpanan di `lib/batasPercobaan.ts` ke **Redis** atau **tabel Postgres**. Antarmuka `periksa` / `catat` / `hapus` bisa dipertahankan, jadi `lib/verifikasiLogin.ts` dan `app/api/register/route.ts` tidak perlu diubah.
+
+- [ ] Penyimpanan pembatas dipindah ke Redis atau Postgres.
+- [ ] Setelah dipindah: kirim 6 percobaan login gagal untuk email yang sama dan pastikan percobaan ke-6 ditolak dengan "Terlalu banyak percobaan masuk".
+- [ ] Setelah dipindah: kirim 21 percobaan daftar dengan email berbeda dari IP yang sama dan pastikan yang ke-21 mendapat status 429.
+
+## 3. Yang belum diverifikasi: asal alamat IP
+
+Pembatas memakai kunci **IP + email**. IP dibaca dari `X-Real-IP`, dengan cadangan entri **terakhir** `X-Forwarded-For` (`ipDariHeader()` di `lib/batasPercobaan.ts`).
+
+Kode itu ditulis dengan asumsi ada **reverse proxy sendiri (nginx)** yang menimpa `X-Real-IP`. Di Vercel tidak ada nginx buatan tim, dan belum diperiksa header apa yang sebenarnya dipasang platform serta apakah bisa dipercaya. Selama itu belum diperiksa, jangan menganggap IP yang dibaca sudah benar.
+
+- [ ] Periksa dokumentasi Vercel untuk header IP klien dan apakah nilainya ditimpa platform.
+- [ ] Sesuaikan `ipDariHeader()` dengan header yang terbukti dapat dipercaya, lalu perbarui komentarnya.
+
+### Kalau suatu saat pindah ke VPS
+
+Kembali ke rancangan awal: satu proses Node di belakang nginx yang **menimpa** `X-Real-IP`.
 
 ```nginx
 location / {
@@ -22,63 +49,61 @@ location / {
 }
 ```
 
-**Tanpa baris `X-Real-IP`, rate limiting bisa dilewati.** Penyerang cukup mengirim `X-Real-IP` palsu yang berbeda di setiap percobaan, dan setiap nilai mendapat jatah 5 percobaan baru.
+Tanpa baris `X-Real-IP`, pembatas bisa dilewati dengan `X-Real-IP` palsu yang berbeda di tiap percobaan. Tutup juga port Node (3000) dari internet dan buat Node hanya mendengarkan di `127.0.0.1`. Pengaturan pool koneksi di `lib/prisma.ts` juga mengasumsikan satu proses, jadi periksa bagian itu saat pindah.
 
-Hal yang sama berlaku kalau port Node (3000) bisa diakses langsung dari internet tanpa melewati nginx. Tutup port itu di firewall, dan pastikan Node hanya mendengarkan di `127.0.0.1`.
-
-Cara memeriksa setelah deploy: kirim 6 percobaan login gagal untuk email yang sama dengan `X-Real-IP` palsu yang berbeda-beda. Percobaan ke-6 harus tetap ditolak dengan pesan "Terlalu banyak percobaan masuk".
-
-## 2. Wajib: variabel lingkungan production
+## 4. Variabel lingkungan production
 
 | Variabel | Nilai production |
 |---|---|
-| `NEXTAUTH_URL` | domain production lengkap dengan `https://`, misalnya `https://ruangmargin.example`. **Bukan** `http://localhost:3000`. NextAuth memakainya untuk URL callback, dan `lib/api.ts` memakainya sebagai asal aplikasi. |
-| `NEXTAUTH_SECRET` | string acak baru khusus production (`openssl rand -base64 32`). Jangan pakai ulang nilai dari `.env` lokal. |
-| `DATABASE_URL` | database production. Sesuaikan `PRISMA_POOL_MAX`/`PRISMA_POOL_MIN` dengan mode pooler yang dipakai (lihat komentar di `lib/prisma.ts`). |
+| `NEXTAUTH_URL` | `https://umkm-solution.vercel.app` (alamat lengkap dengan `https://`). **Bukan** `http://localhost:3000`. NextAuth memakainya untuk URL callback, dan `lib/api.ts` memakainya sebagai asal aplikasi. |
+| `NEXTAUTH_SECRET` | string acak khusus production (`openssl rand -base64 32`). Jangan pakai ulang nilai dari `.env` lokal. |
+| `DATABASE_URL` | basis data production. Sesuaikan `PRISMA_POOL_MAX`/`PRISMA_POOL_MIN` dengan mode pooler (lihat komentar di `lib/prisma.ts`). Transaction pooler Supabase (port 6543) cocok untuk serverless. |
 
-Jangan pernah meng-commit berkas `.env` production.
+Jangan pernah meng-commit berkas `.env`. Nilai ini diisi lewat pengaturan Environment Variables di Vercel.
 
-## 3. Wajib: Next.js bebas advisory keamanan
+## 5. Akun demo juri
 
-Per 14 Oktober 2026, `next` 16.3.4 terkena beberapa advisory `npm audit`, di antaranya SSRF di Image Optimization (high) dan cache poisoning SSG/ISR untuk aplikasi self-hosted (moderate). Upgrade-nya sengaja ditunda selama aplikasi hanya berjalan di localhost.
+Halaman masuk menampilkan kotak akun demo dengan tombol isi-otomatis. Nilainya ada di `lib/akunDemo.ts`, dan akunnya dibuat atau disegarkan dengan `npm run seed:demo`.
 
-- [ ] Naikkan `next` dan `eslint-config-next` ke versi yang menutup advisory itu (≥ 16.3.8 saat ditulis), lalu uji ulang semua halaman.
+- Kata sandinya **sengaja publik** dan akunnya dipakai bersama, jadi datanya bisa diubah siapa saja. Jangan menyimpan data usaha sungguhan di sana.
+- `npm run seed:demo` menulis ke basis data yang ditunjuk `DATABASE_URL`. Periksa dulu `.env` mengarah ke mana.
+- Skrip ini menghapus dan mengisi ulang data **akun demo saja**. Akun lain tidak disentuh.
+- [ ] Setelah lomba selesai: hapus `<AkunDemoJuri />` dari `components/auth/FormLogin.tsx` dan hapus akun demo dari basis data.
+
+## 6. Migrasi basis data
+
+- [ ] `npx prisma migrate deploy` dijalankan lewat koneksi langsung atau *session pooler* (port 5432), **bukan** transaction pooler (port 6543). Lewat 6543, `prisma migrate` pernah menggantung tanpa keluaran.
+- Catatan: `DIRECT_URL` ada di `.env` tim tetapi **tidak dibaca** `prisma.config.ts`, yang hanya memakai `DATABASE_URL`. Untuk migrasi lewat port 5432, isi `DATABASE_URL` sementara dengan nilai `DIRECT_URL`.
+
+## 7. Sebelum tiap deploy
+
+- [ ] CI hijau untuk commit yang akan di-deploy.
+- [ ] `NEXTAUTH_URL` dan `NEXTAUTH_SECRET` di Vercel berisi nilai production.
+- [x] HTTPS aktif.
+- [ ] Bagian 8: `next` bebas advisory keamanan.
+- [ ] Bagian 9: header keamanan terkirim di production.
+
+## 8. Wajib segera: Next.js bebas advisory keamanan
+
+Per 14 Oktober 2026, `next` 16.3.4 terkena beberapa advisory `npm audit`, di antaranya SSRF di Image Optimization (high) dan cache poisoning SSG/ISR untuk aplikasi self-hosted (moderate). Upgrade-nya dulu ditunda karena aplikasi dikira hanya berjalan di localhost; sekarang aplikasi sudah publik.
+
+- [ ] Naikkan `next` dan `eslint-config-next` ke versi yang menutup advisory itu (16.3.8 atau lebih baru saat ditulis), lalu uji ulang semua halaman.
 - [ ] `npm audit --omit=dev` tidak menyisakan temuan high atau critical di paket runtime. Temuan di CLI `prisma` (`deepmerge-ts`, `mysql2`) tidak ikut berjalan di server; **jangan** jalankan `npm audit fix --force`, karena itu menurunkan Prisma ke 6.
 
-## 4. Wajib: header keamanan untuk HTTPS
+## 9. Header keamanan
 
-`next.config.ts` sudah memasang Content-Security-Policy (termasuk `frame-ancestors 'none'`), `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, dan `Permissions-Policy`, serta mematikan `X-Powered-By`. Dua header sengaja **belum** dipasang karena aplikasi masih berjalan lewat `http://localhost`:
+`next.config.ts` memasang Content-Security-Policy (termasuk `frame-ancestors 'none'` terhadap clickjacking), `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, dan `Permissions-Policy`, serta mematikan `X-Powered-By`.
 
-- `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`. Pasang di nginx atau `next.config.ts` **setelah** HTTPS aktif dan semua subdomain memang HTTPS, karena peramban akan menolak versi HTTP selama dua tahun.
-- `upgrade-insecure-requests` di CSP.
+Dua hal belum diputuskan atau belum diverifikasi:
 
-Cara memeriksa setelah deploy:
+- **HSTS** (`Strict-Transport-Security`) tidak dipasang di kode. Belum diperiksa apakah Vercel sudah mengirimnya untuk domain ini.
+- **`upgrade-insecure-requests`** tidak ada di CSP. Semua aset sudah dari asal yang sama lewat HTTPS, jadi dampaknya kecil.
+
+Cara memeriksa:
 
 ```bash
-curl -sI https://ruangmargin.example/ | grep -iE "content-security|x-frame|strict-transport|x-powered"
+curl -sI https://umkm-solution.vercel.app/ | grep -iE "content-security|x-frame|strict-transport|x-powered"
 ```
 
-`x-powered-by` tidak boleh muncul. Kalau nginx juga menambahkan header keamanan sendiri, pastikan tidak ada header yang terkirim ganda dengan nilai berbeda.
-
-## 5. Pertimbangkan: rate limiting kalau lebih dari satu proses
-
-Rate limiting saat ini **disimpan di memori proses Node**. Konsekuensinya:
-
-- Hitungan hilang setiap kali server dimulai ulang.
-- Kalau aplikasi dijalankan lebih dari satu proses (PM2 cluster, beberapa container, beberapa VPS di belakang load balancer) atau di platform serverless, **setiap proses punya hitungan sendiri**. Batas 5 percobaan per 15 menit dan 20 pendaftaran per jam per IP ikut berlipat sebanyak jumlah proses. Di serverless, batasnya praktis tidak berlaku.
-
-Kalau deployment-nya bukan satu proses, ganti penyimpanan di `lib/batasPercobaan.ts` ke **Redis** atau **tabel Postgres** sebelum go-live. Antarmuka `periksa` / `catat` / `hapus` bisa dipertahankan, jadi `lib/verifikasiLogin.ts` dan `app/api/register/route.ts` tidak perlu diubah.
-
-Asumsi satu proses yang sama juga dipakai pengaturan pool koneksi di `lib/prisma.ts`, jadi periksa juga bagian itu.
-
-## 6. Sebelum dan sesudah deploy
-
-- [ ] `npx prisma migrate deploy` terhadap database production, lewat koneksi langsung atau session pooler (port 5432), bukan transaction pooler (port 6543).
-- [ ] CI hijau untuk commit yang akan di-deploy.
-- [ ] Butir 1 (nginx `X-Real-IP`) sudah dipasang dan diuji.
-- [ ] Butir 2 (`NEXTAUTH_URL`, `NEXTAUTH_SECRET`) sudah diisi nilai production.
-- [ ] Butir 3 (upgrade Next.js, `npm audit`) sudah selesai.
-- [ ] Butir 4 (HSTS, `upgrade-insecure-requests`) dipasang setelah HTTPS aktif, lalu diperiksa dengan `curl`.
-- [ ] Butir 5 sudah diputuskan: tetap satu proses, atau penyimpanan rate limiting sudah dipindah.
-- [ ] Port Node tidak terbuka ke publik. Hanya nginx (80/443) yang terbuka.
-- [ ] HTTPS aktif. Cookie sesi NextAuth otomatis ditandai `Secure` kalau `NEXTAUTH_URL` memakai `https://`.
+- [ ] Header dari `next.config.ts` muncul, dan `x-powered-by` tidak.
+- [ ] `strict-transport-security` muncul. Kalau tidak, tambahkan di `next.config.ts`.

@@ -13,9 +13,9 @@ const isDev = process.env.NODE_ENV === "development";
  * statis. 'unsafe-eval' hanya di `next dev`, dipakai React untuk merakit
  * ulang stack galat server.
  *
- * `upgrade-insecure-requests` dan HSTS sengaja tidak dipasang di sini:
- * aplikasi masih dijalankan lewat http://localhost. Keduanya masuk checklist
- * deploy, dipasang setelah HTTPS aktif.
+ * `upgrade-insecure-requests` dan HSTS belum dipasang di sini. Aplikasi live
+ * di Vercel lewat HTTPS; apakah Vercel sudah mengirim HSTS untuk domain ini
+ * belum diperiksa. Lihat bagian 9 di docs/checklist-deploy.md.
  */
 const kebijakanKonten = [
   "default-src 'self'",
