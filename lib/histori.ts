@@ -16,7 +16,11 @@
 export type RencanaHistori = {
   /** Selalu true kalau harga ikut dikirim: tiap penyimpanan meninggalkan jejak. */
   catatHistori: boolean;
-  /** Nominalnya benar-benar bergeser. Penentu perlu tidaknya HPP dihitung ulang. */
+  /**
+   * Nominalnya benar-benar bergeser, jadi kolom harga bahan ikut ditulis.
+   * Rekalkulasi HPP tidak ditentukan dari sini: harga yang dikirim ulang dengan
+   * nominal sama tetap dihitung ulang (lihat ubahBahanLaluRekalkulasi).
+   */
   hargaBerubah: boolean;
   hargaLama: number;
   hargaBaru: number;

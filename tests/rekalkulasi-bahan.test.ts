@@ -13,6 +13,7 @@ import {
   ubahBahanLaluRekalkulasi,
   type JalankanTransaksi,
 } from "../lib/perubahanBahan";
+import { JUDUL_REKALKULASI_TERTUNDA } from "../lib/notifikasi";
 
 const USER = 7;
 const BAHAN = 3;
@@ -67,7 +68,7 @@ function txTiruan(opsi: {
       deleteMany: catat("notifikasi.deleteMany", () => ({ count: 0 })),
     },
     historiHarga: { create: catat("historiHarga.create", () => ({})) },
-    bahanBaku: { update: catat("bahanBaku.update", () => ({ id: BAHAN })) },
+    bahanBaku: { update: catat("bahanBaku.update", () => ({ id: BAHAN, nama: "Gula" })) },
   };
 
   return {
@@ -259,7 +260,7 @@ type Transaksi = { metode: string[]; commit: boolean };
  * yang berarti tulisannya di-rollback.
  */
 function klienTiruan(produkAda: ProdukRekalkulasi[], gagalCommit: unknown[] = []) {
-  const { tx, metode } = txTiruan({ produk: produkAda });
+  const { tx, metode, panggilan } = txTiruan({ produk: produkAda });
   const transaksi: Transaksi[] = [];
   const jalankanTransaksi: JalankanTransaksi = async (kerja) => {
     const awal = metode().length;
@@ -275,7 +276,36 @@ function klienTiruan(produkAda: ProdukRekalkulasi[], gagalCommit: unknown[] = []
       catatan.metode = metode().slice(awal);
     }
   };
-  return { jalankanTransaksi, transaksi };
+  return { jalankanTransaksi, transaksi, panggilan };
+}
+
+type DataNotifikasi = { data: { judul: string; pesan: string; userId: number }[] };
+
+/**
+ * Pesan notifikasi "belum dihitung ulang" yang ditulis, atau undefined.
+ * Dicari lewat judulnya: rekalkulasi yang gagal pun sempat memanggil
+ * notifikasi.createMany untuk harga otomatis sebelum di-rollback.
+ */
+function pesanNotifikasi(panggilan: Panggilan[]): string | undefined {
+  const tulis = panggilan
+    .filter((p) => p.metode === "notifikasi.createMany")
+    .map((p) => p.args as DataNotifikasi)
+    .filter((a) => a.data[0]?.judul === JUDUL_REKALKULASI_TERTUNDA);
+  if (tulis.length === 0) return undefined;
+  assert.equal(tulis.length, 1);
+  assert.equal(tulis[0].data[0].userId, USER);
+  return tulis[0].data[0].pesan;
+}
+
+/** Bungkam console.error selama `kerja` berjalan; log memang diharapkan. */
+async function tanpaLogGalat<T>(kerja: () => Promise<T>): Promise<T> {
+  const errorAsli = console.error;
+  console.error = () => {};
+  try {
+    return await kerja();
+  } finally {
+    console.error = errorAsli;
+  }
 }
 
 const TANPA_JEDA = { tunggu: async () => {} };
@@ -310,41 +340,88 @@ describe("ubahBahanLaluRekalkulasi", () => {
       galatP2028(),
       galatP2028(),
     ]);
-    const errorAsli = console.error;
-    console.error = () => {};
-    try {
-      const hasil = await ubahBahanLaluRekalkulasi(jalankanTransaksi, perubahan, TANPA_JEDA);
 
-      assert.equal(hasil.rekalkulasi, "tertunda");
-      assert.deepEqual(hasil.bahan, { id: BAHAN });
-    } finally {
-      console.error = errorAsli;
-    }
+    const hasil = await tanpaLogGalat(() =>
+      ubahBahanLaluRekalkulasi(jalankanTransaksi, perubahan, TANPA_JEDA),
+    );
+
+    assert.equal(hasil.rekalkulasi, "tertunda");
+    assert.deepEqual(hasil.bahan, { id: BAHAN, nama: "Gula" });
+    // Harga bahan, tiga rekalkulasi yang gagal, lalu satu notifikasi.
     assert.deepEqual(
       transaksi.map((t) => t.commit),
-      [true, false, false, false],
+      [true, false, false, false, true],
     );
     assert.ok(transaksi[0].metode.includes("bahanBaku.update"));
+    assert.deepEqual(transaksi[4].metode, ["notifikasi.createMany", "notifikasi.deleteMany"]);
   });
 
-  it("rekalkulasi yang P2028 sekali lalu berhasil tetap selesai", async () => {
+  it("notifikasi tertunda menyebut bahannya dan cara mengulang", async () => {
+    const { jalankanTransaksi, panggilan } = klienTiruan(produkTarget, [
+      galatP2028(),
+      galatP2028(),
+      galatP2028(),
+    ]);
+
+    await tanpaLogGalat(() => ubahBahanLaluRekalkulasi(jalankanTransaksi, perubahan, TANPA_JEDA));
+
+    const pesan = pesanNotifikasi(panggilan);
+    assert.ok(pesan?.includes("Harga Gula sudah tersimpan"), pesan);
+    assert.ok(pesan?.includes("Simpan ulang harga Gula"), pesan);
+  });
+
+  it("notifikasi yang ikut gagal ditulis tidak mengubah hasil tertunda", async () => {
+    const { jalankanTransaksi, transaksi } = klienTiruan(produkTarget, [
+      galatP2028(),
+      galatP2028(),
+      galatP2028(),
+      galatP2028(),
+      galatP2028(),
+      galatP2028(),
+    ]);
+
+    const hasil = await tanpaLogGalat(() =>
+      ubahBahanLaluRekalkulasi(jalankanTransaksi, perubahan, TANPA_JEDA),
+    );
+
+    assert.equal(hasil.rekalkulasi, "tertunda");
+    assert.equal(transaksi.length, 7);
+    assert.ok(transaksi.slice(1).every((t) => !t.commit));
+  });
+
+  it("rekalkulasi yang P2028 sekali lalu berhasil tetap selesai tanpa notifikasi", async () => {
     const { jalankanTransaksi, transaksi } = klienTiruan(produkTarget, [galatP2028()]);
 
     const hasil = await ubahBahanLaluRekalkulasi(jalankanTransaksi, perubahan, TANPA_JEDA);
 
     assert.equal(hasil.rekalkulasi, "selesai");
+    // Tidak ada transaksi keempat: notifikasi tertunda tidak ditulis.
     assert.deepEqual(
       transaksi.map((t) => t.commit),
       [true, false, true],
     );
   });
 
-  it("harga yang sama tidak membuka transaksi rekalkulasi", async () => {
+  it("harga yang sama tetap dihitung ulang, supaya rekalkulasi tertunda bisa diulang", async () => {
     const { jalankanTransaksi, transaksi } = klienTiruan(produkTarget);
 
     const hasil = await ubahBahanLaluRekalkulasi(
       jalankanTransaksi,
       { ...perubahan, rencana: rencanaHistoriHarga(50_000, 50_000) },
+      TANPA_JEDA,
+    );
+
+    assert.equal(hasil.rekalkulasi, "selesai");
+    assert.equal(transaksi.length, 2);
+    assert.equal(transaksi[1].metode[0], "produk.findMany");
+  });
+
+  it("tanpa harga, misalnya ganti nama saja, tidak membuka transaksi rekalkulasi", async () => {
+    const { jalankanTransaksi, transaksi } = klienTiruan(produkTarget);
+
+    const hasil = await ubahBahanLaluRekalkulasi(
+      jalankanTransaksi,
+      { ...perubahan, data: { nama: "Gula aren" }, rencana: rencanaHistoriHarga(50_000, undefined) },
       TANPA_JEDA,
     );
 
@@ -361,10 +438,24 @@ describe("ubahBahanLaluRekalkulasi", () => {
       ubahBahanLaluRekalkulasi(jalankanTransaksi, perubahan, TANPA_JEDA),
       PerhitunganHargaTargetError,
     );
+    // Harga bahan, rekalkulasi yang ditolak tanpa tulisan, lalu notifikasi.
     assert.deepEqual(
       transaksi.map((t) => t.commit),
-      [true, false],
+      [true, false, true],
     );
     assert.ok(!transaksi[1].metode.some((m) => TULIS.includes(m)));
+    assert.deepEqual(transaksi[2].metode, ["notifikasi.createMany", "notifikasi.deleteMany"]);
+  });
+
+  it("notifikasi target margin tidak sah menyebut alasannya", async () => {
+    const { jalankanTransaksi, panggilan } = klienTiruan([
+      produk({ id: 1, modePenentuanHarga: "targetMargin", targetMarginPersen: 90 }),
+    ]);
+
+    await assert.rejects(ubahBahanLaluRekalkulasi(jalankanTransaksi, perubahan, TANPA_JEDA));
+
+    const pesan = pesanNotifikasi(panggilan);
+    assert.ok(pesan?.includes("gagal dihitung ulang: Target margin harus antara"), pesan);
+    assert.ok(pesan?.includes("Periksa target margin produknya"), pesan);
   });
 });

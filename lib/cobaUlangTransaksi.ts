@@ -88,7 +88,7 @@ export async function jalankanRekalkulasi(
 
 /** Satu kalimat yang sama untuk route dan Server Action. */
 export const PESAN_REKALKULASI_TERTUNDA =
-  'Harga bahan tersimpan, tetapi harga jual produk yang memakainya belum ikut dihitung ulang karena koneksi ke database lambat. Periksa harga jual di halaman Produk.'
+  'Harga bahan tersimpan, tetapi harga jual produk yang memakainya belum ikut dihitung ulang karena koneksi ke database lambat. Simpan ulang harga bahan ini untuk menghitungnya lagi.'
 
 /** Awalan pesan saat rekalkulasi gagal karena data, setelah harga bahan tersimpan. */
 export const PESAN_HARGA_TERSIMPAN_REKALKULASI_GAGAL =

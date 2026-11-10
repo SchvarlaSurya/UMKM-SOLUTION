@@ -10,6 +10,15 @@ import type { Prisma } from '@/app/generated/prisma/client'
  */
 export const HARI_SIMPAN_NOTIFIKASI = 30
 
+/**
+ * Judul notifikasi yang punya perlakuan khusus di UI. Ditulis sekali di sini
+ * karena penulis dan pembacanya berada di berkas berbeda: modal "harga jual
+ * diperbarui" hanya cocok untuk judul pertama, dan teks yang berbeda satu
+ * huruf saja sudah cukup membuatnya diam-diam tidak muncul.
+ */
+export const JUDUL_HARGA_JUAL_OTOMATIS = 'Harga jual diperbarui otomatis'
+export const JUDUL_REKALKULASI_TERTUNDA = 'Harga jual belum dihitung ulang'
+
 const MS_PER_HARI = 86_400_000
 
 type KlienNotifikasi = Pick<Prisma.TransactionClient, 'notifikasi'>
